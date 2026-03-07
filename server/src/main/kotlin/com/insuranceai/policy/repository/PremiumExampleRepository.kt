@@ -7,4 +7,6 @@ import java.util.UUID
 
 interface PremiumExampleRepository : CoroutineCrudRepository<PremiumExampleEntity, UUID> {
     fun findByProductId(productId: UUID): Flow<PremiumExampleEntity>
+
+    fun findByProductIdIn(productIds: Collection<UUID>): Flow<PremiumExampleEntity>
 }

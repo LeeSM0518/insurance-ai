@@ -7,4 +7,6 @@ import java.util.UUID
 
 interface SurrenderValueRepository : CoroutineCrudRepository<SurrenderValueEntity, UUID> {
     fun findByProductId(productId: UUID): Flow<SurrenderValueEntity>
+
+    fun findByProductIdIn(productIds: Collection<UUID>): Flow<SurrenderValueEntity>
 }

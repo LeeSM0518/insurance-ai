@@ -27,3 +27,83 @@ data class KeywordSearchResult(
     val dataSource: String?,
     val rank: Int,
 )
+
+/** 벡터 검색 결과 */
+data class VectorSearchResult(
+    val articleId: UUID,
+    val productId: UUID,
+    val productName: String,
+    val companyId: UUID,
+    val companyName: String,
+    val insuranceType: String,
+    val contentType: String,
+    val articleNumber: String?,
+    val articleTitle: String?,
+    val content: String,
+    val dataSource: String?,
+    val similarity: Float,
+)
+
+/** RRF 통합 결과 */
+data class FusedSearchResult(
+    val articleId: UUID,
+    val productId: UUID,
+    val productName: String,
+    val companyId: UUID,
+    val companyName: String,
+    val insuranceType: String,
+    val contentType: String,
+    val articleNumber: String?,
+    val articleTitle: String?,
+    val content: String,
+    val dataSource: String?,
+    val relevanceScore: Float,
+    val keywordRank: Int?,
+    val vectorRank: Int?,
+)
+
+/** 검색 API 요청 */
+data class SearchRequest(
+    val query: String,
+    val filters: SearchFilters = SearchFilters(),
+    val page: Int = 0,
+    val size: Int = 20,
+)
+
+/** 검색 API 응답 */
+data class SearchResponse(
+    val query: String,
+    val totalCount: Int,
+    val page: Int,
+    val size: Int,
+    val hasNext: Boolean,
+    val results: List<SearchResultItem>,
+)
+
+/** 검색 결과 항목 */
+data class SearchResultItem(
+    val id: UUID,
+    val insuranceCompany: CompanyInfo,
+    val productId: UUID,
+    val productName: String,
+    val contentType: String,
+    val articleNumber: String?,
+    val articleTitle: String?,
+    val content: String,
+    val highlight: String,
+    val relevanceScore: Float,
+    val dataSource: String?,
+    val supplementary: SupplementaryInfo,
+)
+
+data class CompanyInfo(
+    val id: UUID,
+    val name: String,
+    val type: String,
+)
+
+data class SupplementaryInfo(
+    val hasSurrenderValues: Boolean,
+    val hasPremiumExamples: Boolean,
+    val hasPriceIndices: Boolean,
+)

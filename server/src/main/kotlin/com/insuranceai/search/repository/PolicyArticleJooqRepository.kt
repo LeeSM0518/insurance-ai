@@ -26,6 +26,7 @@ class PolicyArticleJooqRepository(
     private val policyArticles = DSL.table("policy_articles")
     private val products = DSL.table("products")
     private val insuranceCompanies = DSL.table("insurance_companies")
+    private val dataSources = DSL.table("data_sources")
 
     private val paId = DSL.field("policy_articles.id", UUID::class.java)
     private val paProductId = DSL.field("policy_articles.product_id", UUID::class.java)
@@ -44,6 +45,9 @@ class PolicyArticleJooqRepository(
     private val icId = DSL.field("insurance_companies.id", UUID::class.java)
     private val icName = DSL.field("insurance_companies.name", String::class.java)
     private val icType = DSL.field("insurance_companies.type", String::class.java)
+
+    private val dsId = DSL.field("data_sources.id", UUID::class.java)
+    private val dsSourceType = DSL.field("data_sources.source_type", String::class.java)
 
     /**
      * pg_bigm LIKE 기반 키워드 검색.
@@ -70,12 +74,14 @@ class PolicyArticleJooqRepository(
                         paArticleNumber,
                         paArticleTitle,
                         paContent,
-                        paDataSourceId,
+                        dsSourceType,
                     ).from(policyArticles)
                     .join(products)
                     .on(paProductId.eq(pId))
                     .join(insuranceCompanies)
                     .on(pInsuranceCompanyId.eq(icId))
+                    .leftJoin(dataSources)
+                    .on(paDataSourceId.eq(dsId))
                     .where(paContent.likeIgnoreCase(likePattern))
                     .and(paIsActive.eq(true))
 
@@ -109,7 +115,7 @@ class PolicyArticleJooqRepository(
                         articleNumber = record.get(paArticleNumber),
                         articleTitle = record.get(paArticleTitle),
                         content = record.get(paContent)!!,
-                        dataSource = record.get(paDataSourceId)?.toString(),
+                        dataSource = record.get(dsSourceType),
                         rank = index + 1,
                     )
                 }
