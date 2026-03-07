@@ -43,15 +43,15 @@ class PdfParsingService(
         productId: UUID,
         companyName: String,
         productName: String,
+        forceExtract: Boolean = false,
     ): PdfParsingResult {
         log.info("PDF 파싱 시작: {} - {} ({})", companyName, productName, file.name)
 
-        // Phase 1: 텍스트 추출
-        val extraction = pdfTextExtractor.extract(file)
-        log.debug("텍스트 추출 완료: OCR 필요 비율 {}", extraction.ocrRequiredRatio)
+        // 텍스트 캐시 경로 결정
+        val textCachePath = resolveTextCachePath(file)
 
-        // Phase 2: OCR 비율에 따라 분기 처리
-        val finalPages = resolvePages(file, extraction)
+        // 캐시 확인 또는 텍스트 추출
+        val finalPages = loadOrExtractPages(file, textCachePath, forceExtract)
 
         // Phase 3: 구조화 추출
         val structuredData =
@@ -72,6 +72,7 @@ class PdfParsingService(
             DataSourceEntity(
                 sourceType = SourceType.PRODUCT_SUMMARY.name,
                 filePath = file.absolutePath,
+                extractedTextPath = textCachePath.absolutePath,
                 checksum = calculateChecksum(file.readBytes()),
             )
 
@@ -92,6 +93,38 @@ class PdfParsingService(
             factCheckResults = factCheckResults,
             structuredData = structuredData,
         )
+    }
+
+    /** 텍스트 캐시 경로: PDF와 같은 디렉토리의 extracted_text.txt */
+    internal fun resolveTextCachePath(pdfFile: File): File = File(pdfFile.parentFile, "extracted_text.txt")
+
+    /** 캐시 파일이 있으면 로드, 없으면 추출 후 저장 */
+    private suspend fun loadOrExtractPages(
+        pdfFile: File,
+        textCacheFile: File,
+        forceExtract: Boolean = false,
+    ): List<PageExtractionResult> {
+        // 캐시 파일이 존재하고, PDF보다 최신이면 캐시 사용
+        if (!forceExtract &&
+            textCacheFile.exists() &&
+            textCacheFile.lastModified() >= pdfFile.lastModified()
+        ) {
+            log.info("텍스트 캐시 사용: {}", textCacheFile.name)
+            return loadFromTextFile(textCacheFile)
+        }
+
+        // Phase 1: 텍스트 추출
+        val extraction = pdfTextExtractor.extract(pdfFile)
+        log.debug("텍스트 추출 완료: OCR 필요 비율 {}", extraction.ocrRequiredRatio)
+
+        // Phase 2: OCR 분기 처리
+        val finalPages = resolvePages(pdfFile, extraction)
+
+        // 캐시 파일 저장
+        saveToTextFile(finalPages, textCacheFile)
+        log.info("텍스트 캐시 저장: {}", textCacheFile.name)
+
+        return finalPages
     }
 
     /** OCR 비율에 따라 페이지별 텍스트를 최종 확정 */
@@ -136,6 +169,50 @@ class PdfParsingService(
                     }
                 }
             }
+        }
+    }
+
+    private val pageDelimiterPattern = Regex("""--- PAGE (\d+) ---""")
+
+    /** 페이지별 텍스트를 파일로 저장 */
+    internal fun saveToTextFile(
+        pages: List<PageExtractionResult>,
+        file: File,
+    ) {
+        file.parentFile?.mkdirs()
+        file.writeText(
+            pages.joinToString("\n\n") { page ->
+                "--- PAGE ${page.pageNumber} ---\n${page.text}"
+            },
+            Charsets.UTF_8,
+        )
+    }
+
+    /** 텍스트 파일에서 페이지별 텍스트를 로드 */
+    internal fun loadFromTextFile(file: File): List<PageExtractionResult> {
+        val content = file.readText(Charsets.UTF_8)
+        val pageNumbers =
+            pageDelimiterPattern
+                .findAll(content)
+                .map { it.groupValues[1].toInt() }
+                .toList()
+
+        val sections = content.split(pageDelimiterPattern)
+
+        // 첫 split 결과는 구분자 앞의 빈 문자열이므로 drop
+        return pageNumbers.zip(sections.drop(1)).map { (pageNum, text) ->
+            PageExtractionResult(
+                pageNumber = pageNum,
+                text = text.trim(),
+                needsOcr = false,
+                metrics =
+                    PageQualityMetrics(
+                        charCount = text.trim().length,
+                        koreanRatio = 0f,
+                        avgLineLength = 0f,
+                        uniqueCharCount = 0,
+                    ),
+            )
         }
     }
 

@@ -18,6 +18,7 @@ data class DataSourceEntity(
     val filePath: String? = null,
     val crawledAt: Instant = Instant.now(),
     val checksum: String? = null,
+    val extractedTextPath: String? = null,
 ) : Persistable<UUID> {
     override fun getId(): UUID? = id
 
