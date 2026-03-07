@@ -137,8 +137,7 @@ test.describe('AI 상담 통합 화면', () => {
       await page.getByText('삼성생명 암보험 면책기간').click();
       const sourceCard = page.locator('button:has-text("제5조 보장 제외")').first();
       await sourceCard.click();
-      await expect(sourceCard).toHaveClass(/ring-2/);
-      await expect(sourceCard).toHaveClass(/ring-primary/);
+      await expect(sourceCard).toHaveClass(/border-primary/);
     });
 
     test('세션 변경 시 탭이 모두 초기화된다', async ({ page }) => {
