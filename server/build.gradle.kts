@@ -60,6 +60,12 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.13.0")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
 
+    // Playwright (JVM) — 협회 사이트 JS 동적 렌더링
+    implementation("com.microsoft.playwright:playwright:1.52.0")
+
+    // Apache POI — 엑셀 파싱
+    implementation("org.apache.poi:poi-ooxml:5.4.1")
+
     // Cache
     implementation("com.github.ben-manes.caffeine:caffeine")
 
