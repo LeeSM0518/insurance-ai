@@ -63,8 +63,8 @@ dependencies {
     // Playwright (JVM) — 협회 사이트 JS 동적 렌더링
     implementation("com.microsoft.playwright:playwright:1.52.0")
 
-    // Apache POI — 엑셀 파싱
-    implementation("org.apache.poi:poi-ooxml:5.4.1")
+    // Jsoup — HTML 테이블 파싱 (비교공시 .xls 파일이 실제 HTML 형식)
+    implementation("org.jsoup:jsoup:1.18.3")
 
     // Apache PDFBox — PDF 텍스트 추출
     implementation("org.apache.pdfbox:pdfbox:3.0.4")

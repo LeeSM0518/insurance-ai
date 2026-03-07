@@ -1,51 +1,82 @@
 package com.insuranceai.pipeline.crawler
 
 import com.insuranceai.pipeline.config.PipelineConfig
-import com.insuranceai.pipeline.dto.CoverageData
 import com.insuranceai.pipeline.dto.CrawlError
 import com.insuranceai.pipeline.dto.CrawlResult
-import com.insuranceai.pipeline.dto.IndexData
-import com.insuranceai.pipeline.dto.PremiumData
 import com.insuranceai.pipeline.dto.ProductRawData
+import com.insuranceai.pipeline.parser.ComparisonDataParser
 import com.insuranceai.policy.domain.InsuranceType
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.apache.poi.ss.usermodel.Row
-import org.apache.poi.ss.usermodel.WorkbookFactory
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.nio.file.Path
 
+/**
+ * 생명보험협회 비교공시 크롤러
+ *
+ * 비교공시 엑셀 파일(.xls)은 확장자만 .xls이고 실제 HTML 테이블 형식.
+ * Playwright로 다운로드 → Jsoup으로 HTML 파싱.
+ */
 @Component
 class LifeInsuranceCrawler(
     private val crawlerCommon: CrawlerCommon,
     private val config: PipelineConfig,
+    private val comparisonDataParser: ComparisonDataParser,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
     companion object {
         const val BASE_URL = "https://pub.insure.or.kr"
+
+        /**
+         * 카테고리 → (대분류, 소분류 URL 파라미터) 매핑
+         *
+         * 생보협회 비교공시 페이지 구조:
+         * - 보장성보험: /compareDis/prodCompare/assurance/listNew.do
+         * - 저축성보험: /compareDis/prodCompare/saving/list.do
+         * - 변액보험(보장성): /compareDis/variableInsrn/prodCompare/assurance/listNew.do
+         * - 변액보험(저축성): /compareDis/variableInsrn/prodCompare/saving/list.do
+         * - 연금저축: /compareDis/prodCompare/pension/list.do
+         */
         val CATEGORIES =
             listOf(
-                "종신보험",
-                "정기보험",
-                "질병보험",
-                "암보험",
-                "CI보험",
-                "상해보험",
-                "어린이보험",
-                "치아보험",
-                "간병/치매보험",
-                "기타",
-                "저축성보험",
-                "변액보험(보장성)",
-                "변액보험(저축성)",
-                "연금저축",
-                "실손의료보험",
+                // 보장성 보험 소분류
+                CategoryInfo("종신보험", "PROTECTION", "WHOLE_LIFE", "assurance"),
+                CategoryInfo("정기보험", "PROTECTION", "TERM_LIFE", "assurance"),
+                CategoryInfo("질병보험", "PROTECTION", "DISEASE", "assurance"),
+                CategoryInfo("암보험", "PROTECTION", "CANCER", "assurance"),
+                CategoryInfo("CI보험", "PROTECTION", "CI", "assurance"),
+                CategoryInfo("상해보험", "PROTECTION", "ACCIDENT", "assurance"),
+                CategoryInfo("어린이보험", "PROTECTION", "CHILD", "assurance"),
+                CategoryInfo("치아보험", "PROTECTION", "DENTAL", "assurance"),
+                CategoryInfo("간병/치매보험", "PROTECTION", "NURSING", "assurance"),
+                CategoryInfo("기타", "PROTECTION", "OTHER_PROTECTION", "assurance"),
+                // 저축성 보험
+                CategoryInfo("저축성_연금", "SAVINGS", "PENSION_SAVINGS", "saving"),
+                CategoryInfo("저축성_저축", "SAVINGS", "SAVINGS", "saving"),
+                // 변액보험(보장성)
+                CategoryInfo("변액보험_보장성_종신", "VARIABLE_PROTECTION", "WHOLE_LIFE", "variable_assurance"),
+                CategoryInfo("변액보험_보장성_정기", "VARIABLE_PROTECTION", "TERM_LIFE", "variable_assurance"),
+                CategoryInfo("변액보험_보장성_CI", "VARIABLE_PROTECTION", "CI", "variable_assurance"),
+                // 변액보험(저축성)
+                CategoryInfo("변액보험_저축성_연금", "VARIABLE_SAVINGS", "PENSION_SAVINGS", "variable_saving"),
+                CategoryInfo("변액보험_저축성_저축", "VARIABLE_SAVINGS", "SAVINGS", "variable_saving"),
+                // 연금저축
+                CategoryInfo("연금저축", "PENSION", null, "pension"),
+                // 실손의료보험
+                CategoryInfo("실손의료보험", "HEALTH", null, "health"),
             )
     }
+
+    data class CategoryInfo(
+        val displayName: String,
+        val category: String,
+        val subcategory: String?,
+        val urlGroup: String,
+    )
 
     suspend fun crawlAll(categoryFilter: List<String> = emptyList()): CrawlResult {
         val allProducts = mutableListOf<ProductRawData>()
@@ -55,28 +86,28 @@ class LifeInsuranceCrawler(
             if (categoryFilter.isEmpty()) {
                 CATEGORIES
             } else {
-                val invalid = categoryFilter - CATEGORIES.toSet()
-                if (invalid.isNotEmpty()) {
-                    logger.warn("생보 알 수 없는 카테고리 무시: $invalid")
+                CATEGORIES.filter { cat ->
+                    categoryFilter.any { filter ->
+                        cat.displayName.contains(filter) || cat.category == filter || cat.subcategory == filter
+                    }
                 }
-                CATEGORIES.filter { it in categoryFilter }
             }
 
-        for (category in categoriesToCrawl) {
+        for (categoryInfo in categoriesToCrawl) {
             try {
                 val products =
                     crawlerCommon.usePlaywright { browser ->
-                        crawlCategory(browser, category)
+                        crawlCategory(browser, categoryInfo)
                     }
                 allProducts.addAll(products)
-                logger.info("생보 [$category] 크롤링 완료: ${products.size}건")
+                logger.info("생보 [${categoryInfo.displayName}] 크롤링 완료: ${products.size}건")
 
                 if (products.isEmpty()) {
-                    logger.warn("생보 [$category] 수집 건수 0건 — 사이트 구조 변경 확인 필요")
+                    logger.warn("생보 [${categoryInfo.displayName}] 수집 건수 0건 — 사이트 구조 변경 확인 필요")
                 }
             } catch (e: Exception) {
-                allErrors.add(CrawlError(category, null, e.message ?: "", "BROWSER"))
-                logger.error("생보 [$category] 크롤링 실패", e)
+                allErrors.add(CrawlError(categoryInfo.displayName, null, e.message ?: "", "BROWSER"))
+                logger.error("생보 [${categoryInfo.displayName}] 크롤링 실패", e)
             }
             crawlerCommon.randomDelay()
         }
@@ -93,24 +124,25 @@ class LifeInsuranceCrawler(
 
     suspend fun crawlCategory(
         browser: Browser,
-        category: String,
+        categoryInfo: CategoryInfo,
     ): List<ProductRawData> {
         val page = crawlerCommon.createPage(browser)
         return try {
+            // 비교공시 페이지 접근
             crawlerCommon.withRetry {
-                page.navigate("$BASE_URL/pubCompareMvp.do")
+                page.navigate("$BASE_URL/compareDis/prodCompare/${categoryInfo.urlGroup}/listNew.do")
                 page.waitForLoadState()
             }
 
-            // 카테고리 선택 및 검색 (실제 셀렉터는 사이트 확인 후 조정 필요)
-            logger.debug("생보 [$category] 페이지 접근 완료")
+            logger.debug("생보 [${categoryInfo.displayName}] 페이지 접근 완료")
 
-            // 엑셀 다운로드 시도
-            val excelPath = downloadExcel(page, category)
+            // 엑셀 다운로드
+            val excelPath = downloadExcel(page, categoryInfo)
             if (excelPath != null) {
-                parseExcel(excelPath, category)
+                // HTML 테이블로 파싱 (Jsoup)
+                comparisonDataParser.parseFile(excelPath, categoryInfo.category, categoryInfo.subcategory)
             } else {
-                logger.warn("생보 [$category] 엑셀 다운로드 실패")
+                logger.warn("생보 [${categoryInfo.displayName}] 엑셀 다운로드 실패")
                 emptyList()
             }
         } finally {
@@ -120,7 +152,7 @@ class LifeInsuranceCrawler(
 
     suspend fun downloadExcel(
         page: Page,
-        category: String,
+        categoryInfo: CategoryInfo,
     ): Path? =
         withContext(Dispatchers.IO) {
             try {
@@ -128,102 +160,35 @@ class LifeInsuranceCrawler(
                 java.nio.file.Files
                     .createDirectories(downloadDir)
 
-                // 엑셀 다운로드 버튼 클릭 (셀렉터는 실제 사이트 확인 후 조정)
+                // 엑셀 다운로드 버튼 클릭
+                // 생보협회 실제 셀렉터: fn_excelDown() JS 함수 호출 버튼
                 val download =
                     page.waitForDownload {
-                        page.locator("button:has-text('엑셀'), a:has-text('엑셀')").first().click()
+                        // 다양한 셀렉터 시도 (사이트 구조 변경 대응)
+                        val excelButton =
+                            page
+                                .locator(
+                                    "button.btn_excel, " +
+                                        "a.btn_excel, " +
+                                        "button:has-text('엑셀'), " +
+                                        "a:has-text('엑셀'), " +
+                                        "button:has-text('Excel'), " +
+                                        "a:has-text('Excel'), " +
+                                        "[onclick*='excel'], " +
+                                        "[onclick*='Excel']",
+                                ).first()
+                        excelButton.click()
                     }
-                val savePath = downloadDir.resolve("life_${category.replace("/", "_")}.xlsx")
+                val savePath =
+                    downloadDir.resolve(
+                        "life_${categoryInfo.category}_${categoryInfo.subcategory ?: "all"}.xls",
+                    )
                 download.saveAs(savePath)
+                logger.info("생보 [${categoryInfo.displayName}] 엑셀 다운로드 완료: $savePath")
                 savePath
             } catch (e: Exception) {
-                logger.warn("생보 [$category] 엑셀 다운로드 실패: ${e.message}")
+                logger.warn("생보 [${categoryInfo.displayName}] 엑셀 다운로드 실패: ${e.message}")
                 null
             }
         }
-
-    fun parseExcel(
-        excelPath: Path,
-        category: String,
-    ): List<ProductRawData> =
-        try {
-            val workbook = WorkbookFactory.create(excelPath.toFile())
-            val sheet = workbook.getSheetAt(0)
-            val products = mutableListOf<ProductRawData>()
-
-            // 헤더 행 건너뛰기 (첫 번째 행은 보통 헤더)
-            val rows =
-                sheet
-                    .iterator()
-                    .asSequence()
-                    .drop(1)
-                    .toList()
-
-            for (row in rows) {
-                try {
-                    val companyName = row.getCell(0)?.stringCellValue?.trim() ?: continue
-                    val productName = row.getCell(1)?.stringCellValue?.trim() ?: continue
-
-                    if (companyName.isBlank() || productName.isBlank()) continue
-
-                    val rawBytes = "$companyName|$productName|$category".toByteArray()
-                    val checksum = crawlerCommon.calculateChecksum(rawBytes)
-
-                    // 보험료 데이터 파싱 (컬럼 위치는 실제 엑셀 확인 후 조정)
-                    val premiumExamples = parsePremiumColumns(row)
-                    val indices = parseIndexColumns(row)
-                    val coverages = parseCoverageColumns(row)
-
-                    products.add(
-                        ProductRawData(
-                            companyName = companyName,
-                            productName = productName,
-                            category = category,
-                            renewalType = row.getCell(2)?.stringCellValue?.trim(),
-                            coverages = coverages,
-                            premiumExamples = premiumExamples,
-                            indices = indices,
-                            checksum = checksum,
-                            sourceUrl = "$BASE_URL/pubCompareMvp.do",
-                        ),
-                    )
-                } catch (e: Exception) {
-                    logger.warn("생보 [$category] 행 파싱 실패: ${e.message}")
-                }
-            }
-
-            workbook.close()
-            products
-        } catch (e: Exception) {
-            logger.error("생보 [$category] 엑셀 파싱 실패: ${e.message}")
-            emptyList()
-        }
-
-    @Suppress("UnusedParameter")
-    private fun parsePremiumColumns(row: Row): List<PremiumData> {
-        // 실제 엑셀 컬럼 구조에 맞게 조정 필요
-        return emptyList()
-    }
-
-    @Suppress("UnusedParameter")
-    private fun parseIndexColumns(row: Row): List<IndexData> {
-        // 실제 엑셀 컬럼 구조에 맞게 조정 필요
-        return emptyList()
-    }
-
-    @Suppress("UnusedParameter")
-    private fun parseCoverageColumns(row: Row): List<CoverageData> {
-        // 실제 엑셀 컬럼 구조에 맞게 조정 필요
-        return emptyList()
-    }
-
-    @Suppress("UnusedParameter")
-    suspend fun downloadPdfSummaries(
-        page: Page,
-        products: List<ProductRawData>,
-    ): Map<String, Path> {
-        val result = mutableMapOf<String, Path>()
-        // PDF 다운로드 로직 (실제 사이트 확인 후 구현)
-        return result
-    }
 }

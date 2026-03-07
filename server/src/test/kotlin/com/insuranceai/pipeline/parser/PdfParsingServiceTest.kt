@@ -56,8 +56,8 @@ class PdfParsingServiceTest {
         assertEquals(12, entities[0].elapsedMonths)
         assertEquals(1200000L, entities[0].premiumPaid)
         assertEquals(500000L, entities[0].surrenderValue)
-        assertTrue(entities[0].surrenderRate.toDouble() > 41.0)
-        assertTrue(entities[0].surrenderRate.toDouble() < 42.0)
+        assertTrue(entities[0].surrenderRate!!.toDouble() > 41.0)
+        assertTrue(entities[0].surrenderRate!!.toDouble() < 42.0)
     }
 
     @Test

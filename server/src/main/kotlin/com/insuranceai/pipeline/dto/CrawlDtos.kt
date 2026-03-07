@@ -24,12 +24,24 @@ data class ProductRawData(
     val premiumExamples: List<PremiumData> = emptyList(),
     val indices: List<IndexData> = emptyList(),
     val metrics: List<MetricData> = emptyList(),
+    val surrenderValues: List<SurrenderData> = emptyList(),
     val pdfSummaryPath: String? = null,
     val sourceUrl: String? = null,
     val checksum: String,
     val remarks: String? = null,
     val subscriptionType: String? = null,
     val copaymentRate: BigDecimal? = null,
+    val surrenderType: String? = null,
+    val productType: String? = null,
+    val salesStartDate: LocalDate? = null,
+    val isUniversal: Boolean = false,
+    val notes: String? = null,
+    val phone: String? = null,
+    val appliedInterestRate: BigDecimal? = null,
+    val declaredInterestRate: BigDecimal? = null,
+    val guaranteedInterestRate: BigDecimal? = null,
+    val disclosureUrl: String? = null,
+    val expenseRatio: BigDecimal? = null,
 )
 
 data class CoverageData(
@@ -60,6 +72,15 @@ data class MetricData(
     val metricType: String,
     val value: BigDecimal,
     val referenceDate: LocalDate,
+)
+
+data class SurrenderData(
+    val elapsedMonths: Int,
+    val gender: String? = null,
+    val premiumPaid: Long? = null,
+    val surrenderValue: Long,
+    val surrenderRate: BigDecimal? = null,
+    val policyholderReserve: Long? = null,
 )
 
 data class CrawlError(

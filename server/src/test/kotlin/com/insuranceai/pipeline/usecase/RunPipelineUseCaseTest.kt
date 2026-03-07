@@ -412,8 +412,8 @@ class RunPipelineUseCaseTest {
     }
 
     @Test
-    fun `resolveSteps - 둘 다 미지정이면 전체 단계`() {
+    fun `resolveSteps - 둘 다 미지정이면 SUMMARY_PDF 제외 전체 단계`() {
         val options = PipelineOptions()
-        assertEquals(PipelineStep.entries.toSet(), options.resolveSteps())
+        assertEquals(PipelineStep.entries.toSet() - PipelineStep.SUMMARY_PDF, options.resolveSteps())
     }
 }

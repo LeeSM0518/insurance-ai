@@ -6,4 +6,5 @@ enum class PipelineStep {
     VALIDATE,
     PUBLISH,
     EMBED,
+    SUMMARY_PDF,
 }

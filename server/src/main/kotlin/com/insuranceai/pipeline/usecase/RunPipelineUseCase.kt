@@ -31,12 +31,12 @@ data class PipelineOptions(
     val steps: Set<PipelineStep> = emptySet(),
     val batchId: String? = null,
 ) {
-    /** 실행할 단계 결정: steps 명시 > dryRun > 전체 */
+    /** 실행할 단계 결정: steps 명시 > dryRun > 전체 (SUMMARY_PDF는 명시적으로만 실행) */
     fun resolveSteps(): Set<PipelineStep> =
         when {
             steps.isNotEmpty() -> steps
             dryRun -> setOf(PipelineStep.CRAWL, PipelineStep.VALIDATE)
-            else -> PipelineStep.entries.toSet()
+            else -> PipelineStep.entries.toSet() - PipelineStep.SUMMARY_PDF
         }
 }
 

@@ -14,6 +14,7 @@ data class PipelineConfig(
     val dryRun: Boolean = false,
     val steps: List<PipelineStep> = emptyList(),
     val batchId: String? = null,
+    val force: Boolean = false,
 ) {
     data class CrawlConfig(
         val delayMinMs: Long = 2000,

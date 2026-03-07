@@ -65,8 +65,8 @@ class NormalizationServiceTest {
         assertEquals(1, entities.size)
         assertEquals(12, entities[0].elapsedMonths)
         assertEquals(1200000L, entities[0].premiumPaid)
-        assertTrue(entities[0].surrenderRate.toDouble() > 41.0)
-        assertTrue(entities[0].surrenderRate.toDouble() < 42.0)
+        assertTrue(entities[0].surrenderRate!!.toDouble() > 41.0)
+        assertTrue(entities[0].surrenderRate!!.toDouble() < 42.0)
     }
 
     @Test
