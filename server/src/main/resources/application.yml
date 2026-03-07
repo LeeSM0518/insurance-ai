@@ -1,3 +1,18 @@
 spring:
   application:
     name: insurance-ai
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  r2dbc:
+    url: ${DATABASE_URL:r2dbc:postgresql://localhost:5432/insurance_ai}
+    username: ${DATABASE_USERNAME:insurance}
+    password: ${DATABASE_PASSWORD:password}
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080

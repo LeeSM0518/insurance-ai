@@ -1,6 +1,7 @@
 plugins {
     id("org.springframework.boot") version "3.5.11"
     id("io.spring.dependency-management") version "1.1.7"
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
     kotlin("jvm") version "2.3.10"
     kotlin("plugin.spring") version "2.3.10"
 }
@@ -20,7 +21,7 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom("org.springframework.ai:spring-ai-bom:1.1.1")
+        mavenBom("org.springframework.ai:spring-ai-bom:1.1.2")
     }
 }
 
@@ -50,13 +51,13 @@ dependencies {
     runtimeOnly("org.postgresql:postgresql")
 
     // jOOQ
-    implementation("org.jooq:jooq:3.20.4")
-    implementation("org.jooq:jooq-kotlin-coroutines:3.20.4")
+    implementation("org.jooq:jooq:3.20.8")
+    implementation("org.jooq:jooq-kotlin-coroutines:3.20.8")
 
     // JWT
-    implementation("io.jsonwebtoken:jjwt-api:0.12.6")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+    implementation("io.jsonwebtoken:jjwt-api:0.13.0")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.13.0")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
 
     // Cache
     implementation("com.github.ben-manes.caffeine:caffeine")
@@ -66,6 +67,13 @@ dependencies {
 
     // Rate Limit
     implementation("com.bucket4j:bucket4j-core:8.10.1")
+
+    // Netty DNS resolver (macOS arm64)
+    if (System.getProperty("os.name").lowercase().contains("mac") &&
+        System.getProperty("os.arch").lowercase().contains("aarch64")
+    ) {
+        runtimeOnly("io.netty:netty-resolver-dns-native-macos:4.1.100.Final:osx-aarch_64")
+    }
 
     // Env
     implementation("me.paulschwarz:spring-dotenv:4.0.0")
@@ -86,6 +94,7 @@ dependencies {
     testImplementation("org.testcontainers:r2dbc")
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.flywaydb.flyway:flyway-spring-test:10.0.0")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 kotlin {
@@ -96,5 +105,17 @@ kotlin {
 }
 
 tasks.withType<Test> {
+    dependsOn("ktlintFormat")
     useJUnitPlatform()
+}
+
+// KtLint 설정
+ktlint {
+    version.set("1.5.0")
+    android.set(false)
+    ignoreFailures.set(false)
+    filter {
+        exclude("**/generated/**")
+        exclude("**/jooq/**")
+    }
 }
