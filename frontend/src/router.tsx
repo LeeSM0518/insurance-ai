@@ -10,7 +10,6 @@ const SearchPage = lazy(() => import('@/pages/search'));
 const SearchResultsPage = lazy(() => import('@/pages/search-results'));
 const ChatPage = lazy(() => import('@/pages/chat'));
 const PolicyDetailPage = lazy(() => import('@/pages/policy-detail'));
-const MyPage = lazy(() => import('@/pages/my'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const router = createBrowserRouter([
@@ -51,10 +50,6 @@ export const router = createBrowserRouter([
           {
             path: '/policies/:articleId',
             Component: PolicyDetailPage,
-          },
-          {
-            path: '/my',
-            Component: MyPage,
           },
         ],
       },

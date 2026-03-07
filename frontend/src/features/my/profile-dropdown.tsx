@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, FileText, Lock, Info, LogOut } from 'lucide-react';
+import { User, FileText, Lock, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import {
   DropdownMenu,
@@ -7,7 +7,6 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -20,8 +19,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-
-const APP_VERSION = '0.1.0';
 
 export function ProfileDropdown() {
   const { user, logout } = useAuth();
@@ -72,11 +69,6 @@ export function ProfileDropdown() {
             >
               <Lock className="h-4 w-4" aria-hidden="true" />
               개인정보처리방침
-            </DropdownMenuItem>
-            <DropdownMenuItem disabled>
-              <Info className="h-4 w-4" aria-hidden="true" />
-              앱 버전
-              <DropdownMenuShortcut>v{APP_VERSION}</DropdownMenuShortcut>
             </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
