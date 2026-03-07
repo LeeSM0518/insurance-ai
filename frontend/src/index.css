@@ -112,6 +112,23 @@
   --spacing-header: 48px;
   --spacing-header-desktop: 64px;
 
+  /* === 도메인 특화 색상 === */
+  --color-chat-user-bg: var(--chat-user-bg);
+  --color-chat-ai-bg: var(--chat-ai-bg);
+  --color-source-card-bg: var(--source-card-bg);
+  --color-relevance-high: var(--relevance-high);
+  --color-relevance-mid: var(--relevance-mid);
+  --color-relevance-low: var(--relevance-low);
+  --color-kakao-yellow: var(--kakao-yellow);
+  --color-kakao-brown: var(--kakao-brown);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+
+  /* === 애니메이션 === */
+  --animate-blink: blink 1s step-end infinite;
+  --animate-shimmer: shimmer 1.5s ease-in-out infinite;
+
   /* === Box Shadow === */
   --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
   --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
@@ -129,5 +146,27 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  /* 한글 최적 Typography (기획서 §2.2) */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+}
+
+@layer utilities {
+  /* 터치 타겟 최소 44x44px (기획서 §3.4) */
+  .touch-target {
+    @apply min-h-11 min-w-11;
   }
 }

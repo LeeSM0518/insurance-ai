@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router';
 import { lazy } from 'react';
+import { AppLayoutRoute } from '@/components/layout/app-layout-route';
 
 // 페이지 lazy loading (기획서 05 §8.1)
 const LoginPage = lazy(() => import('@/pages/login'));
@@ -13,7 +14,7 @@ const MyPage = lazy(() => import('@/pages/my'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const router = createBrowserRouter([
-  // 인증 불필요 라우트
+  // 인증 불필요 (레이아웃 없음)
   {
     path: '/login',
     Component: LoginPage,
@@ -23,30 +24,35 @@ export const router = createBrowserRouter([
     Component: AuthCallbackPage,
   },
 
-  // 인증 필요 라우트 (Step 5에서 ProtectedRoute 래핑 추가)
+  // 인증 필요 (AppLayout 적용, Step 5에서 ProtectedRoute 추가)
   {
-    path: '/',
-    Component: SearchPage,
-  },
-  {
-    path: '/search',
-    Component: SearchResultsPage,
-  },
-  {
-    path: '/chat',
-    Component: ChatListPage,
-  },
-  {
-    path: '/chat/:sessionId',
-    Component: ChatPage,
-  },
-  {
-    path: '/policies/:articleId',
-    Component: PolicyDetailPage,
-  },
-  {
-    path: '/my',
-    Component: MyPage,
+    Component: AppLayoutRoute,
+    children: [
+      {
+        path: '/',
+        Component: SearchPage,
+      },
+      {
+        path: '/search',
+        Component: SearchResultsPage,
+      },
+      {
+        path: '/chat',
+        Component: ChatListPage,
+      },
+      {
+        path: '/chat/:sessionId',
+        Component: ChatPage,
+      },
+      {
+        path: '/policies/:articleId',
+        Component: PolicyDetailPage,
+      },
+      {
+        path: '/my',
+        Component: MyPage,
+      },
+    ],
   },
 
   // 404
