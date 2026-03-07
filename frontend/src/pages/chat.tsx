@@ -24,7 +24,7 @@ const MAX_TABS = 5;
 
 export default function ChatPage() {
   const isDesktop = useMediaQuery('(min-width: 1025px)');
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSessionId, setActiveSessionId] = useLocalStorage<string | null>('chat-active-session', null);
   const [sessions, setSessions] = useState<ChatSession[]>(MOCK_SESSIONS);
   const [sidebarOpen, setSidebarOpen] = useLocalStorage('chat-sidebar-open', isDesktop);
   const [openTabs, setOpenTabs] = useState<SourceTab[]>([]);
