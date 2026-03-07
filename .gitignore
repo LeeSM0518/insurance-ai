@@ -201,3 +201,5 @@ db-test-worker-*
 .env
 
 .playwright-mcp
+
+data/
