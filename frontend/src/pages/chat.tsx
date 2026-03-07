@@ -10,6 +10,7 @@ import { SourceTabPanel } from '@/features/chat/source-tab-panel';
 import type { SourceTab } from '@/features/chat/source-tab-panel';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useMediaQuery } from '@/hooks/use-media-query';
+import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useResizeHandle } from '@/hooks/use-resize-handle';
 import { MOCK_SESSIONS, MOCK_MESSAGES } from '@/mocks/chat-data';
 import { toast } from 'sonner';
@@ -25,10 +26,10 @@ export default function ChatPage() {
   const isDesktop = useMediaQuery('(min-width: 1025px)');
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>(MOCK_SESSIONS);
-  const [sidebarOpen, setSidebarOpen] = useState(isDesktop);
+  const [sidebarOpen, setSidebarOpen] = useLocalStorage('chat-sidebar-open', isDesktop);
   const [openTabs, setOpenTabs] = useState<SourceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
-  const [sourcePanelWidth, setSourcePanelWidth] = useState(SOURCE_PANEL_DEFAULT);
+  const [sourcePanelWidth, setSourcePanelWidth] = useLocalStorage('chat-source-panel-width', SOURCE_PANEL_DEFAULT);
 
   const handleSourceResize = useCallback((width: number) => {
     setSourcePanelWidth(width);
