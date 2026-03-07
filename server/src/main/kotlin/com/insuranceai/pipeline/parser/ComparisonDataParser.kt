@@ -2,6 +2,7 @@ package com.insuranceai.pipeline.parser
 
 import com.insuranceai.pipeline.crawler.CrawlerCommon
 import com.insuranceai.pipeline.dto.CoverageData
+import com.insuranceai.pipeline.dto.FeatureData
 import com.insuranceai.pipeline.dto.IndexData
 import com.insuranceai.pipeline.dto.PremiumData
 import com.insuranceai.pipeline.dto.ProductRawData
@@ -30,6 +31,7 @@ class ComparisonDataParser(
         filePath: Path,
         category: String,
         subcategory: String?,
+        warningCollector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val mapping =
             ExcelParserConfig.findMapping(filePath.fileName.toString())
@@ -46,14 +48,22 @@ class ComparisonDataParser(
 
             val sourceUrl = resolveSourceUrl(mapping)
 
-            when (mapping.parserType) {
-                ExcelParserConfig.ParserType.PROTECTION -> parseProtection(table, mapping, sourceUrl)
-                ExcelParserConfig.ParserType.SAVINGS -> parseSavings(table, mapping, sourceUrl)
-                ExcelParserConfig.ParserType.VARIABLE_PROTECTION -> parseVariableProtection(table, mapping, sourceUrl)
-                ExcelParserConfig.ParserType.VARIABLE_SAVINGS -> parseVariableSavings(table, mapping, sourceUrl)
-                ExcelParserConfig.ParserType.PENSION -> parsePension(table, mapping, sourceUrl)
-                ExcelParserConfig.ParserType.HEALTH -> parseHealth(table, mapping, sourceUrl)
+            val products =
+                when (mapping.parserType) {
+                    ExcelParserConfig.ParserType.PROTECTION -> parseProtection(table, mapping, sourceUrl, warningCollector)
+                    ExcelParserConfig.ParserType.SAVINGS -> parseSavings(table, mapping, sourceUrl, warningCollector)
+                    ExcelParserConfig.ParserType.VARIABLE_PROTECTION -> parseVariableProtection(table, mapping, sourceUrl, warningCollector)
+                    ExcelParserConfig.ParserType.VARIABLE_SAVINGS -> parseVariableSavings(table, mapping, sourceUrl, warningCollector)
+                    ExcelParserConfig.ParserType.PENSION -> parsePension(table, mapping, sourceUrl, warningCollector)
+                    ExcelParserConfig.ParserType.HEALTH -> parseHealth(table, mapping, sourceUrl, warningCollector)
+                }
+
+            // 파일 단위 집계 로깅 (WARN)
+            if (warningCollector.failureCount > 0) {
+                logger.warn("파싱 경고 [{}]: {}", filePath.fileName, warningCollector.summary())
             }
+
+            products
         } catch (e: Exception) {
             logger.error("파일 파싱 실패: ${filePath.fileName} — ${e.message}", e)
             emptyList()
@@ -100,6 +110,7 @@ class ComparisonDataParser(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val headers = table.headers
 
@@ -123,7 +134,7 @@ class ComparisonDataParser(
         return grouped.mapNotNull { (key, rows) ->
             try {
                 val (companyName, productName) = key.split("|", limit = 2)
-                buildProtectionProduct(companyName, productName, rows, headers, mapping, sourceUrl)
+                buildProtectionProduct(companyName, productName, rows, headers, mapping, sourceUrl, collector)
             } catch (e: Exception) {
                 logger.warn("보장성 상품 파싱 실패: $key — ${e.message}")
                 null
@@ -138,48 +149,99 @@ class ComparisonDataParser(
         headers: List<String>,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): ProductRawData {
         val firstRow = rows.first()
+        val context = "$companyName|$productName"
 
         // 담보(보장내용) 추출
         val coverages = rows.mapNotNull { row -> extractCoverage(row, headers) }
 
-        // 공통 필드
-        val renewalType = ValueCleaner.cleanRenewalType(findValue(firstRow, headers, "갱신"))
-        val salesChannel = findValue(firstRow, headers, "판매채널")
+        // 공통 필드 — 갱신여부: "갱신여부" 우선 → "갱신주기" → "갱신" fallback
+        val renewalType =
+            ValueCleaner.cleanRenewalType(
+                findValue(firstRow, headers, "갱신여부")
+                    ?: findValue(firstRow, headers, "갱신주기")
+                    ?: findValue(firstRow, headers, "갱신"),
+            )
+        // 채널: "판매채널" → "채널" fallback
+        val salesChannel =
+            findValue(firstRow, headers, "판매채널")
+                ?: findValue(firstRow, headers, "채널")
         val salesDate =
-            ValueCleaner.cleanDate(findValue(firstRow, headers, "판매일자"))
-                ?: ValueCleaner.cleanDate(findValue(firstRow, headers, "판매개시"))
+            collector.collectOrNull(
+                ValueCleaner.parseDate(findValue(firstRow, headers, "판매일자")),
+                field = "salesStartDate",
+                context = context,
+            ) ?: collector.collectOrNull(
+                ValueCleaner.parseDate(findValue(firstRow, headers, "판매개시")),
+                field = "salesStartDate",
+                context = context,
+            )
         val notes = findValue(firstRow, headers, "특이사항")
         val phone = ValueCleaner.cleanPhone(findValue(firstRow, headers, "대표번호"))
         val surrenderType = ValueCleaner.cleanSurrenderType(findValue(firstRow, headers, "해약환급금"))
 
         // 보험료 추출 (특이사항에서 비교 기준 조건 추출)
-        val premiums = extractPremiums(firstRow, headers, notes)
+        val premiums = extractPremiums(firstRow, headers, notes, mapping.subcategory, collector, context)
 
         // 지수 추출
-        val indices = extractIndices(firstRow, headers, mapping.subcategory)
+        val indices = extractIndices(firstRow, headers, mapping.subcategory, rows, collector, context)
 
-        // 선택적 컬럼: 이율 (종신/정기만)
+        // 선택적 컬럼: 이율 (생보 종신/정기 + 손보 보장성 PB* 전체)
+        val hasInterestRate =
+            mapping.subcategory in ExcelParserConfig.ProtectionOptionalColumns.HAS_INTEREST_RATE ||
+                mapping.subcategory?.startsWith("PB") == true
         val appliedRate =
-            if (mapping.subcategory in ExcelParserConfig.ProtectionOptionalColumns.HAS_INTEREST_RATE) {
-                ValueCleaner.cleanDecimal(findValue(firstRow, headers, "확정이율"))
-                    ?: ValueCleaner.cleanDecimal(findValue(firstRow, headers, "예정이율"))
+            if (hasInterestRate) {
+                collector.collectOrNull(
+                    ValueCleaner.parseDecimal(findValue(firstRow, headers, "확정이율")),
+                    field = "appliedInterestRate",
+                    context = context,
+                ) ?: collector.collectOrNull(
+                    ValueCleaner.parseDecimal(findValue(firstRow, headers, "예정이율")),
+                    field = "appliedInterestRate",
+                    context = context,
+                )
             } else {
                 null
             }
         val declaredRate =
-            if (mapping.subcategory in ExcelParserConfig.ProtectionOptionalColumns.HAS_INTEREST_RATE) {
-                ValueCleaner.cleanDecimal(findValue(firstRow, headers, "공시이율"))
+            if (hasInterestRate) {
+                collector.collectOrNull(
+                    ValueCleaner.parseDecimal(findValue(firstRow, headers, "공시이율")),
+                    field = "declaredInterestRate",
+                    context = context,
+                )
             } else {
                 null
             }
         val guaranteedRate =
-            if (mapping.subcategory in ExcelParserConfig.ProtectionOptionalColumns.HAS_INTEREST_RATE) {
-                ValueCleaner.cleanDecimal(findValue(firstRow, headers, "최저보증이율"))
+            if (hasInterestRate) {
+                ValueCleaner.parseGuaranteedRate(findValue(firstRow, headers, "최저보증이율"))
+                    ?: collector.collectOrNull(
+                        ValueCleaner.parseDecimal(findValue(firstRow, headers, "최저보증이율")),
+                        field = "guaranteedInterestRate",
+                        context = context,
+                    )
             } else {
                 null
             }
+
+        // 선택적 컬럼: 경도치매 (PB16)
+        val features = mutableListOf<FeatureData>()
+        if (mapping.subcategory in ExcelParserConfig.ProtectionOptionalColumns.HAS_MILD_DEMENTIA) {
+            val mildDementia =
+                findValue(firstRow, headers, "경도치매보장여부")
+                    ?: findValue(firstRow, headers, "경도치매")
+            if (mildDementia != null) {
+                features.add(FeatureData("MILD_DEMENTIA_COVERED", mildDementia))
+            }
+            val dementiaBenefit = findValue(firstRow, headers, "진단급여금")
+            if (dementiaBenefit != null) {
+                features.add(FeatureData("MILD_DEMENTIA_BENEFIT", dementiaBenefit))
+            }
+        }
 
         val rawContent = rows.joinToString("|") { it.joinToString(",") }
         val checksum = crawlerCommon.calculateChecksum(rawContent.toByteArray())
@@ -194,6 +256,7 @@ class ComparisonDataParser(
             coverages = coverages,
             premiumExamples = premiums,
             indices = indices,
+            features = features,
             checksum = checksum,
             surrenderType = surrenderType,
             productType = findValue(firstRow, headers, "상품특징"),
@@ -251,6 +314,9 @@ class ComparisonDataParser(
         row: List<String>,
         headers: List<String>,
         notes: String? = null,
+        subcategory: String? = null,
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
+        context: String = "",
     ): List<PremiumData> {
         val premiums = mutableListOf<PremiumData>()
 
@@ -262,12 +328,20 @@ class ComparisonDataParser(
             HtmlExcelParser.findColumnIndex(headers, "여자")
                 ?: HtmlExcelParser.findColumnIndex(headers, "여")
 
-        val insuranceAmount = amountIdx?.let { ValueCleaner.cleanAmount(row.getOrElse(it) { "" }) } ?: 0L
+        val insuranceAmount =
+            amountIdx?.let {
+                val raw = row.getOrElse(it) { "" }
+                collector.collectOrNull(
+                    ValueCleaner.parseAmount(raw),
+                    field = "insuranceAmount",
+                    context = context,
+                ) ?: 0L
+            } ?: 0L
 
         // 특이사항에서 보험료 비교 기준 조건 추출
         val conditions =
             try {
-                extractPremiumConditions(notes)
+                extractPremiumConditions(notes, subcategory)
             } catch (e: ParsingException) {
                 logger.warn("보험료 기준 조건 추출 실패: ${e.message}")
                 return emptyList()
@@ -313,22 +387,27 @@ class ComparisonDataParser(
         row: List<String>,
         headers: List<String>,
         subcategory: String?,
+        allRows: List<List<String>> = listOf(row),
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
+        context: String = "",
     ): List<IndexData> {
         val indices = mutableListOf<IndexData>()
         val today = LocalDate.now()
 
         // 보험가격지수
-        extractGenderIndex(row, headers, "보험가격지수", "PRICE", today)?.let { indices.addAll(it) }
+        extractGenderIndex(row, headers, "보험가격지수", "PRICE", today, collector, context)?.let { indices.addAll(it) }
 
         // 부가보험료지수
-        extractGenderIndex(row, headers, "부가보험료지수", "EXTRA_PREMIUM", today)?.let { indices.addAll(it) }
+        extractGenderIndex(row, headers, "부가보험료지수", "EXTRA_PREMIUM", today, collector, context)?.let { indices.addAll(it) }
 
         // 계약체결비용지수
-        extractGenderIndex(row, headers, "계약체결비용지수", "CONTRACT_COST", today)?.let { indices.addAll(it) }
+        extractGenderIndex(row, headers, "계약체결비용지수", "CONTRACT_COST", today, collector, context)?.let { indices.addAll(it) }
 
-        // 보장범위지수 (암보험만)
+        // 보장범위지수 (암보험 — PB22는 다중 행에 걸쳐 있을 수 있음)
         if (subcategory in ExcelParserConfig.ProtectionOptionalColumns.HAS_COVERAGE_INDEX) {
-            extractGenderIndex(row, headers, "보장범위지수", "COVERAGE", today)?.let { indices.addAll(it) }
+            for (r in allRows) {
+                extractGenderIndex(r, headers, "보장범위지수", "COVERAGE", today, collector, context)?.let { indices.addAll(it) }
+            }
         }
 
         return indices
@@ -341,13 +420,20 @@ class ComparisonDataParser(
         indexKeyword: String,
         indexType: String,
         baseDate: LocalDate,
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
+        context: String = "",
     ): List<IndexData>? {
         val matchingIndices = HtmlExcelParser.findColumnIndices(headers, indexKeyword)
         if (matchingIndices.isEmpty()) return null
 
         val result = mutableListOf<IndexData>()
         for (idx in matchingIndices) {
-            val value = ValueCleaner.cleanDecimal(row.getOrElse(idx) { "" }) ?: continue
+            val value =
+                collector.collectOrNull(
+                    ValueCleaner.parseDecimal(row.getOrElse(idx) { "" }),
+                    field = indexType,
+                    context = context,
+                ) ?: continue
             val header = headers[idx]
             val gender =
                 when {
@@ -367,6 +453,7 @@ class ComparisonDataParser(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val headers = table.headers
         val companyIdx =
@@ -387,7 +474,7 @@ class ComparisonDataParser(
         return grouped.mapNotNull { (key, rows) ->
             try {
                 val (companyName, productName) = key.split("|", limit = 2)
-                buildSavingsProduct(companyName, productName, rows, headers, mapping, sourceUrl)
+                buildSavingsProduct(companyName, productName, rows, headers, mapping, sourceUrl, collector)
             } catch (e: Exception) {
                 logger.warn("저축성 상품 파싱 실패: $key — ${e.message}")
                 null
@@ -402,16 +489,35 @@ class ComparisonDataParser(
         headers: List<String>,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): ProductRawData {
         val firstRow = rows.first()
+        val context = "$companyName|$productName"
 
         // 해약환급금/계약자적립액 추출 (유지기간별)
-        val surrenderValues = extractSurrenderValues(firstRow, headers)
+        // 손보 저축성/연금: 행(세로) 방향 유지기간 → rows 전체 순회
+        val surrenderValues = extractSurrenderValuesWithRows(rows, headers)
 
         // 이율 정보
-        val declaredRate = ValueCleaner.cleanDecimal(findValue(firstRow, headers, "공시이율"))
-        val guaranteedRate = ValueCleaner.cleanDecimal(findValue(firstRow, headers, "최저보증이율"))
-        val expenseRatio = ValueCleaner.cleanDecimal(findValue(firstRow, headers, "사업비"))
+        val declaredRate =
+            collector.collectOrNull(
+                ValueCleaner.parseDecimal(findValue(firstRow, headers, "공시이율")),
+                field = "declaredInterestRate",
+                context = context,
+            )
+        val guaranteedRate =
+            ValueCleaner.parseGuaranteedRate(findValue(firstRow, headers, "최저보증이율"))
+                ?: collector.collectOrNull(
+                    ValueCleaner.parseDecimal(findValue(firstRow, headers, "최저보증이율")),
+                    field = "guaranteedInterestRate",
+                    context = context,
+                )
+        val expenseRatio =
+            collector.collectOrNull(
+                ValueCleaner.parseDecimal(findValue(firstRow, headers, "사업비")),
+                field = "expenseRatio",
+                context = context,
+            )
 
         val rawContent = rows.joinToString("|") { it.joinToString(",") }
         val checksum = crawlerCommon.calculateChecksum(rawContent.toByteArray())
@@ -421,12 +527,24 @@ class ComparisonDataParser(
             productName = productName,
             category = mapping.category,
             subcategory = mapping.subcategory,
-            renewalType = ValueCleaner.cleanRenewalType(findValue(firstRow, headers, "갱신")),
-            salesChannel = findValue(firstRow, headers, "판매채널"),
+            renewalType =
+                ValueCleaner.cleanRenewalType(
+                    findValue(firstRow, headers, "갱신여부")
+                        ?: findValue(firstRow, headers, "갱신주기")
+                        ?: findValue(firstRow, headers, "갱신"),
+                ),
+            salesChannel =
+                findValue(firstRow, headers, "판매채널")
+                    ?: findValue(firstRow, headers, "채널"),
             surrenderValues = surrenderValues,
             checksum = checksum,
             surrenderType = ValueCleaner.cleanSurrenderType(findValue(firstRow, headers, "해약환급금")),
-            salesStartDate = ValueCleaner.cleanDate(findValue(firstRow, headers, "판매일자")),
+            salesStartDate =
+                collector.collectOrNull(
+                    ValueCleaner.parseDate(findValue(firstRow, headers, "판매일자")),
+                    field = "salesStartDate",
+                    context = context,
+                ),
             isUniversal = ValueCleaner.isUniversal(productName),
             notes = findValue(firstRow, headers, "특이사항"),
             phone = ValueCleaner.cleanPhone(findValue(firstRow, headers, "대표번호")),
@@ -477,6 +595,53 @@ class ComparisonDataParser(
         return result
     }
 
+    /**
+     * 유지기간별 해약환급금/계약자적립액 추출 (행 방향 포함)
+     *
+     * 생보: 유지기간별 컬럼(가로) — 기존 extractSurrenderValues 로직
+     * 손보: 유지기간별 행(세로) — "경과기간" 또는 "유지기간" 컬럼이 있으면 행 방향으로 추출
+     */
+    private fun extractSurrenderValuesWithRows(
+        rows: List<List<String>>,
+        headers: List<String>,
+    ): List<SurrenderData> {
+        // "경과기간" 또는 "유지기간" 컬럼이 있으면 행 방향 데이터
+        val elapsedIdx =
+            HtmlExcelParser.findColumnIndex(headers, "경과기간")
+                ?: HtmlExcelParser.findColumnIndex(headers, "유지기간")
+
+        if (elapsedIdx != null) {
+            // 손보 행 방향: rows 전체 순회
+            val result = mutableListOf<SurrenderData>()
+            val surrenderIdx = HtmlExcelParser.findColumnIndex(headers, "해약환급금")
+            val reserveIdx = HtmlExcelParser.findColumnIndex(headers, "계약자적립액")
+
+            for (row in rows) {
+                val elapsedText = row.getOrElse(elapsedIdx) { "" }.trim()
+                // "조회된 데이터가 없습니다." 등 무의미 행 스킵 (ISSUE-9)
+                if (elapsedText.isBlank() || elapsedText.contains("조회된") || elapsedText.contains("데이터가 없")) {
+                    continue
+                }
+                val months = ValueCleaner.parseElapsedMonths(elapsedText) ?: continue
+                val surrenderValue = surrenderIdx?.let { ValueCleaner.cleanAmount(row.getOrElse(it) { "" }) } ?: continue
+                val reserveValue = reserveIdx?.let { ValueCleaner.cleanAmount(row.getOrElse(it) { "" }) }
+
+                result.add(
+                    SurrenderData(
+                        elapsedMonths = months,
+                        gender = null,
+                        surrenderValue = surrenderValue,
+                        policyholderReserve = reserveValue,
+                    ),
+                )
+            }
+            return result
+        }
+
+        // 생보 컬럼 방향: 기존 로직 (firstRow 기반)
+        return if (rows.isNotEmpty()) extractSurrenderValues(rows.first(), headers) else emptyList()
+    }
+
     /** 헤더에서 유지기간(개월 수) 추출 */
     private fun extractMonthsFromHeader(header: String): Int? {
         // "3년" → 36, "6개월" → 6
@@ -520,7 +685,8 @@ class ComparisonDataParser(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
-    ): List<ProductRawData> = parseProtection(table, mapping, sourceUrl)
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
+    ): List<ProductRawData> = parseProtection(table, mapping, sourceUrl, collector)
 
     // ============================================================
     // 변액저축성 보험 (2파일) — SAVINGS 유사 + PDF URL
@@ -529,8 +695,9 @@ class ComparisonDataParser(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
-        val products = parseSavings(table, mapping, sourceUrl)
+        val products = parseSavings(table, mapping, sourceUrl, collector)
 
         // 변액저축성만 PDF URL이 HTML <a> 태그로 존재할 수 있음
         // (이미 Jsoup 파싱 시 텍스트로 추출됨 — URL은 별도 처리 필요)
@@ -544,7 +711,8 @@ class ComparisonDataParser(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
-    ): List<ProductRawData> = parseSavings(table, mapping, sourceUrl)
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
+    ): List<ProductRawData> = parseSavings(table, mapping, sourceUrl, collector)
 
     // ============================================================
     // 실손의료보험 (1파일) — PROTECTION 유사
@@ -553,6 +721,7 @@ class ComparisonDataParser(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val headers = table.headers
         val companyIdx =
@@ -573,7 +742,7 @@ class ComparisonDataParser(
         return grouped.mapNotNull { (key, rows) ->
             try {
                 val (companyName, productName) = key.split("|", limit = 2)
-                buildHealthProduct(companyName, productName, rows, headers, mapping, sourceUrl)
+                buildHealthProduct(companyName, productName, rows, headers, mapping, sourceUrl, collector)
             } catch (e: Exception) {
                 logger.warn("실손 상품 파싱 실패: $key — ${e.message}")
                 null
@@ -588,8 +757,10 @@ class ComparisonDataParser(
         headers: List<String>,
         mapping: ExcelParserConfig.FileParserMapping,
         sourceUrl: String = "https://pub.insure.or.kr",
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): ProductRawData {
         val firstRow = rows.first()
+        val context = "$companyName|$productName"
 
         // 급부별 담보 추출
         val coverages = rows.mapNotNull { row -> extractCoverage(row, headers) }
@@ -597,10 +768,10 @@ class ComparisonDataParser(
         val notes = findValue(firstRow, headers, "특이사항")
 
         // 급부별 보험료 추출 (남/여, 특이사항에서 비교 기준 조건 추출)
-        val premiums = rows.flatMap { row -> extractPremiums(row, headers, notes) }
+        val premiums = rows.flatMap { row -> extractPremiums(row, headers, notes, mapping.subcategory, collector, context) }
 
         // 지수 추출
-        val indices = extractIndices(firstRow, headers, mapping.subcategory)
+        val indices = extractIndices(firstRow, headers, mapping.subcategory, rows, collector, context)
 
         val rawContent = rows.joinToString("|") { it.joinToString(",") }
         val checksum = crawlerCommon.calculateChecksum(rawContent.toByteArray())
@@ -610,13 +781,25 @@ class ComparisonDataParser(
             productName = productName,
             category = mapping.category,
             subcategory = mapping.subcategory,
-            renewalType = ValueCleaner.cleanRenewalType(findValue(firstRow, headers, "갱신")),
-            salesChannel = findValue(firstRow, headers, "판매채널"),
+            renewalType =
+                ValueCleaner.cleanRenewalType(
+                    findValue(firstRow, headers, "갱신여부")
+                        ?: findValue(firstRow, headers, "갱신주기")
+                        ?: findValue(firstRow, headers, "갱신"),
+                ),
+            salesChannel =
+                findValue(firstRow, headers, "판매채널")
+                    ?: findValue(firstRow, headers, "채널"),
             coverages = coverages,
             premiumExamples = premiums,
             indices = indices,
             checksum = checksum,
-            salesStartDate = ValueCleaner.cleanDate(findValue(firstRow, headers, "판매일자")),
+            salesStartDate =
+                collector.collectOrNull(
+                    ValueCleaner.parseDate(findValue(firstRow, headers, "판매일자")),
+                    field = "salesStartDate",
+                    context = context,
+                ),
             notes = notes,
             phone = ValueCleaner.cleanPhone(findValue(firstRow, headers, "대표번호")),
             sourceUrl = sourceUrl,
@@ -627,48 +810,104 @@ class ComparisonDataParser(
     // 공통 헬퍼
     // ============================================================
 
+    /** 나이 기준이 없는 재물보험 카테고리 (보험료 산출 기준: 건물등급/면적) */
+    val ageOptionalSubcategories = setOf("PB11", "PB12")
+
     data class PremiumConditions(
-        val age: Int,
+        val age: Int?,
         val insurancePeriod: String,
         val paymentPeriod: String,
     )
 
     /**
      * 특이사항에서 보험료 비교 기준 조건을 추출.
-     * "보험료 기준" 또는 "비교기준" 줄에서 나이/보험기간/납입기간을 파싱.
-     * 추출 실패 시 ParsingException 발생 (기본값 대체 불가 — 비교 조건이 없으면 보험료 데이터 무의미).
+     *
+     * 생보 패턴: "보험료 기준: 40세, 보험기간: 종신, 납입기간: 20년납"
+     * 손보 패턴:
+     *   A: "40세, 상해1급, 100세만기, 20년납 기준"
+     *   B: "아파트, 건물1급, 100㎡, 10년만기 전기납 기준"
+     *   C: "60세, 상해1급, 1년만기 1년납"
+     *   D: "5세, 1급, 100세만기, 20년납"
+     *   E: "보험기간 10년, 납입기간 10년"
+     *
+     * @param subcategory 카테고리 코드 (PB11/PB12는 나이 없어도 됨)
      */
-    fun extractPremiumConditions(notes: String?): PremiumConditions {
+    fun extractPremiumConditions(
+        notes: String?,
+        subcategory: String? = null,
+    ): PremiumConditions {
         if (notes == null) {
             throw ParsingException("특이사항 누락: 보험료 기준 조건을 확인할 수 없음")
         }
 
+        // targetLine 찾기: "보험료", "비교기준", "기준" 키워드
         val targetLine =
             notes.lines().firstOrNull {
                 it.contains("보험료") || it.contains("비교기준")
-            } ?: throw ParsingException("보험료 기준 줄을 찾지 못함: ${notes.take(100)}")
+            } ?: notes.lines().firstOrNull {
+                it.contains("기준")
+            }
 
+        // 생보 패턴 매칭 시도 (targetLine이 있고 "보험기간:" / "납입기간:" 형식)
+        if (targetLine != null) {
+            val lifeInsurancePeriod =
+                Regex("보험기간[:\\s]*(\\S+)")
+                    .find(targetLine)
+                    ?.groupValues
+                    ?.get(1)
+                    ?.trim()
+            val lifePaymentPeriod =
+                Regex("납입기간[:\\s]*(\\S+)")
+                    .find(targetLine)
+                    ?.groupValues
+                    ?.get(1)
+                    ?.trim()
+            if (lifeInsurancePeriod != null && lifePaymentPeriod != null) {
+                val age =
+                    Regex("(\\d+)세(?!만기)")
+                        .find(targetLine)
+                        ?.groupValues
+                        ?.get(1)
+                        ?.toIntOrNull()
+                if (age == null && subcategory !in ageOptionalSubcategories) {
+                    throw ParsingException("기준 나이 추출 실패: $targetLine")
+                }
+                return PremiumConditions(age, lifeInsurancePeriod, lifePaymentPeriod)
+            }
+        }
+
+        // 손보 패턴: 전체 텍스트에서 직접 추출
+        val searchText = targetLine ?: notes
+
+        // 나이: "N세" 뒤에 "만기"가 오지 않는 경우만 나이로 인식 ("100세만기"는 보험기간)
         val age =
-            Regex("(\\d+)세")
-                .find(targetLine)
+            Regex("(\\d+)세(?!만기)")
+                .find(searchText)
                 ?.groupValues
                 ?.get(1)
                 ?.toIntOrNull()
-                ?: throw ParsingException("기준 나이 추출 실패: $targetLine")
+
+        // 보험기간: "N년만기", "N세만기", 또는 "보험기간 N년"
         val insurancePeriod =
-            Regex("보험기간[:\\s]*(\\S+)")
-                .find(targetLine)
-                ?.groupValues
-                ?.get(1)
-                ?.trim()
-                ?: throw ParsingException("보험기간 추출 실패: $targetLine")
+            Regex("(\\d+년만기|\\d+세만기)").find(searchText)?.groupValues?.get(1)
+                ?: Regex("보험기간\\s*(\\d+년)").find(searchText)?.groupValues?.get(1)
+
+        // 납입기간: "전기납", "N년납", 또는 "납입기간 N년"
         val paymentPeriod =
-            Regex("납입기간[:\\s]*(\\S+)")
-                .find(targetLine)
-                ?.groupValues
-                ?.get(1)
-                ?.trim()
-                ?: throw ParsingException("납입기간 추출 실패: $targetLine")
+            Regex("(전기납|\\d+년납)").find(searchText)?.groupValues?.get(1)
+                ?: Regex("납입기간\\s*(\\d+년)").find(searchText)?.groupValues?.get(1)
+
+        if (insurancePeriod == null) {
+            throw ParsingException("보험기간 추출 실패: ${searchText.take(100)}")
+        }
+        if (paymentPeriod == null) {
+            throw ParsingException("납입기간 추출 실패: ${searchText.take(100)}")
+        }
+
+        // 나이 검증: 재물보험(PB11/PB12)이 아닌데 나이가 없으면 에러
+        if (age == null && subcategory !in ageOptionalSubcategories) {
+            throw ParsingException("기준 나이 추출 실패 (subcategory=$subcategory): ${searchText.take(100)}")
+        }
 
         return PremiumConditions(age, insurancePeriod, paymentPeriod)
     }

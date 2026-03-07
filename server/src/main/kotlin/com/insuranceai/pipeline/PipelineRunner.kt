@@ -76,6 +76,7 @@ class PipelineRunner(
                     dryRun = config.dryRun,
                     steps = config.steps.toSet(),
                     batchId = config.batchId,
+                    force = config.force,
                 )
 
             val activeSteps = options.resolveSteps()

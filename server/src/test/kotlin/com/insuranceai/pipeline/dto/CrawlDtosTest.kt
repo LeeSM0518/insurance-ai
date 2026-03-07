@@ -36,6 +36,15 @@ class CrawlDtosTest {
             val restored = objectMapper.readValue(json, PremiumData::class.java)
             assertEquals(data, restored)
         }
+
+        @Test
+        fun `age nullable 직렬화 역직렬화`() {
+            val data = PremiumData("남", null, "10년만기", "전기납", 50000000, 120000)
+            val json = objectMapper.writeValueAsString(data)
+            val restored = objectMapper.readValue(json, PremiumData::class.java)
+            assertEquals(data, restored)
+            assertEquals(null, restored.age)
+        }
     }
 
     @Nested

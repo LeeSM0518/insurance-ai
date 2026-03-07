@@ -6,6 +6,7 @@ import com.insuranceai.pipeline.dto.CrawlResult
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.parser.ComparisonDataParser
 import com.insuranceai.pipeline.parser.NonLifeJsonParser
+import com.insuranceai.pipeline.parser.ParsingWarningCollector
 import com.insuranceai.policy.domain.InsuranceType
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
@@ -93,6 +94,7 @@ class NonLifeInsuranceCrawler(
     suspend fun crawlAll(categoryFilter: List<String> = emptyList()): CrawlResult {
         val allProducts = mutableListOf<ProductRawData>()
         val allErrors = mutableListOf<CrawlError>()
+        val batchCollector = ParsingWarningCollector()
 
         val categoriesToCrawl =
             if (categoryFilter.isEmpty()) {
@@ -110,7 +112,7 @@ class NonLifeInsuranceCrawler(
         for (category in categoriesToCrawl) {
             try {
                 // 1차: JSON API
-                val products = crawlCategoryViaJson(category)
+                val products = crawlCategoryViaJson(category, batchCollector)
                 if (products != null) {
                     allProducts.addAll(products)
                     logger.info("손보 [${category.tabName}/${category.categoryName}] JSON 크롤링 완료: ${products.size}건")
@@ -119,7 +121,7 @@ class NonLifeInsuranceCrawler(
                     logger.info("손보 [${category.tabName}/${category.categoryName}] JSON 실패, Excel 폴백")
                     val excelProducts =
                         crawlerCommon.usePlaywright { browser ->
-                            crawlCategoryViaExcel(browser, category)
+                            crawlCategoryViaExcel(browser, category, batchCollector)
                         }
                     allProducts.addAll(excelProducts)
                     logger.info("손보 [${category.tabName}/${category.categoryName}] Excel 크롤링 완료: ${excelProducts.size}건")
@@ -138,6 +140,8 @@ class NonLifeInsuranceCrawler(
             failureCount = allErrors.size,
             products = allProducts,
             errors = allErrors,
+            parsingWarnings = batchCollector.warnings,
+            parsingFailureCount = batchCollector.failureCount,
         )
     }
 
@@ -146,7 +150,10 @@ class NonLifeInsuranceCrawler(
      *
      * @return 성공 시 ProductRawData 리스트 (0건 포함), 실패 시 null
      */
-    internal suspend fun crawlCategoryViaJson(category: NonLifeCategory): List<ProductRawData>? =
+    internal suspend fun crawlCategoryViaJson(
+        category: NonLifeCategory,
+        warningCollector: ParsingWarningCollector = ParsingWarningCollector(),
+    ): List<ProductRawData>? =
         withContext(Dispatchers.IO) {
             try {
                 val url = "$BASE_URL/popup/disclosureList.do"
@@ -170,7 +177,7 @@ class NonLifeInsuranceCrawler(
 
                 val rawJson = connection.inputStream.bufferedReader().readText()
                 val items = NonLifeJsonParser.parseJson5(rawJson)
-                NonLifeJsonParser.toProductRawData(items, category, crawlerCommon::calculateChecksum)
+                NonLifeJsonParser.toProductRawData(items, category, crawlerCommon::calculateChecksum, warningCollector)
             } catch (e: Exception) {
                 logger.warn("손보 [${category.categoryName}] JSON API 호출 실패: ${e.message}")
                 null
@@ -183,6 +190,7 @@ class NonLifeInsuranceCrawler(
     private suspend fun crawlCategoryViaExcel(
         browser: Browser,
         category: NonLifeCategory,
+        warningCollector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val page = crawlerCommon.createPage(browser)
         return try {
@@ -195,7 +203,7 @@ class NonLifeInsuranceCrawler(
             val excelPath = downloadExcel(page, category)
             if (excelPath != null) {
                 val parserCategory = resolveParserCategory(category)
-                comparisonDataParser.parseFile(excelPath, parserCategory, category.tptyCode)
+                comparisonDataParser.parseFile(excelPath, parserCategory, category.tptyCode, warningCollector)
             } else {
                 emptyList()
             }

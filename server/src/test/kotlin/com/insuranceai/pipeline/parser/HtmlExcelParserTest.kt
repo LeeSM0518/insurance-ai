@@ -123,6 +123,62 @@ class HtmlExcelParserTest {
     }
 
     @Nested
+    inner class DisplayNoneTdMerge {
+        @Test
+        fun `PB14 display_none td를 이전 td에 병합`() {
+            // PB14: 특이사항이 2개 td (상세보기 + display:none 실제 텍스트)
+            val html =
+                """
+                <table>
+                    <thead>
+                        <tr><th>회사명</th><th>상품명</th><th>특이사항</th><th>대표번호</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>삼성화재</td>
+                            <td>상해보험A</td>
+                            <td class="etcClass etcSummary">상세보기</td>
+                            <td class="tpEtcClass" style="display:none">40세, 상해1급, 100세만기, 20년납 기준</td>
+                            <td>1588-5114</td>
+                        </tr>
+                    </tbody>
+                </table>
+                """.trimIndent()
+
+            val file = createHtmlFile(html)
+            val result = HtmlExcelParser.parse(file)
+
+            assertEquals(4, result.headers.size)
+            assertEquals(1, result.rows.size)
+            // display:none td의 텍스트가 이전 특이사항 td에 병합되어야 함
+            assertEquals("40세, 상해1급, 100세만기, 20년납 기준", result.rows[0][2])
+            // 대표번호가 정상 위치에 있어야 함
+            assertEquals("1588-5114", result.rows[0][3])
+        }
+
+        @Test
+        fun `display_none이 없는 일반 행은 영향 없음`() {
+            val html =
+                """
+                <table>
+                    <thead>
+                        <tr><th>회사명</th><th>상품명</th><th>특이사항</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>삼성생명</td><td>종신A</td><td>일반 특이사항</td></tr>
+                    </tbody>
+                </table>
+                """.trimIndent()
+
+            val file = createHtmlFile(html)
+            val result = HtmlExcelParser.parse(file)
+
+            assertEquals(3, result.headers.size)
+            assertEquals("일반 특이사항", result.rows[0][2])
+        }
+    }
+
+    @Nested
     inner class ForwardFill {
         @Test
         fun `빈 값을 이전 값으로 채움`() {

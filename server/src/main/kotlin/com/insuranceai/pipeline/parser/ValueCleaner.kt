@@ -35,23 +35,30 @@ object ValueCleaner {
         return if (trimmed in NULL_EXPRESSIONS) null else trimmed
     }
 
-    /** 금액 클렌징: "836000  원", "806,000  원", "10,000만원", "1억원" → Long */
-    fun cleanAmount(value: String?): Long? {
-        if (isNull(value)) return null
-        val trimmed = value!!.trim()
+    // --- 새 메서드: ParseResult 반환 ---
+
+    /** 금액 파싱: ParseResult 반환 */
+    fun parseAmount(value: String?): ParseResult<Long> {
+        if (value == null) return ParseResult.Empty
+        val trimmed = value.trim()
+        if (trimmed in NULL_EXPRESSIONS) return ParseResult.Empty
 
         // 억원 단위
         val eokMatch = Regex("([\\d,.]+)\\s*억\\s*원?").find(trimmed)
         if (eokMatch != null) {
-            val num = eokMatch.groupValues[1].replace(",", "").toBigDecimalOrNull() ?: return null
-            return (num * BigDecimal(100_000_000)).toLong()
+            val num =
+                eokMatch.groupValues[1].replace(",", "").toBigDecimalOrNull()
+                    ?: return ParseResult.Failure(trimmed, "억원 단위 숫자 변환 실패")
+            return ParseResult.Success((num * BigDecimal(100_000_000)).toLong())
         }
 
         // 만원 단위
         val manMatch = Regex("([\\d,.]+)\\s*만\\s*원?").find(trimmed)
         if (manMatch != null) {
-            val num = manMatch.groupValues[1].replace(",", "").toBigDecimalOrNull() ?: return null
-            return (num * BigDecimal(10_000)).toLong()
+            val num =
+                manMatch.groupValues[1].replace(",", "").toBigDecimalOrNull()
+                    ?: return ParseResult.Failure(trimmed, "만원 단위 숫자 변환 실패")
+            return ParseResult.Success((num * BigDecimal(10_000)).toLong())
         }
 
         // 일반 금액 (콤마, 공백, '원' 제거)
@@ -60,27 +67,71 @@ object ValueCleaner {
                 .replace(WON_SUFFIX_REGEX, "")
                 .replace(COMMA_REGEX, "")
                 .trim()
-        return cleaned.toLongOrNull()
+        return cleaned
+            .toLongOrNull()
+            ?.let { ParseResult.Success(it) }
+            ?: ParseResult.Failure(trimmed, "금액 파싱 실패")
     }
 
-    /** 이율/지수 클렌징: "2.70 %" → BigDecimal(2.70) */
-    fun cleanDecimal(value: String?): BigDecimal? {
-        if (isNull(value)) return null
-        val cleaned =
-            value!!
-                .trim()
+    /** 금액 클렌징: "836000  원", "806,000  원", "10,000만원", "1억원" → Long */
+    fun cleanAmount(value: String?): Long? = parseAmount(value).getOrNull()
+
+    /** 괄호 앞 숫자 추출 정규식: "1.90(0.3)" → "1.90" */
+    private val PARENTHESIS_PREFIX_REGEX = Regex("^(\\d+\\.?\\d*)\\s*\\(")
+
+    /** 소수 파싱: ParseResult 반환 */
+    fun parseDecimal(value: String?): ParseResult<BigDecimal> {
+        if (value == null) return ParseResult.Empty
+        val trimmed = value.trim()
+        if (trimmed in NULL_EXPRESSIONS) return ParseResult.Empty
+
+        var cleaned =
+            trimmed
                 .replace(PERCENT_SUFFIX_REGEX, "")
                 .replace(COMMA_REGEX, "")
                 .trim()
-        return cleaned.toBigDecimalOrNull()
+        // 괄호가 있으면 괄호 앞 숫자만 추출: "1.90(0.3)" → "1.90"
+        val parenMatch = PARENTHESIS_PREFIX_REGEX.find(cleaned)
+        if (parenMatch != null) {
+            cleaned = parenMatch.groupValues[1]
+        }
+        return cleaned
+            .toBigDecimalOrNull()
+            ?.let { ParseResult.Success(it) }
+            ?: ParseResult.Failure(trimmed, "소수 파싱 실패")
+    }
+
+    /** 이율/지수 클렌징: "2.70 %" → BigDecimal(2.70), "1.90(0.3)" → BigDecimal(1.90) */
+    fun cleanDecimal(value: String?): BigDecimal? = parseDecimal(value).getOrNull()
+
+    /** 최저보증이율 추출: 괄호 안 첫 번째 소수점 숫자를 최저보증이율로 반환 */
+    fun parseGuaranteedRate(value: String?): BigDecimal? {
+        if (isNull(value)) return null
+        val trimmed = value!!.trim()
+        val parenContent = Regex("\\((.+)\\)").find(trimmed)?.groupValues?.get(1) ?: return null
+        // 괄호 안에서 첫 번째 소수점 포함 숫자 추출
+        val firstDecimal = Regex("(\\d+\\.\\d+)").find(parenContent)?.groupValues?.get(1)
+        if (firstDecimal != null) return firstDecimal.toBigDecimalOrNull()
+        // 소수점 없는 단일 숫자도 시도
+        val firstNum = Regex("(\\d+\\.?\\d*)").find(parenContent)?.groupValues?.get(1)
+        return firstNum?.toBigDecimalOrNull()
+    }
+
+    /** 정수 파싱: ParseResult 반환 */
+    fun parseInt(value: String?): ParseResult<Int> {
+        if (value == null) return ParseResult.Empty
+        val trimmed = value.trim()
+        if (trimmed in NULL_EXPRESSIONS) return ParseResult.Empty
+
+        val cleaned = trimmed.replace(NON_NUMERIC_REGEX, "")
+        return cleaned
+            .toIntOrNull()
+            ?.let { ParseResult.Success(it) }
+            ?: ParseResult.Failure(trimmed, "정수 파싱 실패")
     }
 
     /** 정수 클렌징 */
-    fun cleanInt(value: String?): Int? {
-        if (isNull(value)) return null
-        val cleaned = value!!.trim().replace(NON_NUMERIC_REGEX, "")
-        return cleaned.toIntOrNull()
-    }
+    fun cleanInt(value: String?): Int? = parseInt(value).getOrNull()
 
     /** 갱신유형 정규화 */
     fun cleanRenewalType(value: String?): String? {
@@ -96,19 +147,24 @@ object ValueCleaner {
     fun isUniversal(productName: String): Boolean =
         productName.contains("유니버셜", ignoreCase = true) || productName.contains("UL", ignoreCase = false)
 
-    /** 판매일자 클렌징 */
-    fun cleanDate(value: String?): LocalDate? {
-        if (isNull(value)) return null
-        val trimmed = value!!.trim()
+    /** 날짜 파싱: ParseResult 반환 */
+    fun parseDate(value: String?): ParseResult<LocalDate> {
+        if (value == null) return ParseResult.Empty
+        val trimmed = value.trim()
+        if (trimmed in NULL_EXPRESSIONS) return ParseResult.Empty
+
         for (fmt in DATE_FORMATTERS) {
             try {
-                return LocalDate.parse(trimmed, fmt)
+                return ParseResult.Success(LocalDate.parse(trimmed, fmt))
             } catch (_: DateTimeParseException) {
                 // 다음 포맷 시도
             }
         }
-        return null
+        return ParseResult.Failure(trimmed, "날짜 포맷 매칭 실패 (시도: ${DATE_FORMATTERS.size}개)")
     }
+
+    /** 판매일자 클렌징 */
+    fun cleanDate(value: String?): LocalDate? = parseDate(value).getOrNull()
 
     /** 전화번호 정규화: "02-1588-1001", "1588-1001" 등 */
     fun cleanPhone(value: String?): String? {

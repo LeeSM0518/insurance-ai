@@ -1,5 +1,6 @@
 package com.insuranceai.pipeline.dto
 
+import com.insuranceai.pipeline.parser.ParsingWarning
 import com.insuranceai.policy.domain.InsuranceType
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -11,6 +12,8 @@ data class CrawlResult(
     val failureCount: Int,
     val products: List<ProductRawData>,
     val errors: List<CrawlError>,
+    val parsingWarnings: List<ParsingWarning> = emptyList(),
+    val parsingFailureCount: Int = 0,
 )
 
 data class ProductRawData(
@@ -55,7 +58,7 @@ data class CoverageData(
 
 data class PremiumData(
     val gender: String,
-    val age: Int,
+    val age: Int?,
     val insurancePeriod: String,
     val paymentPeriod: String,
     val insuranceAmount: Long,

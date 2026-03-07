@@ -5,6 +5,7 @@ import com.insuranceai.pipeline.dto.CrawlError
 import com.insuranceai.pipeline.dto.CrawlResult
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.parser.ComparisonDataParser
+import com.insuranceai.pipeline.parser.ParsingWarningCollector
 import com.insuranceai.policy.domain.InsuranceType
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
@@ -81,6 +82,7 @@ class LifeInsuranceCrawler(
     suspend fun crawlAll(categoryFilter: List<String> = emptyList()): CrawlResult {
         val allProducts = mutableListOf<ProductRawData>()
         val allErrors = mutableListOf<CrawlError>()
+        val batchCollector = ParsingWarningCollector()
 
         val categoriesToCrawl =
             if (categoryFilter.isEmpty()) {
@@ -97,7 +99,7 @@ class LifeInsuranceCrawler(
             try {
                 val products =
                     crawlerCommon.usePlaywright { browser ->
-                        crawlCategory(browser, categoryInfo)
+                        crawlCategory(browser, categoryInfo, batchCollector)
                     }
                 allProducts.addAll(products)
                 logger.info("생보 [${categoryInfo.displayName}] 크롤링 완료: ${products.size}건")
@@ -119,12 +121,15 @@ class LifeInsuranceCrawler(
             failureCount = allErrors.size,
             products = allProducts,
             errors = allErrors,
+            parsingWarnings = batchCollector.warnings,
+            parsingFailureCount = batchCollector.failureCount,
         )
     }
 
     suspend fun crawlCategory(
         browser: Browser,
         categoryInfo: CategoryInfo,
+        warningCollector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val page = crawlerCommon.createPage(browser)
         return try {
@@ -140,7 +145,7 @@ class LifeInsuranceCrawler(
             val excelPath = downloadExcel(page, categoryInfo)
             if (excelPath != null) {
                 // HTML 테이블로 파싱 (Jsoup)
-                comparisonDataParser.parseFile(excelPath, categoryInfo.category, categoryInfo.subcategory)
+                comparisonDataParser.parseFile(excelPath, categoryInfo.category, categoryInfo.subcategory, warningCollector)
             } else {
                 logger.warn("생보 [${categoryInfo.displayName}] 엑셀 다운로드 실패")
                 emptyList()

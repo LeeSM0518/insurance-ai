@@ -49,7 +49,7 @@ data class PremiumExampleResponse(
 
 data class PremiumExampleItem(
     val gender: String,
-    val age: Int,
+    val age: Int?,
     val insurancePeriod: String,
     val paymentPeriod: String,
     val insuranceAmount: Long,

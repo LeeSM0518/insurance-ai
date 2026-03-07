@@ -62,13 +62,14 @@ object NonLifeJsonParser {
         items: List<Map<String, Any>>,
         category: NonLifeCategory,
         checksumCalculator: (ByteArray) -> String,
+        warningCollector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         if (items.isEmpty()) return emptyList()
 
         return when (category.tabType) {
-            1, 3 -> convertProtectionOrHealth(items, category, checksumCalculator)
-            2 -> convertSavings(items, category, checksumCalculator)
-            4 -> convertPension(items, category, checksumCalculator)
+            1, 3 -> convertProtectionOrHealth(items, category, checksumCalculator, warningCollector)
+            2 -> convertSavings(items, category, checksumCalculator, warningCollector)
+            4 -> convertPension(items, category, checksumCalculator, warningCollector)
             else -> emptyList()
         }
     }
@@ -78,6 +79,7 @@ object NonLifeJsonParser {
         items: List<Map<String, Any>>,
         category: NonLifeCategory,
         checksumCalculator: (ByteArray) -> String,
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         // TP_CODE로 그룹핑 (동일 상품의 담보 행들)
         val grouped =
@@ -90,6 +92,7 @@ object NonLifeJsonParser {
 
             val companyName = first.str("P_CODE_NM") ?: return@mapNotNull null
             val productName = first.str("TP_NAME") ?: return@mapNotNull null
+            val context = "$companyName|$productName"
 
             // 담보 추출
             val coverages =
@@ -105,28 +108,52 @@ object NonLifeJsonParser {
 
             // 보험료 추출
             val premiums = mutableListOf<PremiumData>()
-            first.long("TP_M_BILL")?.let { bill ->
-                if (bill > 0) premiums.add(PremiumData("남", 40, "", "", 0L, bill))
+            val maleBill =
+                collector.collectOrNull(
+                    ValueCleaner.parseAmount(first.str("TP_M_BILL")),
+                    field = "TP_M_BILL",
+                    context = context,
+                )
+            if (maleBill != null && maleBill > 0) {
+                premiums.add(PremiumData("남", 40, "", "", 0L, maleBill))
             }
-            first.long("TP_W_BILL")?.let { bill ->
-                if (bill > 0) premiums.add(PremiumData("여", 40, "", "", 0L, bill))
+            val femaleBill =
+                collector.collectOrNull(
+                    ValueCleaner.parseAmount(first.str("TP_W_BILL")),
+                    field = "TP_W_BILL",
+                    context = context,
+                )
+            if (femaleBill != null && femaleBill > 0) {
+                premiums.add(PremiumData("여", 40, "", "", 0L, femaleBill))
             }
 
             // 지수 추출
             val indices = mutableListOf<IndexData>()
             val today = LocalDate.now()
-            first.decimal("INS_PAY_INDEX_M")?.let {
-                indices.add(IndexData("PRICE", "남", null, it, today))
-            }
-            first.decimal("INS_PAY_INDEX_W")?.let {
-                indices.add(IndexData("PRICE", "여", null, it, today))
-            }
-            first.decimal("CNTRCT_CNCLS_IDX")?.let {
-                indices.add(IndexData("CONTRACT_COST", null, null, it, today))
-            }
-            first.decimal("ADD_INSRNC_IDX")?.let {
-                indices.add(IndexData("EXTRA_PREMIUM", null, null, it, today))
-            }
+            collector
+                .collectOrNull(
+                    ValueCleaner.parseDecimal(first.str("INS_PAY_INDEX_M")),
+                    field = "INS_PAY_INDEX_M",
+                    context = context,
+                )?.let { indices.add(IndexData("PRICE", "남", null, it, today)) }
+            collector
+                .collectOrNull(
+                    ValueCleaner.parseDecimal(first.str("INS_PAY_INDEX_W")),
+                    field = "INS_PAY_INDEX_W",
+                    context = context,
+                )?.let { indices.add(IndexData("PRICE", "여", null, it, today)) }
+            collector
+                .collectOrNull(
+                    ValueCleaner.parseDecimal(first.str("CNTRCT_CNCLS_IDX")),
+                    field = "CNTRCT_CNCLS_IDX",
+                    context = context,
+                )?.let { indices.add(IndexData("CONTRACT_COST", null, null, it, today)) }
+            collector
+                .collectOrNull(
+                    ValueCleaner.parseDecimal(first.str("ADD_INSRNC_IDX")),
+                    field = "ADD_INSRNC_IDX",
+                    context = context,
+                )?.let { indices.add(IndexData("EXTRA_PREMIUM", null, null, it, today)) }
 
             val parserCategory = NonLifeInsuranceCrawler.resolveParserCategory(category)
             val subcategory = category.tptyCode
@@ -155,8 +182,18 @@ object NonLifeJsonParser {
                     },
                 notes = first.str("TP_ETC"),
                 phone = ValueCleaner.cleanPhone(first.str("ETC5")),
-                appliedInterestRate = ValueCleaner.cleanDecimal(first.str("TP_RATE1")),
-                guaranteedInterestRate = ValueCleaner.cleanDecimal(first.str("TP_RATE2")),
+                appliedInterestRate =
+                    collector.collectOrNull(
+                        ValueCleaner.parseDecimal(first.str("TP_RATE1")),
+                        field = "appliedInterestRate",
+                        context = context,
+                    ),
+                guaranteedInterestRate =
+                    collector.collectOrNull(
+                        ValueCleaner.parseDecimal(first.str("TP_RATE2")),
+                        field = "guaranteedInterestRate",
+                        context = context,
+                    ),
                 sourceUrl = "https://kpub.knia.or.kr",
             )
         }
@@ -167,6 +204,7 @@ object NonLifeJsonParser {
         items: List<Map<String, Any>>,
         category: NonLifeCategory,
         checksumCalculator: (ByteArray) -> String,
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val grouped =
             items
@@ -177,6 +215,7 @@ object NonLifeJsonParser {
             val first = rows.first()
             val companyName = first.str("P_CODE_NM") ?: return@mapNotNull null
             val productName = first.str("TP_NAME") ?: return@mapNotNull null
+            val context = "$companyName|$productName"
 
             val rawContent =
                 rows.joinToString("|") {
@@ -190,8 +229,18 @@ object NonLifeJsonParser {
                 subcategory = category.tptyCode,
                 salesChannel = first.str("TP_NEW_CHANNEL"),
                 checksum = checksumCalculator(rawContent.toByteArray()),
-                declaredInterestRate = ValueCleaner.cleanDecimal(first.str("TP_RATE1")),
-                guaranteedInterestRate = ValueCleaner.cleanDecimal(first.str("TP_RATE2")),
+                declaredInterestRate =
+                    collector.collectOrNull(
+                        ValueCleaner.parseDecimal(first.str("TP_RATE1")),
+                        field = "declaredInterestRate",
+                        context = context,
+                    ),
+                guaranteedInterestRate =
+                    collector.collectOrNull(
+                        ValueCleaner.parseDecimal(first.str("TP_RATE2")),
+                        field = "guaranteedInterestRate",
+                        context = context,
+                    ),
                 notes = first.str("TP_ETC"),
                 phone = ValueCleaner.cleanPhone(first.str("ETC5")),
                 sourceUrl = "https://kpub.knia.or.kr",
@@ -204,6 +253,7 @@ object NonLifeJsonParser {
         items: List<Map<String, Any>>,
         category: NonLifeCategory,
         checksumCalculator: (ByteArray) -> String,
+        collector: ParsingWarningCollector = ParsingWarningCollector(),
     ): List<ProductRawData> {
         val grouped =
             items
@@ -214,6 +264,7 @@ object NonLifeJsonParser {
             val first = rows.first()
             val companyName = first.str("P_CODE_NM") ?: return@mapNotNull null
             val productName = first.str("TP_NAME") ?: return@mapNotNull null
+            val context = "$companyName|$productName"
 
             // 연금저축: 환급금
             val surrenderValues =
@@ -239,9 +290,24 @@ object NonLifeJsonParser {
                 salesChannel = first.str("TP_NEW_CHANNEL"),
                 surrenderValues = surrenderValues,
                 checksum = checksumCalculator(rawContent.toByteArray()),
-                expenseRatio = ValueCleaner.cleanDecimal(first.str("BUSINESS_RATE")),
-                declaredInterestRate = ValueCleaner.cleanDecimal(first.str("TP_RATE1")),
-                guaranteedInterestRate = ValueCleaner.cleanDecimal(first.str("TP_RATE2")),
+                expenseRatio =
+                    collector.collectOrNull(
+                        ValueCleaner.parseDecimal(first.str("BUSINESS_RATE")),
+                        field = "expenseRatio",
+                        context = context,
+                    ),
+                declaredInterestRate =
+                    collector.collectOrNull(
+                        ValueCleaner.parseDecimal(first.str("TP_RATE1")),
+                        field = "declaredInterestRate",
+                        context = context,
+                    ),
+                guaranteedInterestRate =
+                    collector.collectOrNull(
+                        ValueCleaner.parseDecimal(first.str("TP_RATE2")),
+                        field = "guaranteedInterestRate",
+                        context = context,
+                    ),
                 notes = first.str("TP_ETC"),
                 phone = ValueCleaner.cleanPhone(first.str("ETC5")),
                 sourceUrl = "https://kpub.knia.or.kr",

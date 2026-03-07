@@ -15,7 +15,7 @@ data class PremiumExampleEntity(
     val id: UUID? = null,
     val productId: UUID,
     val gender: String,
-    val age: Int,
+    val age: Int?,
     val insurancePeriod: String,
     val paymentPeriod: String,
     val insuranceAmount: Long,

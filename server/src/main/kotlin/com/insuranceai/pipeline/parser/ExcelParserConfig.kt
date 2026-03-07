@@ -106,6 +106,6 @@ object ExcelParserConfig {
         val HAS_COVERAGE_INDEX = setOf("CANCER", "PB22")
 
         /** 경도치매 관련 컬럼이 있는 소분류 */
-        val HAS_MILD_DEMENTIA = setOf("NURSING")
+        val HAS_MILD_DEMENTIA = setOf("NURSING", "PB16")
     }
 }

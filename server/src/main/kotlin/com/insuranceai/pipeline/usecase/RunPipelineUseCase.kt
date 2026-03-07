@@ -8,6 +8,7 @@ import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.embedder.EmbeddingService
 import com.insuranceai.pipeline.mapper.CrawlStagingMapper
+import com.insuranceai.pipeline.parser.ParsingException
 import com.insuranceai.pipeline.parser.PdfParsingService
 import com.insuranceai.pipeline.repository.CrawlStagingRepository
 import com.insuranceai.pipeline.service.ChangeDetectionService
@@ -35,6 +36,7 @@ data class PipelineOptions(
     val dryRun: Boolean = false,
     val steps: Set<PipelineStep> = emptySet(),
     val batchId: String? = null,
+    val force: Boolean = false,
 ) {
     /** 실행할 단계 결정: steps 명시 > dryRun > 전체 (SUMMARY_PDF는 명시적으로만 실행) */
     fun resolveSteps(): Set<PipelineStep> =
@@ -83,6 +85,14 @@ class RunPipelineUseCase(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    companion object {
+        /** 파싱 실패율 임계치 (10% 초과 시 배치 중단) */
+        const val PARSING_FAILURE_THRESHOLD = 0.10
+
+        /** 상품당 파싱 대상 숫자/날짜 필드 수 추정 */
+        const val EXPECTED_FIELDS_PER_PRODUCT = 8
+    }
+
     /** 옵션 기반 파이프라인 실행 */
     suspend fun runWithOptions(options: PipelineOptions = PipelineOptions()): PipelineResult {
         val emptyResult = TypePipelineResult(0, 0, 0, 0, 0, emptyList())
@@ -97,7 +107,7 @@ class RunPipelineUseCase(
         val (results, duration) =
             measureTimedValue {
                 typesToRun.associateWith { type ->
-                    runForInsuranceType(type, options.incremental, options.categories, activeSteps, options.batchId)
+                    runForInsuranceType(type, options.incremental, options.categories, activeSteps, options.batchId, options.force)
                 }
             }
 
@@ -130,6 +140,7 @@ class RunPipelineUseCase(
         categoryFilter: List<String> = emptyList(),
         activeSteps: Set<PipelineStep>,
         existingBatchId: String? = null,
+        force: Boolean = false,
     ): TypePipelineResult {
         val batchId = existingBatchId ?: UUID.randomUUID().toString()
         val errors = mutableListOf<String>()
@@ -154,6 +165,27 @@ class RunPipelineUseCase(
                 if (crawlResult.products.isEmpty()) {
                     pipelineService.failBatch(batchId, "수집된 상품 0건")
                     return TypePipelineResult(0, 0, 0, 0, 0, listOf("수집된 상품 0건"), batchId)
+                }
+
+                // 파싱 실패율 검사
+                if (crawlResult.parsingFailureCount > 0) {
+                    val totalFields = crawlResult.products.size * EXPECTED_FIELDS_PER_PRODUCT
+                    val failureRate = crawlResult.parsingFailureCount.toDouble() / maxOf(totalFields, 1)
+                    logger.info(
+                        "배치 파싱 결과: batchId={}, 상품={}건, 파싱 경고={}건, 실패율={:.1f}%",
+                        batchId,
+                        crawlResult.products.size,
+                        crawlResult.parsingFailureCount,
+                        failureRate * 100,
+                    )
+
+                    if (failureRate > PARSING_FAILURE_THRESHOLD) {
+                        throw ParsingException(
+                            "파싱 실패율 ${String.format("%.1f", failureRate * 100)}%가 " +
+                                "임계치 ${(PARSING_FAILURE_THRESHOLD * 100).toInt()}%를 초과했습니다. " +
+                                "경고 ${crawlResult.parsingFailureCount}건",
+                        )
+                    }
                 }
 
                 // 변경 감지 (증분 모드)
@@ -300,7 +332,7 @@ class RunPipelineUseCase(
 
                         // PDF 파싱
                         val parsingResult =
-                            pdfParsingService.parse(file, productId, product.companyName, product.productName)
+                            pdfParsingService.parse(file, productId, product.companyName, product.productName, forceExtract = force)
 
                         // DataSource 저장
                         val savedDataSource = dataSourceRepository.save(parsingResult.dataSource)

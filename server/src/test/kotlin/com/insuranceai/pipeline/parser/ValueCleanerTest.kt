@@ -71,6 +71,50 @@ class ValueCleanerTest {
             assertNull(ValueCleaner.cleanDecimal("-"))
             assertNull(ValueCleaner.cleanDecimal(null))
         }
+
+        @Test
+        fun `괄호 형식 이율 - 괄호 앞 숫자만 추출`() {
+            assertEquals(0, BigDecimal("1.90").compareTo(ValueCleaner.cleanDecimal("1.90(0.3)")))
+        }
+
+        @Test
+        fun `복잡한 괄호 형식 - 괄호 앞 숫자만 추출`() {
+            assertEquals(
+                0,
+                BigDecimal("1.95").compareTo(
+                    ValueCleaner.cleanDecimal("1.95(5년이하 1.25, 5년초과 15년이하 : 1.0, 15년초과 : 0.3)"),
+                ),
+            )
+        }
+    }
+
+    @Nested
+    inner class ParseGuaranteedRate {
+        @Test
+        fun `단순 괄호 - 최저보증이율 추출`() {
+            assertEquals(0, BigDecimal("0.3").compareTo(ValueCleaner.parseGuaranteedRate("1.90(0.3)")))
+        }
+
+        @Test
+        fun `복잡한 괄호 - 첫 번째 숫자 추출`() {
+            assertEquals(
+                0,
+                BigDecimal("1.25").compareTo(
+                    ValueCleaner.parseGuaranteedRate("1.95(5년이하 1.25, 5년초과 15년이하 : 1.0, 15년초과 : 0.3)"),
+                ),
+            )
+        }
+
+        @Test
+        fun `괄호 없으면 null`() {
+            assertNull(ValueCleaner.parseGuaranteedRate("2.70"))
+        }
+
+        @Test
+        fun `null 표현은 null 반환`() {
+            assertNull(ValueCleaner.parseGuaranteedRate("-"))
+            assertNull(ValueCleaner.parseGuaranteedRate(null))
+        }
     }
 
     @Nested
@@ -148,6 +192,93 @@ class ValueCleanerTest {
             assertEquals("남", ValueCleaner.cleanGender("M"))
             assertEquals("여", ValueCleaner.cleanGender("여자"))
             assertEquals("여", ValueCleaner.cleanGender("F"))
+        }
+    }
+
+    // --- ParseResult 반환 메서드 테스트 ---
+
+    @Nested
+    inner class ParseAmount {
+        @Test
+        fun `정상 값 — Success 반환`() {
+            val result = ValueCleaner.parseAmount("836000  원")
+            check(result is ParseResult.Success)
+            assertEquals(836000L, result.value)
+        }
+
+        @Test
+        fun `null 표현 — Empty 반환`() {
+            assertTrue(ValueCleaner.parseAmount(null) is ParseResult.Empty)
+            assertTrue(ValueCleaner.parseAmount("-") is ParseResult.Empty)
+            assertTrue(ValueCleaner.parseAmount("해당없음") is ParseResult.Empty)
+        }
+
+        @Test
+        fun `미지원 포맷 — Failure 반환`() {
+            val result = ValueCleaner.parseAmount("약 천만원")
+            check(result is ParseResult.Failure)
+            assertEquals("약 천만원", result.rawValue)
+        }
+    }
+
+    @Nested
+    inner class ParseDecimalResult {
+        @Test
+        fun `정상 값 — Success 반환`() {
+            val result = ValueCleaner.parseDecimal("2.70 %")
+            check(result is ParseResult.Success)
+            assertEquals(0, BigDecimal("2.70").compareTo(result.value))
+        }
+
+        @Test
+        fun `null 표현 — Empty 반환`() {
+            assertTrue(ValueCleaner.parseDecimal(null) is ParseResult.Empty)
+            assertTrue(ValueCleaner.parseDecimal("-") is ParseResult.Empty)
+        }
+
+        @Test
+        fun `미지원 포맷 — Failure 반환`() {
+            val result = ValueCleaner.parseDecimal("미공시")
+            assertTrue(result is ParseResult.Failure)
+        }
+    }
+
+    @Nested
+    inner class ParseDateResult {
+        @Test
+        fun `정상 값 — Success 반환`() {
+            val result = ValueCleaner.parseDate("2024.03.15")
+            check(result is ParseResult.Success)
+            assertEquals(LocalDate.of(2024, 3, 15), result.value)
+        }
+
+        @Test
+        fun `null 표현 — Empty 반환`() {
+            assertTrue(ValueCleaner.parseDate(null) is ParseResult.Empty)
+            assertTrue(ValueCleaner.parseDate("-") is ParseResult.Empty)
+        }
+
+        @Test
+        fun `미지원 포맷 — Failure 반환`() {
+            val result = ValueCleaner.parseDate("2024년 3월")
+            check(result is ParseResult.Failure)
+            assertEquals("2024년 3월", result.rawValue)
+        }
+    }
+
+    @Nested
+    inner class ParseIntResult {
+        @Test
+        fun `정상 값 — Success 반환`() {
+            val result = ValueCleaner.parseInt("42")
+            check(result is ParseResult.Success)
+            assertEquals(42, result.value)
+        }
+
+        @Test
+        fun `null 표현 — Empty 반환`() {
+            assertTrue(ValueCleaner.parseInt(null) is ParseResult.Empty)
+            assertTrue(ValueCleaner.parseInt("-") is ParseResult.Empty)
         }
     }
 }

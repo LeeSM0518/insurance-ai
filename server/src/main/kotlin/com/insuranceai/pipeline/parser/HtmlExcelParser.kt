@@ -135,6 +135,7 @@ object HtmlExcelParser {
      * 데이터 행의 rowspan/colspan 해결
      *
      * forward-fill 포함: 보험회사명/상품명이 그룹 내 첫 행에만 있고 나머지는 빈칸.
+     * PB14 display:none td 병합: style="display:none" td는 이전 td에 텍스트 병합 후 제거.
      */
     private fun resolveSpans(
         dataRows: List<Element>,
@@ -145,7 +146,8 @@ object HtmlExcelParser {
         val result = mutableListOf<List<String>>()
 
         for (row in dataRows) {
-            val cells = row.select("th, td")
+            // display:none td 병합 전처리 (PB14 등)
+            val cells = mergeHiddenCells(row.select("th, td"))
             val rowData = Array(expectedCols) { "" }
             var colIdx = 0
             var cellIdx = 0
@@ -167,9 +169,9 @@ object HtmlExcelParser {
                 }
 
                 val cell = cells[cellIdx]
-                val text = cell.text().trim()
-                val colspan = cell.attr("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
-                val rowspan = cell.attr("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
+                val colspan = cell.first
+                val rowspan = cell.second
+                val text = cell.third
 
                 for (c in colIdx until (colIdx + colspan).coerceAtMost(expectedCols)) {
                     rowData[c] = text
@@ -182,6 +184,36 @@ object HtmlExcelParser {
             }
 
             result.add(rowData.toList())
+        }
+
+        return result
+    }
+
+    /**
+     * display:none td 병합: style에 "display:none" 또는 "display: none"이 있는 td의
+     * 텍스트를 이전 td에 병합하고 해당 td를 제거.
+     * PB14에서 특이사항이 2개 td로 나뉘는 문제 해결.
+     *
+     * @return (colspan, rowspan, text) 트리플 리스트
+     */
+    private fun mergeHiddenCells(cells: List<Element>): List<Triple<Int, Int, String>> {
+        val result = mutableListOf<Triple<Int, Int, String>>()
+
+        for (cell in cells) {
+            val style = cell.attr("style").lowercase()
+            val isHidden = style.contains("display") && style.contains("none")
+            val text = cell.text().trim()
+            val colspan = cell.attr("colspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
+            val rowspan = cell.attr("rowspan").toIntOrNull()?.coerceAtLeast(1) ?: 1
+
+            if (isHidden && result.isNotEmpty()) {
+                // hidden td의 텍스트를 이전 td에 병합
+                val prev = result.removeLast()
+                val mergedText = if (text.isNotBlank()) text else prev.third
+                result.add(Triple(prev.first, prev.second, mergedText))
+            } else {
+                result.add(Triple(colspan, rowspan, text))
+            }
         }
 
         return result
