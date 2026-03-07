@@ -3,6 +3,7 @@ package com.insuranceai.common.ai
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.content.Media
 import reactor.core.publisher.Flux
 
 /**
@@ -39,6 +40,21 @@ class SuspendingChatClient(
                 .user(userMessage)
                 .call()
                 .entity(responseType)!!
+        }
+
+    /** 이미지/미디어 포함 호출 (코루틴) */
+    suspend fun callWithMedia(
+        userMessage: String,
+        media: List<Media>,
+        systemMessage: String? = null,
+    ): String =
+        withContext(Dispatchers.IO) {
+            chatClient
+                .prompt()
+                .apply { systemMessage?.let { system(it) } }
+                .user { u -> u.text(userMessage).media(*media.toTypedArray()) }
+                .call()
+                .content() ?: ""
         }
 
     /** 스트리밍 응답 (Flux 반환) */
