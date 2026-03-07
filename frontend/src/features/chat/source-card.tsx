@@ -27,8 +27,10 @@ export function SourceCard({ source, index, isActive, onSourceClick }: SourceCar
 
   return (
     <button
-      className={`shrink-0 w-[180px] rounded-lg border bg-source-card-bg p-3 text-left transition-shadow hover:shadow-card-hover ${
-        isActive ? 'ring-2 ring-primary' : ''
+      className={`shrink-0 w-[180px] rounded-lg border p-3 text-left transition-all ${
+        isActive
+          ? 'border-primary bg-primary/5 shadow-card-hover'
+          : 'bg-source-card-bg hover:shadow-card-hover'
       }`}
       onClick={handleClick}
       tabIndex={0}

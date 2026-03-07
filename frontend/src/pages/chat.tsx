@@ -172,7 +172,22 @@ export default function ChatPage() {
                   activeArticleId={isDesktop ? activeTabId : undefined}
                 />
               )}
-              <ChatMessage message={message} />
+              <ChatMessage
+                message={message}
+                onSourceClick={
+                  isDesktop && message.sources
+                    ? (index) => {
+                        const source = message.sources![index - 1];
+                        if (source) handleOpenSource(source, index - 1);
+                      }
+                    : undefined
+                }
+                activeSourceIndex={
+                  isDesktop && activeTabId && message.sources
+                    ? message.sources.findIndex((s) => s.articleId === activeTabId) + 1 || null
+                    : null
+                }
+              />
               {message.role === 'ASSISTANT' && message.suggestedQuestions && (
                 <SuggestedQuestions
                   questions={message.suggestedQuestions}

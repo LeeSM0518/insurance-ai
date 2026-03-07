@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { cva } from 'class-variance-authority';
 import Markdown from 'react-markdown';
 import { CopyShareButtons } from './copy-share-buttons';
@@ -15,17 +16,48 @@ const chatMessageVariants = cva('rounded-lg px-4 py-3 max-w-[85%]', {
 interface ChatMessageProps {
   message: ChatMessageType;
   onSourceClick?: (index: number) => void;
+  activeSourceIndex?: number | null;
 }
 
-// 인라인 출처 [1], [2] 등을 클릭 가능한 링크로 변환
-function processSourceLinks(content: string): string {
-  return content.replace(
-    /\[(\d+)\]/g,
-    '<button class="inline-flex items-center justify-center size-5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20" data-source-index="$1">$1</button>',
-  );
+// 문자열 내 [N] 패턴을 인라인 출처 버튼 React 엘리먼트로 변환
+function replaceSourceRefs(text: string, activeSourceIndex?: number | null): ReactNode[] {
+  const parts = text.split(/(\[\d+\])/);
+  return parts.map((part, i) => {
+    const match = part.match(/^\[(\d+)\]$/);
+    if (match) {
+      const index = parseInt(match[1], 10);
+      const isActive = activeSourceIndex === index;
+      return (
+        <button
+          key={i}
+          className={`inline-flex items-center justify-center size-4 rounded-full text-[10px] font-medium transition-colors ${
+            isActive
+              ? 'bg-primary/20 text-primary ring-1 ring-primary'
+              : 'bg-primary/10 text-primary hover:bg-primary/20'
+          }`}
+          data-source-index={match[1]}
+        >
+          {match[1]}
+        </button>
+      );
+    }
+    return part;
+  });
 }
 
-export function ChatMessage({ message, onSourceClick }: ChatMessageProps) {
+// React children을 재귀 순회하며 문자열 노드의 [N] 패턴을 버튼으로 변환
+function processChildren(children: ReactNode, activeSourceIndex?: number | null): ReactNode {
+  if (typeof children === 'string') {
+    if (/\[\d+\]/.test(children)) return replaceSourceRefs(children, activeSourceIndex);
+    return children;
+  }
+  if (Array.isArray(children)) {
+    return children.map((child, i) => <span key={i}>{processChildren(child, activeSourceIndex)}</span>);
+  }
+  return children;
+}
+
+export function ChatMessage({ message, onSourceClick, activeSourceIndex }: ChatMessageProps) {
   const isAssistant = message.role === 'ASSISTANT';
 
   return (
@@ -45,16 +77,8 @@ export function ChatMessage({ message, onSourceClick }: ChatMessageProps) {
           >
             <Markdown
               components={{
-                // 출처 번호가 포함된 텍스트를 HTML로 처리
-                p: ({ children }) => {
-                  const text = String(children);
-                  if (/\[\d+\]/.test(text)) {
-                    return (
-                      <p dangerouslySetInnerHTML={{ __html: processSourceLinks(text) }} />
-                    );
-                  }
-                  return <p>{children}</p>;
-                },
+                p: ({ children }) => <p>{processChildren(children, activeSourceIndex)}</p>,
+                li: ({ children }) => <li>{processChildren(children, activeSourceIndex)}</li>,
               }}
             >
               {message.content}
