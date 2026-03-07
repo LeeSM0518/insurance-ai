@@ -156,9 +156,21 @@ class LifeInsuranceCrawler(
     ): Path? =
         withContext(Dispatchers.IO) {
             try {
-                val downloadDir = Path.of(config.crawl.downloadDir, "life")
-                java.nio.file.Files
-                    .createDirectories(downloadDir)
+                val downloadDir = crawlerCommon.buildDatedDownloadDir("life")
+                val savePath =
+                    downloadDir.resolve(
+                        "life_${categoryInfo.category}_${categoryInfo.subcategory ?: "all"}.xls",
+                    )
+
+                // 동일 파일이 이미 존재하면 스킵
+                if (java.nio.file.Files
+                        .exists(savePath) &&
+                    java.nio.file.Files
+                        .size(savePath) > 0
+                ) {
+                    logger.info("생보 [${categoryInfo.displayName}] 이미 다운로드됨, 스킵: $savePath")
+                    return@withContext savePath
+                }
 
                 // 엑셀 다운로드 버튼 클릭
                 // 생보협회 실제 셀렉터: fn_excelDown() JS 함수 호출 버튼
@@ -179,10 +191,6 @@ class LifeInsuranceCrawler(
                                 ).first()
                         excelButton.click()
                     }
-                val savePath =
-                    downloadDir.resolve(
-                        "life_${categoryInfo.category}_${categoryInfo.subcategory ?: "all"}.xls",
-                    )
                 download.saveAs(savePath)
                 logger.info("생보 [${categoryInfo.displayName}] 엑셀 다운로드 완료: $savePath")
                 savePath

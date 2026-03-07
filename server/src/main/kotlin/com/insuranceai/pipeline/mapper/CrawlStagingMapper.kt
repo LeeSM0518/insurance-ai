@@ -3,6 +3,7 @@ package com.insuranceai.pipeline.mapper
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.entity.CrawlStagingEntity
+import io.r2dbc.postgresql.codec.Json
 import org.springframework.stereotype.Component
 
 @Component
@@ -16,9 +17,9 @@ class CrawlStagingMapper(
         CrawlStagingEntity(
             batchId = batchId,
             entityType = "PRODUCT",
-            entityData = objectMapper.writeValueAsString(product),
+            entityData = Json.of(objectMapper.writeValueAsString(product)),
         )
 
     fun fromStagingEntity(entity: CrawlStagingEntity): ProductRawData =
-        objectMapper.readValue(entity.entityData, ProductRawData::class.java)
+        objectMapper.readValue(entity.entityData.asArray(), ProductRawData::class.java)
 }

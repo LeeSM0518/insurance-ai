@@ -4,6 +4,7 @@ import com.insuranceai.pipeline.config.PipelineConfig
 import com.insuranceai.pipeline.crawler.LifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.LifeSummaryPdfCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
+import com.insuranceai.pipeline.crawler.NonLifeSummaryPdfCrawler
 import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.pipeline.usecase.PipelineOptions
 import com.insuranceai.pipeline.usecase.RunPipelineUseCase
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Component
 class PipelineRunner(
     private val runPipelineUseCase: RunPipelineUseCase,
     private val lifeSummaryPdfCrawler: LifeSummaryPdfCrawler,
+    private val nonLifeSummaryPdfCrawler: NonLifeSummaryPdfCrawler,
     private val config: PipelineConfig,
 ) : CommandLineRunner {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -40,15 +42,20 @@ class PipelineRunner(
 
             // 카테고리 조기 검증
             if (config.categories.isNotEmpty()) {
+                val lifeNames = LifeInsuranceCrawler.CATEGORIES.map { it.displayName }
+                val nonLifeNames =
+                    NonLifeInsuranceCrawler.CATEGORIES.flatMap {
+                        listOf(it.categoryName, it.tptyCode, it.tabName)
+                    }
                 val validCategories =
                     when (config.type) {
-                        InsuranceType.LIFE -> LifeInsuranceCrawler.CATEGORIES.map { it.displayName }
-                        InsuranceType.NON_LIFE -> NonLifeInsuranceCrawler.CATEGORIES
-                        null -> LifeInsuranceCrawler.CATEGORIES.map { it.displayName } + NonLifeInsuranceCrawler.CATEGORIES
+                        InsuranceType.LIFE -> lifeNames
+                        InsuranceType.NON_LIFE -> nonLifeNames
+                        null -> lifeNames + nonLifeNames
                     }
                 val invalid = config.categories - validCategories.toSet()
                 if (invalid.isNotEmpty()) {
-                    logger.warn("알 수 없는 카테고리 무시: $invalid (유효: $validCategories)")
+                    logger.warn("알 수 없는 카테고리 무시: $invalid")
                 }
             }
 
@@ -89,21 +96,42 @@ class PipelineRunner(
     /** 상품 요약서 PDF 다운로드 전용 실행 */
     private suspend fun runSummaryPdfDownload() {
         logger.info(
-            "상품 요약서 PDF 다운로드 시작: categories=${config.categories.ifEmpty { listOf("ALL") }}, force=${config.force}",
+            "상품 요약서 PDF 다운로드 시작: type=${config.type ?: "ALL"}, " +
+                "categories=${config.categories.ifEmpty { listOf("ALL") }}, force=${config.force}",
         )
 
-        val infos = lifeSummaryPdfCrawler.collectAll(config.categories)
-        if (infos.isEmpty()) {
-            logger.warn("수집된 상품 요약서 정보 0건")
-            return
+        // 생보 요약서
+        if (config.type == null || config.type == InsuranceType.LIFE) {
+            val lifeInfos = lifeSummaryPdfCrawler.collectAll(config.categories)
+            if (lifeInfos.isNotEmpty()) {
+                logger.info("생보 요약서 수집: ${lifeInfos.size}건, 다운로드 시작...")
+                val report = lifeSummaryPdfCrawler.downloadAll(lifeInfos, force = config.force)
+                logSummaryReport("생보", report)
+            } else {
+                logger.warn("생보 상품 요약서 정보 0건")
+            }
         }
 
-        logger.info("수집 완료: ${infos.size}건, 다운로드 시작...")
-        val report = lifeSummaryPdfCrawler.downloadAll(infos, force = config.force)
+        // 손보 요약서
+        if (config.type == null || config.type == InsuranceType.NON_LIFE) {
+            val nonLifeInfos = nonLifeSummaryPdfCrawler.collectAll(config.categories)
+            if (nonLifeInfos.isNotEmpty()) {
+                logger.info("손보 요약서 수집: ${nonLifeInfos.size}건, 다운로드 시작...")
+                val report = nonLifeSummaryPdfCrawler.downloadAll(nonLifeInfos, force = config.force)
+                logSummaryReport("손보", report)
+            } else {
+                logger.warn("손보 상품 요약서 정보 0건")
+            }
+        }
+    }
 
+    private fun logSummaryReport(
+        label: String,
+        report: com.insuranceai.pipeline.dto.SummaryDownloadReport,
+    ) {
         logger.info(
             """
-            ===== 상품 요약서 다운로드 리포트 =====
+            ===== $label 상품 요약서 다운로드 리포트 =====
             총 수집: ${report.totalCollected}건
             다운로드 성공: ${report.downloaded}건
             이미 존재(스킵): ${report.skipped}건

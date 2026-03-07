@@ -26,6 +26,6 @@ class JacksonConfig {
                 .featuresToDisable(
                     DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
                     SerializationFeature.WRITE_DATES_AS_TIMESTAMPS,
-                ).modules(JavaTimeModule())
+                ).modulesToInstall(JavaTimeModule())
         }
 }

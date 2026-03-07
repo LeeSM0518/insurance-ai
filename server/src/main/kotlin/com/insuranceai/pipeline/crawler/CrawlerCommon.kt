@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component
 import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
+import java.time.LocalDate
 
 @Component
 class CrawlerCommon(
@@ -87,6 +88,14 @@ class CrawlerCommon(
             savePath
         }
 
+    /** 오늘 날짜 기반 다운로드 디렉토리 경로 생성 (예: data/summaries/life/2026-03-07/) */
+    fun buildDatedDownloadDir(vararg subPaths: String): Path {
+        val date = LocalDate.now().toString()
+        val base = Path.of(config.crawl.downloadDir, *subPaths, date)
+        Files.createDirectories(base)
+        return base
+    }
+
     fun normalizeCompanyName(name: String): String = name.replace(Regex("\\(주\\)|㈜|주식회사|보험(?=\\s*$)"), "").trim()
 
     private val companyAliasMap =
@@ -105,11 +114,25 @@ class CrawlerCommon(
             "IBK연금보험" to "IBK연금보험",
             // 손보
             "메리츠화재해상보험" to "메리츠화재",
+            "메리츠화재" to "메리츠화재",
             "삼성화재해상보험" to "삼성화재",
+            "삼성화재" to "삼성화재",
             "현대해상화재보험" to "현대해상",
+            "현대해상" to "현대해상",
             "KB손해보험" to "KB손해보험",
+            "KB손보" to "KB손해보험",
             "DB손해보험" to "DB손해보험",
+            "DB손보" to "DB손해보험",
             "한화손해보험" to "한화손해보험",
+            "한화손보" to "한화손해보험",
+            "하나손해보험" to "하나손해보험",
+            "하나손보" to "하나손해보험",
+            "라이나손해보험" to "라이나손해보험",
+            "라이나손보(에이스손보)" to "라이나손해보험",
+            "신한EZ손해보험" to "신한EZ손해보험",
+            "농협손해보험" to "농협손해보험",
+            "농협손보" to "농협손해보험",
+            "NH농협손해보험" to "농협손해보험",
         )
 
     suspend fun matchCompany(crawledName: String): InsuranceCompanyEntity? {

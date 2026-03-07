@@ -44,13 +44,15 @@ class ComparisonDataParser(
             val table = HtmlExcelParser.parse(filePath)
             logger.info("파일 파싱: ${filePath.fileName} — ${table.headers.size}컬럼, ${table.rows.size}행")
 
+            val sourceUrl = resolveSourceUrl(mapping)
+
             when (mapping.parserType) {
-                ExcelParserConfig.ParserType.PROTECTION -> parseProtection(table, mapping)
-                ExcelParserConfig.ParserType.SAVINGS -> parseSavings(table, mapping)
-                ExcelParserConfig.ParserType.VARIABLE_PROTECTION -> parseVariableProtection(table, mapping)
-                ExcelParserConfig.ParserType.VARIABLE_SAVINGS -> parseVariableSavings(table, mapping)
-                ExcelParserConfig.ParserType.PENSION -> parsePension(table, mapping)
-                ExcelParserConfig.ParserType.HEALTH -> parseHealth(table, mapping)
+                ExcelParserConfig.ParserType.PROTECTION -> parseProtection(table, mapping, sourceUrl)
+                ExcelParserConfig.ParserType.SAVINGS -> parseSavings(table, mapping, sourceUrl)
+                ExcelParserConfig.ParserType.VARIABLE_PROTECTION -> parseVariableProtection(table, mapping, sourceUrl)
+                ExcelParserConfig.ParserType.VARIABLE_SAVINGS -> parseVariableSavings(table, mapping, sourceUrl)
+                ExcelParserConfig.ParserType.PENSION -> parsePension(table, mapping, sourceUrl)
+                ExcelParserConfig.ParserType.HEALTH -> parseHealth(table, mapping, sourceUrl)
             }
         } catch (e: Exception) {
             logger.error("파일 파싱 실패: ${filePath.fileName} — ${e.message}", e)
@@ -58,12 +60,21 @@ class ComparisonDataParser(
         }
     }
 
+    /** 카테고리에 따른 출처 URL */
+    private fun resolveSourceUrl(mapping: ExcelParserConfig.FileParserMapping): String =
+        if (mapping.category.startsWith("NL_")) {
+            "https://kpub.knia.or.kr"
+        } else {
+            "https://pub.insure.or.kr"
+        }
+
     // ============================================================
     // 보장성 보험 (10파일)
     // ============================================================
     private fun parseProtection(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
+        sourceUrl: String = "https://pub.insure.or.kr",
     ): List<ProductRawData> {
         val headers = table.headers
 
@@ -84,7 +95,7 @@ class ComparisonDataParser(
         return grouped.mapNotNull { (key, rows) ->
             try {
                 val (companyName, productName) = key.split("|", limit = 2)
-                buildProtectionProduct(companyName, productName, rows, headers, mapping)
+                buildProtectionProduct(companyName, productName, rows, headers, mapping, sourceUrl)
             } catch (e: Exception) {
                 logger.warn("보장성 상품 파싱 실패: $key — ${e.message}")
                 null
@@ -98,6 +109,7 @@ class ComparisonDataParser(
         rows: List<List<String>>,
         headers: List<String>,
         mapping: ExcelParserConfig.FileParserMapping,
+        sourceUrl: String = "https://pub.insure.or.kr",
     ): ProductRawData {
         val firstRow = rows.first()
 
@@ -164,7 +176,7 @@ class ComparisonDataParser(
             appliedInterestRate = appliedRate,
             declaredInterestRate = declaredRate,
             guaranteedInterestRate = guaranteedRate,
-            sourceUrl = "https://pub.insure.or.kr",
+            sourceUrl = sourceUrl,
         )
     }
 
@@ -176,6 +188,7 @@ class ComparisonDataParser(
         val sectionIdx = HtmlExcelParser.findColumnIndex(headers, "구분")
         val coverageIdx =
             HtmlExcelParser.findColumnIndex(headers, "급부명칭")
+                ?: HtmlExcelParser.findColumnIndex(headers, "담보명")
                 ?: HtmlExcelParser.findColumnIndex(headers, "담보")
         val reasonIdx = HtmlExcelParser.findColumnIndex(headers, "지급사유")
         val amountIdx =
@@ -315,6 +328,7 @@ class ComparisonDataParser(
     private fun parseSavings(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
+        sourceUrl: String = "https://pub.insure.or.kr",
     ): List<ProductRawData> {
         val headers = table.headers
         val companyIdx = HtmlExcelParser.findColumnIndex(headers, "보험회사") ?: 0
@@ -332,7 +346,7 @@ class ComparisonDataParser(
         return grouped.mapNotNull { (key, rows) ->
             try {
                 val (companyName, productName) = key.split("|", limit = 2)
-                buildSavingsProduct(companyName, productName, rows, headers, mapping)
+                buildSavingsProduct(companyName, productName, rows, headers, mapping, sourceUrl)
             } catch (e: Exception) {
                 logger.warn("저축성 상품 파싱 실패: $key — ${e.message}")
                 null
@@ -346,6 +360,7 @@ class ComparisonDataParser(
         rows: List<List<String>>,
         headers: List<String>,
         mapping: ExcelParserConfig.FileParserMapping,
+        sourceUrl: String = "https://pub.insure.or.kr",
     ): ProductRawData {
         val firstRow = rows.first()
 
@@ -377,7 +392,7 @@ class ComparisonDataParser(
             declaredInterestRate = declaredRate,
             guaranteedInterestRate = guaranteedRate,
             expenseRatio = expenseRatio,
-            sourceUrl = "https://pub.insure.or.kr",
+            sourceUrl = sourceUrl,
         )
     }
 
@@ -463,7 +478,8 @@ class ComparisonDataParser(
     private fun parseVariableProtection(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
-    ): List<ProductRawData> = parseProtection(table, mapping)
+        sourceUrl: String = "https://pub.insure.or.kr",
+    ): List<ProductRawData> = parseProtection(table, mapping, sourceUrl)
 
     // ============================================================
     // 변액저축성 보험 (2파일) — SAVINGS 유사 + PDF URL
@@ -471,8 +487,9 @@ class ComparisonDataParser(
     private fun parseVariableSavings(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
+        sourceUrl: String = "https://pub.insure.or.kr",
     ): List<ProductRawData> {
-        val products = parseSavings(table, mapping)
+        val products = parseSavings(table, mapping, sourceUrl)
 
         // 변액저축성만 PDF URL이 HTML <a> 태그로 존재할 수 있음
         // (이미 Jsoup 파싱 시 텍스트로 추출됨 — URL은 별도 처리 필요)
@@ -485,7 +502,8 @@ class ComparisonDataParser(
     private fun parsePension(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
-    ): List<ProductRawData> = parseSavings(table, mapping)
+        sourceUrl: String = "https://pub.insure.or.kr",
+    ): List<ProductRawData> = parseSavings(table, mapping, sourceUrl)
 
     // ============================================================
     // 실손의료보험 (1파일) — PROTECTION 유사
@@ -493,6 +511,7 @@ class ComparisonDataParser(
     private fun parseHealth(
         table: ParsedTable,
         mapping: ExcelParserConfig.FileParserMapping,
+        sourceUrl: String = "https://pub.insure.or.kr",
     ): List<ProductRawData> {
         val headers = table.headers
         val companyIdx = HtmlExcelParser.findColumnIndex(headers, "보험회사") ?: 0
@@ -510,7 +529,7 @@ class ComparisonDataParser(
         return grouped.mapNotNull { (key, rows) ->
             try {
                 val (companyName, productName) = key.split("|", limit = 2)
-                buildHealthProduct(companyName, productName, rows, headers, mapping)
+                buildHealthProduct(companyName, productName, rows, headers, mapping, sourceUrl)
             } catch (e: Exception) {
                 logger.warn("실손 상품 파싱 실패: $key — ${e.message}")
                 null
@@ -524,6 +543,7 @@ class ComparisonDataParser(
         rows: List<List<String>>,
         headers: List<String>,
         mapping: ExcelParserConfig.FileParserMapping,
+        sourceUrl: String = "https://pub.insure.or.kr",
     ): ProductRawData {
         val firstRow = rows.first()
 
@@ -553,7 +573,7 @@ class ComparisonDataParser(
             salesStartDate = ValueCleaner.cleanDate(findValue(firstRow, headers, "판매일자")),
             notes = findValue(firstRow, headers, "특이사항"),
             phone = ValueCleaner.cleanPhone(findValue(firstRow, headers, "대표번호")),
-            sourceUrl = "https://pub.insure.or.kr",
+            sourceUrl = sourceUrl,
         )
     }
 

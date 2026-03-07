@@ -433,10 +433,10 @@ class LifeSummaryPdfCrawler(
             }
         }
 
-    /** 저장 경로 생성 */
+    /** 저장 경로 생성 (날짜별 폴더) */
     internal fun buildSavePath(info: SummaryPdfInfo): Path {
         val categoryDir = sanitizeFileName(info.category)
         val fileName = "${sanitizeFileName(info.companyName)}_${sanitizeFileName(info.productName)}_${info.fileNo}.pdf"
-        return Path.of(config.crawl.downloadDir, "life", categoryDir, fileName)
+        return crawlerCommon.buildDatedDownloadDir("life", categoryDir).resolve(fileName)
     }
 }

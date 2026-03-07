@@ -22,8 +22,8 @@ object ExcelParserConfig {
         val parserType: ParserType,
     )
 
-    /** 19개 파일 → 파서 매핑 */
-    val FILE_MAPPINGS =
+    /** 생보 19개 파일 → 파서 매핑 */
+    val LIFE_FILE_MAPPINGS =
         listOf(
             // 보장성 보험 (10파일)
             FileParserMapping("종신보험", "PROTECTION", "WHOLE_LIFE", ParserType.PROTECTION),
@@ -52,6 +52,36 @@ object ExcelParserConfig {
             FileParserMapping("실손의료", "HEALTH", null, ParserType.HEALTH),
         )
 
+    /** 손보 18개 카테고리 → 파서 매핑 (파일명: nonlife_{tptyCode}_{카테고리명}.xls) */
+    val NON_LIFE_FILE_MAPPINGS =
+        listOf(
+            // 장기보장성 (tabType=1, 12개)
+            FileParserMapping("nonlife_PB11", "NL_PROTECTION", "PB11", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB12", "NL_PROTECTION", "PB12", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB13", "NL_PROTECTION", "PB13", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB24", "NL_PROTECTION", "PB24", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB25", "NL_PROTECTION", "PB25", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB16", "NL_PROTECTION", "PB16", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB22", "NL_PROTECTION", "PB22", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB14", "NL_PROTECTION", "PB14", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB15", "NL_PROTECTION", "PB15", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB18", "NL_PROTECTION", "PB18", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB27", "NL_PROTECTION", "PB27", ParserType.PROTECTION),
+            FileParserMapping("nonlife_PB17", "NL_PROTECTION", "PB17", ParserType.PROTECTION),
+            // 장기저축성 (tabType=2, 2개)
+            FileParserMapping("nonlife_PC11", "NL_SAVINGS", "PC11", ParserType.SAVINGS),
+            FileParserMapping("nonlife_PC12", "NL_SAVINGS", "PC12", ParserType.SAVINGS),
+            // 실손의료보험 (tabType=3, 3개)
+            FileParserMapping("nonlife_PB26", "NL_HEALTH", "PB26", ParserType.HEALTH),
+            FileParserMapping("nonlife_PB21", "NL_HEALTH", "PB21", ParserType.HEALTH),
+            FileParserMapping("nonlife_PB23", "NL_HEALTH", "PB23", ParserType.HEALTH),
+            // 연금저축 (tabType=4, 1개)
+            FileParserMapping("nonlife_PC99", "NL_PENSION", "PC99", ParserType.PENSION),
+        )
+
+    /** 전체 파서 매핑 (손보를 먼저 배치하여 구체적 키워드 우선 매칭) */
+    val FILE_MAPPINGS = NON_LIFE_FILE_MAPPINGS + LIFE_FILE_MAPPINGS
+
     /** 파일명으로 매핑 찾기 */
     fun findMapping(fileName: String): FileParserMapping? = FILE_MAPPINGS.firstOrNull { fileName.contains(it.fileKeyword) }
 
@@ -72,8 +102,8 @@ object ExcelParserConfig {
         /** 최저보증사항 컬럼이 있는 소분류 */
         val HAS_MIN_GUARANTEE = setOf("WHOLE_LIFE", "TERM_LIFE", "CI")
 
-        /** 보장범위지수 컬럼이 있는 소분류 */
-        val HAS_COVERAGE_INDEX = setOf("CANCER")
+        /** 보장범위지수 컬럼이 있는 소분류 (생보 CANCER + 손보 PB22) */
+        val HAS_COVERAGE_INDEX = setOf("CANCER", "PB22")
 
         /** 경도치매 관련 컬럼이 있는 소분류 */
         val HAS_MILD_DEMENTIA = setOf("NURSING")

@@ -12,8 +12,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.nio.file.Files
 import java.nio.file.Path
 
+/**
+ * 손해보험협회 비교공시 크롤러
+ *
+ * 비교공시 팝업 페이지에서 카테고리별 엑셀 다운로드.
+ * URL 파라미터(tabType, tptyCode)로 카테고리 직접 접근.
+ * 엑셀 파일(.xls)은 실제 HTML 테이블 형식 — Jsoup으로 파싱.
+ */
 @Component
 class NonLifeInsuranceCrawler(
     private val crawlerCommon: CrawlerCommon,
@@ -22,25 +30,63 @@ class NonLifeInsuranceCrawler(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
+    /**
+     * 손보 카테고리 정보
+     *
+     * @param tabType 상위 탭 번호 (1~4)
+     * @param tabName 탭 표시명
+     * @param tptyCode 카테고리 코드 (PB11, PC11 등)
+     * @param categoryName 카테고리 표시명
+     */
+    data class NonLifeCategory(
+        val tabType: Int,
+        val tabName: String,
+        val tptyCode: String,
+        val categoryName: String,
+    )
+
     companion object {
         const val BASE_URL = "https://kpub.knia.or.kr"
+
         val CATEGORIES =
             listOf(
-                "상해보험",
-                "질병보험",
-                "암보험",
-                "운전자보험",
-                "어린이보험",
-                "화재보험",
-                "종합보험",
-                "비용보험",
-                "간병/치매보험",
-                "치아보험",
-                "반려동물보험",
-                "기타",
-                "실손의료보험",
-                "저축성보험",
+                // 장기보장성 (tabType=1)
+                NonLifeCategory(1, "장기보장성", "PB11", "화재"),
+                NonLifeCategory(1, "장기보장성", "PB12", "종합"),
+                NonLifeCategory(1, "장기보장성", "PB13", "운전자"),
+                NonLifeCategory(1, "장기보장성", "PB24", "어린이"),
+                NonLifeCategory(1, "장기보장성", "PB25", "치아"),
+                NonLifeCategory(1, "장기보장성", "PB16", "간병_치매"),
+                NonLifeCategory(1, "장기보장성", "PB22", "암"),
+                NonLifeCategory(1, "장기보장성", "PB14", "상해"),
+                NonLifeCategory(1, "장기보장성", "PB15", "질병"),
+                NonLifeCategory(1, "장기보장성", "PB18", "비용"),
+                NonLifeCategory(1, "장기보장성", "PB27", "반려동물"),
+                NonLifeCategory(1, "장기보장성", "PB17", "기타"),
+                // 장기저축성 (tabType=2)
+                NonLifeCategory(2, "장기저축성", "PC11", "장기화재_및_종합보험"),
+                NonLifeCategory(2, "장기저축성", "PC12", "장기상해보험_및_기타"),
+                // 실손의료보험 (tabType=3)
+                NonLifeCategory(3, "실손의료보험", "PB26", "실손의료보험_4세대"),
+                NonLifeCategory(3, "실손의료보험", "PB21", "노후실손의료보험"),
+                NonLifeCategory(3, "실손의료보험", "PB23", "유병력자실손보험"),
+                // 연금저축 (tabType=4)
+                NonLifeCategory(4, "연금저축", "PC99", "연금저축"),
             )
+
+        /** 카테고리 URL 생성 */
+        fun buildCategoryUrl(category: NonLifeCategory): String =
+            "$BASE_URL/popup/disclosurePopup.do?tabType=${category.tabType}&tptyCode=${category.tptyCode}&detailYn=Y"
+
+        /** tabType → 파서 카테고리 매핑 */
+        fun resolveParserCategory(category: NonLifeCategory): String =
+            when (category.tabType) {
+                1 -> "NL_PROTECTION"
+                2 -> "NL_SAVINGS"
+                3 -> "NL_HEALTH"
+                4 -> "NL_PENSION"
+                else -> "NL_PROTECTION"
+            }
     }
 
     suspend fun crawlAll(categoryFilter: List<String> = emptyList()): CrawlResult {
@@ -51,11 +97,13 @@ class NonLifeInsuranceCrawler(
             if (categoryFilter.isEmpty()) {
                 CATEGORIES
             } else {
-                val invalid = categoryFilter - CATEGORIES.toSet()
-                if (invalid.isNotEmpty()) {
-                    logger.warn("손보 알 수 없는 카테고리 무시: $invalid")
+                CATEGORIES.filter { cat ->
+                    categoryFilter.any { filter ->
+                        cat.categoryName.contains(filter) ||
+                            cat.tptyCode == filter ||
+                            cat.tabName == filter
+                    }
                 }
-                CATEGORIES.filter { it in categoryFilter }
             }
 
         for (category in categoriesToCrawl) {
@@ -65,14 +113,14 @@ class NonLifeInsuranceCrawler(
                         crawlCategory(browser, category)
                     }
                 allProducts.addAll(products)
-                logger.info("손보 [$category] 크롤링 완료: ${products.size}건")
+                logger.info("손보 [${category.tabName}/${category.categoryName}] 크롤링 완료: ${products.size}건")
 
                 if (products.isEmpty()) {
-                    logger.warn("손보 [$category] 수집 건수 0건 — 사이트 구조 변경 확인 필요")
+                    logger.warn("손보 [${category.tabName}/${category.categoryName}] 수집 건수 0건 — 사이트 구조 변경 확인 필요")
                 }
             } catch (e: Exception) {
-                allErrors.add(CrawlError(category, null, e.message ?: "", "BROWSER"))
-                logger.error("손보 [$category] 크롤링 실패", e)
+                allErrors.add(CrawlError(category.categoryName, null, e.message ?: "", "BROWSER"))
+                logger.error("손보 [${category.tabName}/${category.categoryName}] 크롤링 실패", e)
             }
             crawlerCommon.randomDelay()
         }
@@ -89,23 +137,24 @@ class NonLifeInsuranceCrawler(
 
     suspend fun crawlCategory(
         browser: Browser,
-        category: String,
+        category: NonLifeCategory,
     ): List<ProductRawData> {
         val page = crawlerCommon.createPage(browser)
         return try {
+            val url = buildCategoryUrl(category)
             crawlerCommon.withRetry {
-                page.navigate("$BASE_URL/comparison/main.do")
+                page.navigate(url)
                 page.waitForLoadState()
             }
 
-            logger.debug("손보 [$category] 페이지 접근 완료")
+            logger.debug("손보 [${category.tabName}/${category.categoryName}] 페이지 접근 완료: $url")
 
             val excelPath = downloadExcel(page, category)
             if (excelPath != null) {
-                // HTML 테이블로 파싱 (Jsoup)
-                comparisonDataParser.parseFile(excelPath, category, null)
+                val parserCategory = resolveParserCategory(category)
+                comparisonDataParser.parseFile(excelPath, parserCategory, category.tptyCode)
             } else {
-                logger.warn("손보 [$category] 엑셀 다운로드 실패")
+                logger.warn("손보 [${category.tabName}/${category.categoryName}] 엑셀 다운로드 실패")
                 emptyList()
             }
         } finally {
@@ -115,42 +164,32 @@ class NonLifeInsuranceCrawler(
 
     suspend fun downloadExcel(
         page: Page,
-        category: String,
+        category: NonLifeCategory,
     ): Path? =
         withContext(Dispatchers.IO) {
             try {
-                val downloadDir = Path.of(config.crawl.downloadDir, "non-life")
-                java.nio.file.Files
-                    .createDirectories(downloadDir)
+                val downloadDir = crawlerCommon.buildDatedDownloadDir("non-life")
+                val savePath = downloadDir.resolve("nonlife_${category.tptyCode}_${category.categoryName}.xls")
+
+                if (Files.exists(savePath) && Files.size(savePath) > 0) {
+                    logger.info("손보 [${category.categoryName}] 이미 다운로드됨, 스킵: $savePath")
+                    return@withContext savePath
+                }
 
                 val download =
                     page.waitForDownload {
                         page
                             .locator(
-                                "button.btn_excel, a.btn_excel, " +
-                                    "button:has-text('엑셀'), a:has-text('엑셀'), " +
-                                    "[onclick*='excel'], [onclick*='Excel']",
+                                "a:has-text('엑셀다운로드'), [onclick*='exceldown']",
                             ).first()
                             .click()
                     }
-                val savePath = downloadDir.resolve("nonlife_${category.replace("/", "_")}.xls")
                 download.saveAs(savePath)
+                logger.info("손보 [${category.categoryName}] 엑셀 다운로드 완료: $savePath")
                 savePath
             } catch (e: Exception) {
-                logger.warn("손보 [$category] 엑셀 다운로드 실패: ${e.message}")
+                logger.warn("손보 [${category.categoryName}] 엑셀 다운로드 실패: ${e.message}")
                 null
             }
-        }
-
-    @Suppress("UnusedParameter")
-    suspend fun extractRemarks(
-        page: Page,
-        productName: String,
-    ): String? =
-        try {
-            null
-        } catch (e: Exception) {
-            logger.debug("손보 특이사항 추출 실패 ($productName): ${e.message}")
-            null
         }
 }

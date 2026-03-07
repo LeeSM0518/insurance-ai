@@ -202,5 +202,5 @@ db-test-worker-*
 
 .playwright-mcp
 
-data/
+server/data/
 ai-data/

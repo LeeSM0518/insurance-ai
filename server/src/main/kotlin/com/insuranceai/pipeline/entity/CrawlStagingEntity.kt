@@ -1,5 +1,6 @@
 package com.insuranceai.pipeline.entity
 
+import io.r2dbc.postgresql.codec.Json
 import org.springframework.data.annotation.Id
 import org.springframework.data.domain.Persistable
 import org.springframework.data.relational.core.mapping.Column
@@ -15,7 +16,7 @@ data class CrawlStagingEntity(
     val id: UUID? = null,
     val batchId: String,
     val entityType: String,
-    val entityData: String,
+    val entityData: Json,
     val validationStatus: String = "PENDING",
     val validationErrors: String? = null,
     val createdAt: Instant = Instant.now(),
