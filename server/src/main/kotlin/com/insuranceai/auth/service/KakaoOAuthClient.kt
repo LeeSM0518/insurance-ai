@@ -52,6 +52,7 @@ class KakaoOAuthClient(
                         BodyInserters
                             .fromFormData("grant_type", "authorization_code")
                             .with("client_id", appProperties.kakao.clientId)
+                            .with("client_secret", appProperties.kakao.clientSecret)
                             .with("redirect_uri", redirectUri)
                             .with("code", code),
                     ).retrieve()

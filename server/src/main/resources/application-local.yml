@@ -11,9 +11,6 @@ logging:
     org.springframework.r2dbc: DEBUG
 
 app:
-  jwt:
-    access-token-secret: local-dev-access-secret-key-minimum-256-bits-long
-    refresh-token-secret: local-dev-refresh-secret-key-minimum-256-bits-long
   security:
     permit-paths:
       - /api/v1/auth/**

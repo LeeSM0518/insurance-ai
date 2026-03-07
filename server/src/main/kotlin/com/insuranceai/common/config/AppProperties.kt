@@ -13,6 +13,7 @@ data class AppProperties(
 
 data class KakaoProperties(
     val clientId: String = "",
+    val clientSecret: String = "",
     val userInfoUrl: String = "https://kapi.kakao.com/v2/user/me",
 )
 
