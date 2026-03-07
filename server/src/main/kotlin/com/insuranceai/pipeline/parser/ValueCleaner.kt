@@ -90,6 +90,8 @@ object ValueCleaner {
                 .replace(PERCENT_SUFFIX_REGEX, "")
                 .replace(COMMA_REGEX, "")
                 .trim()
+        // '%'만 있던 경우 클렌징 후 빈 문자열 → 데이터 없음
+        if (cleaned.isEmpty()) return ParseResult.Empty
         // 괄호가 있으면 괄호 앞 숫자만 추출: "1.90(0.3)" → "1.90"
         val parenMatch = PARENTHESIS_PREFIX_REGEX.find(cleaned)
         if (parenMatch != null) {
