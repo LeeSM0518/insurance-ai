@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router';
 import { User } from 'lucide-react';
 import { useMediaQuery, BREAKPOINTS } from '@/hooks/use-media-query';
 import { TAB_ITEMS, getActiveTab } from '@/lib/navigation';
+import { ProfileDropdown } from '@/features/my/profile-dropdown';
 
 export function Header() {
   const isDesktop = useMediaQuery(BREAKPOINTS.desktop);
@@ -37,14 +38,18 @@ export function Header() {
             </nav>
           )}
 
-          {/* 프로필 아이콘 */}
-          <button
-            type="button"
-            className="touch-target flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
-            aria-label="프로필"
-          >
-            <User className="h-5 w-5" aria-hidden="true" />
-          </button>
+          {/* 프로필: 데스크톱은 드롭다운, 모바일은 아이콘만 */}
+          {isDesktop ? (
+            <ProfileDropdown />
+          ) : (
+            <NavLink
+              to="/my"
+              className="touch-target flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="프로필"
+            >
+              <User className="h-5 w-5" aria-hidden="true" />
+            </NavLink>
+          )}
         </div>
       </div>
     </header>
