@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.convert.converter.Converter
 import org.springframework.data.convert.ReadingConverter
 import org.springframework.data.convert.WritingConverter
-import org.springframework.data.r2dbc.config.EnableR2dbcAuditing
 import org.springframework.data.r2dbc.convert.R2dbcCustomConversions
 import org.springframework.data.r2dbc.dialect.PostgresDialect
 
@@ -16,7 +15,6 @@ import org.springframework.data.r2dbc.dialect.PostgresDialect
  * ConnectionFactory는 Spring Boot가 자동 주입하므로 AbstractR2dbcConfiguration을 상속하지 않음
  */
 @Configuration
-@EnableR2dbcAuditing
 class R2dbcConfig(
     private val connectionFactory: ConnectionFactory,
 ) {
