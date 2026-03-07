@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/hooks/use-auth';
 import { getApi } from '@/lib/api';
@@ -10,6 +10,7 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
+  const isProcessing = useRef(false);
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
@@ -27,6 +28,10 @@ export default function AuthCallbackPage() {
       setError('인증 코드가 없습니다.');
       return;
     }
+
+    // React Strict Mode 이중 호출 방지
+    if (isProcessing.current) return;
+    isProcessing.current = true;
 
     handleOAuthCallback(code);
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps

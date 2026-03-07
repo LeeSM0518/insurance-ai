@@ -3,8 +3,11 @@ package com.insuranceai.auth.service
 import com.fasterxml.jackson.databind.JsonNode
 import com.insuranceai.auth.error.AuthError
 import com.insuranceai.common.config.AppProperties
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import org.springframework.web.reactive.function.BodyInserters
 import org.springframework.web.reactive.function.client.WebClient
+import org.springframework.web.reactive.function.client.WebClientResponseException
 import org.springframework.web.reactive.function.client.awaitBody
 
 data class KakaoUserInfo(
@@ -17,6 +20,8 @@ data class KakaoUserInfo(
 class KakaoOAuthClient(
     private val appProperties: AppProperties,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     private val webClient =
         WebClient
             .builder()
@@ -32,26 +37,42 @@ class KakaoOAuthClient(
     /**
      * authorization_code를 카카오 access_token으로 교환합니다.
      */
-    suspend fun exchangeCode(code: String, redirectUri: String): String {
+    suspend fun exchangeCode(
+        code: String,
+        redirectUri: String,
+    ): String {
+        log.debug("카카오 토큰 교환 요청: clientId={}, redirectUri={}", appProperties.kakao.clientId, redirectUri)
+
         val response =
             runCatching {
                 tokenClient
                     .post()
                     .uri("/oauth/token")
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .bodyValue(
-                        "grant_type=authorization_code" +
-                            "&client_id=${appProperties.kakao.clientId}" +
-                            "&redirect_uri=$redirectUri" +
-                            "&code=$code",
-                    )
-                    .retrieve()
+                    .body(
+                        BodyInserters
+                            .fromFormData("grant_type", "authorization_code")
+                            .with("client_id", appProperties.kakao.clientId)
+                            .with("redirect_uri", redirectUri)
+                            .with("code", code),
+                    ).retrieve()
                     .awaitBody<JsonNode>()
-            }.getOrElse {
+            }.getOrElse { ex ->
+                val body =
+                    if (ex is WebClientResponseException) {
+                        ex.responseBodyAsString
+                    } else {
+                        "N/A"
+                    }
+                log.error("카카오 토큰 교환 실패: {} | 응답: {}", ex.message, body)
                 throw AuthError.KakaoAuthFailed
             }
 
-        return response["access_token"]?.asText() ?: throw AuthError.KakaoAuthFailed
+        val accessToken = response["access_token"]?.asText()
+        if (accessToken == null) {
+            log.error("카카오 토큰 응답에 access_token 없음: {}", response)
+            throw AuthError.KakaoAuthFailed
+        }
+        return accessToken
     }
 
     suspend fun getUserInfo(kakaoAccessToken: String): KakaoUserInfo {

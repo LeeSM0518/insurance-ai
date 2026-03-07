@@ -23,7 +23,10 @@ class AuthService(
         return issueTokens(user)
     }
 
-    suspend fun loginWithCode(code: String, redirectUri: String): LoginResponse {
+    suspend fun loginWithCode(
+        code: String,
+        redirectUri: String,
+    ): LoginResponse {
         val kakaoAccessToken = kakaoOAuthClient.exchangeCode(code, redirectUri)
         return login(kakaoAccessToken)
     }
