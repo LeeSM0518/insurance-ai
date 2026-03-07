@@ -2,13 +2,22 @@ package com.insuranceai.pipeline.service
 
 import com.insuranceai.pipeline.mapper.CrawlStagingMapper
 import com.insuranceai.pipeline.repository.CrawlStagingRepository
+import com.insuranceai.policy.domain.ContentType
+import com.insuranceai.policy.domain.SectionType
+import com.insuranceai.policy.entity.DataSourceEntity
 import com.insuranceai.policy.entity.PolicyArticleEntity
+import com.insuranceai.policy.entity.ProductFeatureEntity
+import com.insuranceai.policy.entity.ProductYieldScenarioEntity
+import com.insuranceai.policy.entity.SurrenderValueEntity
+import com.insuranceai.policy.repository.DataSourceRepository
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PolicyArticleRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
+import com.insuranceai.policy.repository.ProductFeatureRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
 import com.insuranceai.policy.repository.ProductMetricRepository
 import com.insuranceai.policy.repository.ProductRepository
+import com.insuranceai.policy.repository.ProductYieldScenarioRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import kotlinx.coroutines.flow.toList
 import org.slf4j.LoggerFactory
@@ -39,6 +48,9 @@ class StagingPublisher(
     private val normalizationService: NormalizationService,
     private val crawlStagingRepository: CrawlStagingRepository,
     private val crawlStagingMapper: CrawlStagingMapper,
+    private val productFeatureRepository: ProductFeatureRepository,
+    private val productYieldScenarioRepository: ProductYieldScenarioRepository,
+    private val dataSourceRepository: DataSourceRepository,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -66,10 +78,35 @@ class StagingPublisher(
         // 보험사명 → ID 매핑 캐시
         val companyMap = buildCompanyMap()
 
+        // 비교공시 배치의 DataSource 생성
+        val dataSource =
+            dataSourceRepository.save(
+                DataSourceEntity(
+                    sourceType = "ASSOCIATION",
+                    sourceUrl =
+                        passedRecords.firstOrNull()?.let {
+                            crawlStagingMapper.fromStagingEntity(it).sourceUrl
+                        },
+                    crawledAt = Instant.now(),
+                ),
+            )
+
+        // 보험사 전화번호 업데이트 추적 (보험사별 1회만)
+        val updatedCompanyPhones = mutableSetOf<UUID>()
+
         for (record in passedRecords) {
             try {
                 val rawData = crawlStagingMapper.fromStagingEntity(record)
                 val companyId = companyMap[rawData.companyName] ?: continue
+
+                // 보험사 전화번호 업데이트 (null → 크롤링 값)
+                if (rawData.phone != null && companyId !in updatedCompanyPhones) {
+                    val company = insuranceCompanyRepository.findById(companyId)
+                    if (company != null && company.phone == null) {
+                        insuranceCompanyRepository.save(company.copy(phone = rawData.phone))
+                        updatedCompanyPhones.add(companyId)
+                    }
+                }
 
                 // 기존 상품 조회 (보험사 + 상품명으로)
                 val existingProducts =
@@ -80,9 +117,22 @@ class StagingPublisher(
 
                 val productId: UUID
                 if (existingProduct != null) {
-                    // 변경 상품: checksum 갱신
+                    // 변경 상품: 모든 크롤링 필드 갱신
+                    val updated = normalizationService.toProductEntity(rawData, companyId)
                     productRepository.save(
                         existingProduct.copy(
+                            renewalType = updated.renewalType,
+                            salesChannel = updated.salesChannel,
+                            minPremium = updated.minPremium,
+                            appliedInterestRate = updated.appliedInterestRate,
+                            declaredInterestRate = updated.declaredInterestRate,
+                            guaranteedInterestRate = updated.guaranteedInterestRate,
+                            expenseRatio = updated.expenseRatio,
+                            surrenderType = updated.surrenderType,
+                            productType = updated.productType,
+                            salesStartDate = updated.salesStartDate,
+                            isUniversal = updated.isUniversal,
+                            notes = updated.notes,
                             checksum = rawData.checksum,
                             updatedAt = Instant.now(),
                         ),
@@ -106,6 +156,18 @@ class StagingPublisher(
 
                 val metricCount = republishProductMetrics(productId, rawData)
                 metricsCreated += metricCount
+
+                // 비교공시 coverages → policy_articles (COVERAGE) 저장 + DataSource 연결
+                val coverageCount = republishCoverageArticles(productId, rawData, dataSource.id)
+                articlesCreated += coverageCount
+
+                // 비교공시 surrenderValues → surrender_values 저장
+                val surrenderCount = republishSurrenderValues(productId, rawData)
+                surrenderValuesCreated += surrenderCount
+
+                // 보충 데이터: features, yieldScenarios
+                republishProductFeatures(productId, rawData)
+                republishProductYieldScenarios(productId, rawData)
             } catch (e: Exception) {
                 logger.error("스테이징 반영 실패: recordId=${record.id}, error=${e.message}", e)
             }
@@ -141,16 +203,22 @@ class StagingPublisher(
         logger.info("상품 비활성화: ${productIds.size}건")
     }
 
-    /** 약관 버전 관리: 기존 is_active=false 전환 후 새 레코드 삽입 */
+    /**
+     * 약관 버전 관리: 기존 is_active=false 전환 후 새 레코드 삽입
+     * @param contentTypeFilter null이면 전체 비활성화, 지정 시 해당 contentType만 비활성화
+     */
     suspend fun publishArticlesWithVersioning(
         productId: UUID,
         newArticles: List<PolicyArticleEntity>,
+        contentTypeFilter: String? = null,
     ) {
         // 기존 조문 비활성화
         val existingArticles = policyArticleRepository.findByProductId(productId).toList()
+        var deactivatedCount = 0
         for (article in existingArticles) {
-            if (article.isActive) {
+            if (article.isActive && (contentTypeFilter == null || article.contentType == contentTypeFilter)) {
                 policyArticleRepository.save(article.copy(isActive = false, updatedAt = Instant.now()))
+                deactivatedCount++
             }
         }
 
@@ -159,7 +227,10 @@ class StagingPublisher(
             policyArticleRepository.save(article.copy(productId = productId))
         }
 
-        logger.info("약관 버전 관리: productId=$productId, 기존 비활성화=${existingArticles.size}건, 신규=${newArticles.size}건")
+        logger.info(
+            "약관 버전 관리: productId=$productId, 기존 비활성화=${deactivatedCount}건, 신규=${newArticles.size}건" +
+                (contentTypeFilter?.let { " (contentType=$it)" } ?: ""),
+        )
     }
 
     /** 보험사명 → ID 매핑 구성 */
@@ -249,5 +320,107 @@ class StagingPublisher(
             count++
         }
         return count
+    }
+
+    /** 비교공시 coverages → policy_articles (COVERAGE) 저장 + DataSource 연결 */
+    private suspend fun republishCoverageArticles(
+        productId: UUID,
+        rawData: com.insuranceai.pipeline.dto.ProductRawData,
+        dataSourceId: UUID? = null,
+    ): Int {
+        if (rawData.coverages.isEmpty()) return 0
+
+        val newArticles =
+            rawData.coverages.map { coverage ->
+                val sectionType =
+                    when (coverage.sectionType) {
+                        "MAIN" -> SectionType.MAIN.name
+                        "RIDER" -> SectionType.RIDER.name
+                        "MAIN_CONTRACT" -> SectionType.MAIN.name
+                        else -> SectionType.MAIN.name
+                    }
+
+                PolicyArticleEntity(
+                    productId = productId,
+                    dataSourceId = dataSourceId,
+                    content = "[${coverage.coverageName}] 지급사유: ${coverage.paymentReason}, 지급액: ${coverage.paymentAmount}",
+                    contentType = ContentType.COVERAGE.name,
+                    sectionType = sectionType,
+                )
+            }
+
+        // COVERAGE 타입만 비활성화 후 재삽입
+        publishArticlesWithVersioning(productId, newArticles, ContentType.COVERAGE.name)
+        return newArticles.size
+    }
+
+    /** 비교공시 surrenderValues → surrender_values 저장 */
+    private suspend fun republishSurrenderValues(
+        productId: UUID,
+        rawData: com.insuranceai.pipeline.dto.ProductRawData,
+    ): Int {
+        if (rawData.surrenderValues.isEmpty()) return 0
+
+        // 기존 삭제 후 재삽입
+        surrenderValueRepository.deleteByProductId(productId)
+
+        var count = 0
+        for (sv in rawData.surrenderValues) {
+            surrenderValueRepository.save(
+                SurrenderValueEntity(
+                    productId = productId,
+                    elapsedMonths = sv.elapsedMonths,
+                    gender = sv.gender,
+                    premiumPaid = sv.premiumPaid,
+                    surrenderValue = sv.surrenderValue,
+                    surrenderRate = sv.surrenderRate,
+                    policyholderReserve = sv.policyholderReserve,
+                ),
+            )
+            count++
+        }
+        return count
+    }
+
+    /** 상품 특성(features) 재발행 */
+    private suspend fun republishProductFeatures(
+        productId: UUID,
+        rawData: com.insuranceai.pipeline.dto.ProductRawData,
+    ) {
+        if (rawData.features.isEmpty()) return
+
+        productFeatureRepository.deleteByProductId(productId)
+
+        for (feature in rawData.features) {
+            productFeatureRepository.save(
+                ProductFeatureEntity(
+                    productId = productId,
+                    key = feature.featureKey,
+                    value = feature.featureValue,
+                ),
+            )
+        }
+    }
+
+    /** 수익률 시나리오 재발행 */
+    private suspend fun republishProductYieldScenarios(
+        productId: UUID,
+        rawData: com.insuranceai.pipeline.dto.ProductRawData,
+    ) {
+        if (rawData.yieldScenarios.isEmpty()) return
+
+        productYieldScenarioRepository.deleteByProductId(productId)
+
+        for (scenario in rawData.yieldScenarios) {
+            productYieldScenarioRepository.save(
+                ProductYieldScenarioEntity(
+                    productId = productId,
+                    scenarioType = scenario.scenarioType,
+                    scenarioLabel = scenario.scenarioLabel,
+                    yieldRate = scenario.yieldRate,
+                    gender = scenario.gender,
+                ),
+            )
+        }
     }
 }

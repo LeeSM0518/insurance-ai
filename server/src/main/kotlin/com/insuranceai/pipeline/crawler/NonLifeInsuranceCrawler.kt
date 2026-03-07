@@ -5,6 +5,7 @@ import com.insuranceai.pipeline.dto.CrawlError
 import com.insuranceai.pipeline.dto.CrawlResult
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.parser.ComparisonDataParser
+import com.insuranceai.pipeline.parser.NonLifeJsonParser
 import com.insuranceai.policy.domain.InsuranceType
 import com.microsoft.playwright.Browser
 import com.microsoft.playwright.Page
@@ -108,18 +109,23 @@ class NonLifeInsuranceCrawler(
 
         for (category in categoriesToCrawl) {
             try {
-                val products =
-                    crawlerCommon.usePlaywright { browser ->
-                        crawlCategory(browser, category)
-                    }
-                allProducts.addAll(products)
-                logger.info("손보 [${category.tabName}/${category.categoryName}] 크롤링 완료: ${products.size}건")
-
-                if (products.isEmpty()) {
-                    logger.warn("손보 [${category.tabName}/${category.categoryName}] 수집 건수 0건 — 사이트 구조 변경 확인 필요")
+                // 1차: JSON API
+                val products = crawlCategoryViaJson(category)
+                if (products != null) {
+                    allProducts.addAll(products)
+                    logger.info("손보 [${category.tabName}/${category.categoryName}] JSON 크롤링 완료: ${products.size}건")
+                } else {
+                    // 2차: Excel 폴백 (Playwright 사용)
+                    logger.info("손보 [${category.tabName}/${category.categoryName}] JSON 실패, Excel 폴백")
+                    val excelProducts =
+                        crawlerCommon.usePlaywright { browser ->
+                            crawlCategoryViaExcel(browser, category)
+                        }
+                    allProducts.addAll(excelProducts)
+                    logger.info("손보 [${category.tabName}/${category.categoryName}] Excel 크롤링 완료: ${excelProducts.size}건")
                 }
             } catch (e: Exception) {
-                allErrors.add(CrawlError(category.categoryName, null, e.message ?: "", "BROWSER"))
+                allErrors.add(CrawlError(category.categoryName, null, e.message ?: "", "CRAWL"))
                 logger.error("손보 [${category.tabName}/${category.categoryName}] 크롤링 실패", e)
             }
             crawlerCommon.randomDelay()
@@ -135,7 +141,46 @@ class NonLifeInsuranceCrawler(
         )
     }
 
-    suspend fun crawlCategory(
+    /**
+     * JSON API로 카테고리 데이터 수집
+     *
+     * @return 성공 시 ProductRawData 리스트 (0건 포함), 실패 시 null
+     */
+    internal suspend fun crawlCategoryViaJson(category: NonLifeCategory): List<ProductRawData>? =
+        withContext(Dispatchers.IO) {
+            try {
+                val url = "$BASE_URL/popup/disclosureList.do"
+                val body = "tabType=${category.tabType}&tptyCode=${category.tptyCode}&detailYn=Y"
+
+                val connection =
+                    java.net
+                        .URI(url)
+                        .toURL()
+                        .openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+                connection.doOutput = true
+                connection.outputStream.use { it.write(body.toByteArray()) }
+
+                val responseCode = connection.responseCode
+                if (responseCode != 200) {
+                    logger.warn("손보 [${category.categoryName}] JSON API 응답 코드: $responseCode")
+                    return@withContext null
+                }
+
+                val rawJson = connection.inputStream.bufferedReader().readText()
+                val items = NonLifeJsonParser.parseJson5(rawJson)
+                NonLifeJsonParser.toProductRawData(items, category, crawlerCommon::calculateChecksum)
+            } catch (e: Exception) {
+                logger.warn("손보 [${category.categoryName}] JSON API 호출 실패: ${e.message}")
+                null
+            }
+        }
+
+    /**
+     * Excel 다운로드 폴백 (Playwright 필요)
+     */
+    private suspend fun crawlCategoryViaExcel(
         browser: Browser,
         category: NonLifeCategory,
     ): List<ProductRawData> {
@@ -147,14 +192,11 @@ class NonLifeInsuranceCrawler(
                 page.waitForLoadState()
             }
 
-            logger.debug("손보 [${category.tabName}/${category.categoryName}] 페이지 접근 완료: $url")
-
             val excelPath = downloadExcel(page, category)
             if (excelPath != null) {
                 val parserCategory = resolveParserCategory(category)
                 comparisonDataParser.parseFile(excelPath, parserCategory, category.tptyCode)
             } else {
-                logger.warn("손보 [${category.tabName}/${category.categoryName}] 엑셀 다운로드 실패")
                 emptyList()
             }
         } finally {
@@ -162,7 +204,10 @@ class NonLifeInsuranceCrawler(
         }
     }
 
-    suspend fun downloadExcel(
+    /**
+     * Excel 다운로드 (waitForDownload만 사용)
+     */
+    private suspend fun downloadExcel(
         page: Page,
         category: NonLifeCategory,
     ): Path? =
@@ -177,11 +222,12 @@ class NonLifeInsuranceCrawler(
                 }
 
                 val download =
-                    page.waitForDownload {
+                    page.waitForDownload(
+                        Page.WaitForDownloadOptions().setTimeout(60_000.0),
+                    ) {
                         page
-                            .locator(
-                                "a:has-text('엑셀다운로드'), [onclick*='exceldown']",
-                            ).first()
+                            .locator("a:has-text('엑셀다운로드'), [onclick*='exceldown']")
+                            .first()
                             .click()
                     }
                 download.saveAs(savePath)

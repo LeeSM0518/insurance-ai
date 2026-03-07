@@ -9,4 +9,6 @@ interface SurrenderValueRepository : CoroutineCrudRepository<SurrenderValueEntit
     fun findByProductId(productId: UUID): Flow<SurrenderValueEntity>
 
     fun findByProductIdIn(productIds: Collection<UUID>): Flow<SurrenderValueEntity>
+
+    suspend fun deleteByProductId(productId: UUID)
 }

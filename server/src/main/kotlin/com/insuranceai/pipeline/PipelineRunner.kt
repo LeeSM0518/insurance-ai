@@ -27,15 +27,24 @@ class PipelineRunner(
 
     override fun run(vararg args: String?) {
         runBlocking {
-            // SUMMARY_PDF 단독 실행 모드
-            if (config.steps.size == 1 && PipelineStep.SUMMARY_PDF in config.steps) {
+            // SUMMARY_PDF 단독 실행 모드 (기존 독립 실행 유지)
+            val pdfOnlySteps = setOf(PipelineStep.SUMMARY_PDF, PipelineStep.PARSE_PDF)
+            if (config.steps.isNotEmpty() &&
+                config.steps
+                    .toSet()
+                    .subtract(pdfOnlySteps)
+                    .isEmpty() &&
+                config.steps.size == 1 &&
+                PipelineStep.SUMMARY_PDF in config.steps &&
+                config.batchId == null
+            ) {
                 runSummaryPdfDownload()
                 return@runBlocking
             }
 
             // batchId 필수 검증: CRAWL 없이 다른 단계만 실행 시 batchId 필요
-            val stepsWithoutSummary = config.steps - PipelineStep.SUMMARY_PDF
-            if (stepsWithoutSummary.isNotEmpty() && PipelineStep.CRAWL !in stepsWithoutSummary && config.batchId == null) {
+            val stepsWithoutPdfOnly = config.steps - pdfOnlySteps
+            if (stepsWithoutPdfOnly.isNotEmpty() && PipelineStep.CRAWL !in stepsWithoutPdfOnly && config.batchId == null) {
                 logger.error("CRAWL 단계 없이 실행하려면 --app.pipeline.batch-id 옵션이 필요합니다.")
                 return@runBlocking
             }

@@ -148,7 +148,13 @@ class LifeSummaryPdfCrawlerTest {
             assertEquals("024400010001", LifeSummaryPdfCrawler.ASSURANCE_CATEGORIES["종신보험"])
             assertEquals("024400010002", LifeSummaryPdfCrawler.ASSURANCE_CATEGORIES["정기보험"])
             assertEquals("024400010011", LifeSummaryPdfCrawler.ASSURANCE_CATEGORIES["기타"])
-            assertEquals(11, LifeSummaryPdfCrawler.ASSURANCE_CATEGORIES.size)
+            assertEquals(10, LifeSummaryPdfCrawler.ASSURANCE_CATEGORIES.size)
+        }
+
+        @Test
+        fun `실손의료보험은 SINGLE_CATEGORIES에서 별도 처리한다`() {
+            assertFalse(LifeSummaryPdfCrawler.ASSURANCE_CATEGORIES.containsKey("실손의료보험"))
+            assertEquals("024400010008", LifeSummaryPdfCrawler.SINGLE_CATEGORIES["실손의료보험"])
         }
 
         @Test

@@ -38,6 +38,16 @@ class NormalizationService {
             renewalType = raw.renewalType,
             salesChannel = raw.salesChannel,
             checksum = raw.checksum,
+            minPremium = raw.premiumExamples.minOfOrNull { it.premium },
+            appliedInterestRate = raw.appliedInterestRate,
+            declaredInterestRate = raw.declaredInterestRate,
+            guaranteedInterestRate = raw.guaranteedInterestRate,
+            expenseRatio = raw.expenseRatio,
+            surrenderType = raw.surrenderType,
+            productType = raw.productType,
+            salesStartDate = raw.salesStartDate,
+            isUniversal = raw.isUniversal,
+            notes = raw.notes?.let { normalizeText(it) },
         )
 
     /** PdfStructuredData → PolicyArticleEntity 목록 변환 */

@@ -1,7 +1,9 @@
 package com.insuranceai.pipeline.usecase
 
 import com.insuranceai.pipeline.crawler.LifeInsuranceCrawler
+import com.insuranceai.pipeline.crawler.LifeSummaryPdfCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
+import com.insuranceai.pipeline.crawler.NonLifeSummaryPdfCrawler
 import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.pipeline.dto.CoverageData
 import com.insuranceai.pipeline.dto.CrawlResult
@@ -10,6 +12,9 @@ import com.insuranceai.pipeline.embedder.EmbeddingService
 import com.insuranceai.pipeline.entity.CrawlHistoryEntity
 import com.insuranceai.pipeline.entity.CrawlStagingEntity
 import com.insuranceai.pipeline.mapper.CrawlStagingMapper
+import com.insuranceai.pipeline.parser.PdfParsingResult
+import com.insuranceai.pipeline.parser.PdfParsingService
+import com.insuranceai.pipeline.parser.PdfStructuredData
 import com.insuranceai.pipeline.repository.CrawlStagingRepository
 import com.insuranceai.pipeline.service.ChangeDetectionService
 import com.insuranceai.pipeline.service.PipelineService
@@ -19,8 +24,11 @@ import com.insuranceai.pipeline.validator.CrossValidator
 import com.insuranceai.pipeline.validator.ValidationResult
 import com.insuranceai.pipeline.validator.ValidationService
 import com.insuranceai.policy.domain.InsuranceType
+import com.insuranceai.policy.entity.DataSourceEntity
 import com.insuranceai.policy.entity.InsuranceCompanyEntity
+import com.insuranceai.policy.entity.PolicyArticleEntity
 import com.insuranceai.policy.entity.ProductEntity
+import com.insuranceai.policy.repository.DataSourceRepository
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PolicyArticleRepository
 import com.insuranceai.policy.repository.ProductRepository
@@ -39,13 +47,17 @@ import kotlin.test.assertTrue
 
 class RunPipelineUseCaseTest {
     private val lifeInsuranceCrawler = mockk<LifeInsuranceCrawler>()
+    private val lifeSummaryPdfCrawler = mockk<LifeSummaryPdfCrawler>()
     private val nonLifeInsuranceCrawler = mockk<NonLifeInsuranceCrawler>()
+    private val nonLifeSummaryPdfCrawler = mockk<NonLifeSummaryPdfCrawler>()
     private val changeDetectionService = mockk<ChangeDetectionService>()
     private val validationService = mockk<ValidationService>()
     private val crossValidator = mockk<CrossValidator>()
     private val stagingPublisher = mockk<StagingPublisher>()
     private val embeddingService = mockk<EmbeddingService>()
     private val pipelineService = mockk<PipelineService>()
+    private val pdfParsingService = mockk<PdfParsingService>()
+    private val dataSourceRepository = mockk<DataSourceRepository>()
     private val crawlStagingRepository = mockk<CrawlStagingRepository>()
     private val crawlStagingMapper = mockk<CrawlStagingMapper>()
     private val insuranceCompanyRepository = mockk<InsuranceCompanyRepository>()
@@ -56,12 +68,16 @@ class RunPipelineUseCaseTest {
         RunPipelineUseCase(
             lifeInsuranceCrawler,
             nonLifeInsuranceCrawler,
+            lifeSummaryPdfCrawler,
+            nonLifeSummaryPdfCrawler,
             changeDetectionService,
             validationService,
             crossValidator,
             stagingPublisher,
             embeddingService,
             pipelineService,
+            pdfParsingService,
+            dataSourceRepository,
             crawlStagingRepository,
             crawlStagingMapper,
             insuranceCompanyRepository,
@@ -112,8 +128,6 @@ class RunPipelineUseCaseTest {
         coEvery { crawlStagingRepository.findByBatchId(any()) } returns
             flowOf(CrawlStagingEntity(id = UUID.randomUUID(), batchId = "b1", entityType = "PRODUCT", entityData = Json.of("{}")))
         every { crawlStagingMapper.fromStagingEntity(any()) } returns testProduct
-        every { crossValidator.validate(any(), any(), any(), any()) } returns
-            CrossValidator.CrossValidationResult(1, 0, 0, 0, 0, emptyList())
     }
 
     @Test
@@ -247,7 +261,6 @@ class RunPipelineUseCaseTest {
 
             coVerify(exactly = 0) { stagingPublisher.publish(any()) }
             coVerify(exactly = 0) { embeddingService.embedArticles(any()) }
-            coVerify(exactly = 1) { crossValidator.validate(any(), any(), any(), any()) }
             assertEquals(1, result.life.crawled)
             assertEquals(0, result.life.published)
             assertEquals(0, result.life.embedded)
@@ -397,6 +410,112 @@ class RunPipelineUseCaseTest {
         }
 
     @Test
+    fun `steps=PARSE_PDF이면 PDF 파싱 및 저장 수행`() =
+        runTest {
+            val batchId = "batch-pdf-parse"
+            val productId = UUID.randomUUID()
+            val dataSourceId = UUID.randomUUID()
+
+            // 실제 임시 파일 생성 (File.exists() 통과)
+            val tempFile =
+                kotlin.io.path
+                    .createTempFile("test-pdf", ".pdf")
+                    .toFile()
+            tempFile.writeText("dummy pdf content")
+            val pdfPath = tempFile.absolutePath
+
+            try {
+                val rawDataWithPdf =
+                    testProduct.copy(pdfSummaryPath = pdfPath)
+
+                val stagingEntity =
+                    CrawlStagingEntity(
+                        id = UUID.randomUUID(),
+                        batchId = batchId,
+                        entityType = "PRODUCT",
+                        entityData = Json.of("{}"),
+                        validationStatus = "PASSED",
+                    )
+
+                setupBatchMocks()
+                coEvery {
+                    crawlStagingRepository.findByBatchIdAndValidationStatus(batchId, "PASSED")
+                } returns flowOf(stagingEntity)
+                every { crawlStagingMapper.fromStagingEntity(stagingEntity) } returns rawDataWithPdf
+                coEvery { insuranceCompanyRepository.findByIsActiveTrue() } returns flowOf(company)
+                coEvery {
+                    productRepository.findByInsuranceCompanyIdAndIsActiveTrue(companyId)
+                } returns
+                    flowOf(
+                        ProductEntity(
+                            id = productId,
+                            insuranceCompanyId = companyId,
+                            name = "종신보험A",
+                            category = "종신보험",
+                        ),
+                    )
+
+                val structuredData = PdfStructuredData(overallConfidence = 0.9f)
+                val dataSource =
+                    DataSourceEntity(sourceType = "PRODUCT_SUMMARY", filePath = pdfPath, checksum = "sha256")
+                val savedDataSource = dataSource.copy(id = dataSourceId)
+                val article =
+                    PolicyArticleEntity(
+                        productId = productId,
+                        content = "면책사항",
+                        contentType = "EXEMPTION",
+                    )
+
+                coEvery {
+                    pdfParsingService.parse(any(), productId, "삼성생명", "종신보험A")
+                } returns
+                    PdfParsingResult(
+                        articles = listOf(article),
+                        surrenderValues = emptyList(),
+                        dataSource = dataSource,
+                        confidence = 0.9f,
+                        factCheckResults = emptyList(),
+                        structuredData = structuredData,
+                    )
+                coEvery { dataSourceRepository.save(any()) } returns savedDataSource
+                coEvery { policyArticleRepository.findByProductId(productId) } returns flowOf()
+                coEvery { policyArticleRepository.save(any()) } answers { firstArg() }
+                coEvery {
+                    stagingPublisher.publishArticlesWithVersioning(any(), any(), any())
+                } returns Unit
+                every { crossValidator.validate(any(), any(), any(), any()) } returns
+                    CrossValidator.CrossValidationResult(
+                        matched = 1,
+                        formatMismatch = 0,
+                        partialMismatch = 0,
+                        valueMismatch = 0,
+                        missing = 0,
+                        warnings = emptyList(),
+                    )
+
+                val result =
+                    useCase.runWithOptions(
+                        PipelineOptions(
+                            type = InsuranceType.LIFE,
+                            steps = setOf(PipelineStep.PARSE_PDF),
+                            batchId = batchId,
+                        ),
+                    )
+
+                // DataSource 저장 확인
+                coVerify(exactly = 1) { dataSourceRepository.save(any()) }
+                // articles 저장 확인 (contentType별 publishArticlesWithVersioning 호출)
+                coVerify(exactly = 1) {
+                    stagingPublisher.publishArticlesWithVersioning(productId, any(), "EXEMPTION")
+                }
+                // 크로스 검증 호출 확인
+                io.mockk.verify(exactly = 1) { crossValidator.validate(any(), any(), any(), any()) }
+            } finally {
+                tempFile.delete()
+            }
+        }
+
+    @Test
     fun `resolveSteps - steps 명시 시 dryRun보다 우선`() {
         val options =
             PipelineOptions(
@@ -413,8 +532,11 @@ class RunPipelineUseCaseTest {
     }
 
     @Test
-    fun `resolveSteps - 둘 다 미지정이면 SUMMARY_PDF 제외 전체 단계`() {
+    fun `resolveSteps - 둘 다 미지정이면 SUMMARY_PDF와 PARSE_PDF 제외 전체 단계`() {
         val options = PipelineOptions()
-        assertEquals(PipelineStep.entries.toSet() - PipelineStep.SUMMARY_PDF, options.resolveSteps())
+        assertEquals(
+            PipelineStep.entries.toSet() - setOf(PipelineStep.SUMMARY_PDF, PipelineStep.PARSE_PDF),
+            options.resolveSteps(),
+        )
     }
 }

@@ -66,6 +66,9 @@ dependencies {
     // Jsoup — HTML 테이블 파싱 (비교공시 .xls 파일이 실제 HTML 형식)
     implementation("org.jsoup:jsoup:1.18.3")
 
+    // Apache POI — 바이너리 Excel 파싱 (손보협회 .xls 파일)
+    implementation("org.apache.poi:poi:5.3.0")
+
     // Apache PDFBox — PDF 텍스트 추출
     implementation("org.apache.pdfbox:pdfbox:3.0.4")
 

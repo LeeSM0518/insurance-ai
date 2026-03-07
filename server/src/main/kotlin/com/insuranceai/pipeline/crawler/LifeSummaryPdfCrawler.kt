@@ -36,7 +36,7 @@ class LifeSummaryPdfCrawler(
                 "변액보험(저축성)" to "/compareDis/variableInsrn/prodCompare/saving/list.do",
             )
 
-        // 보장성보험 소분류 코드
+        // 보장성보험 소분류 코드 (실손의료보험은 별도 탭이므로 SINGLE_CATEGORIES에서 처리)
         val ASSURANCE_CATEGORIES =
             mapOf(
                 "종신보험" to "024400010001",
@@ -46,7 +46,6 @@ class LifeSummaryPdfCrawler(
                 "CI보험" to "024400010005",
                 "상해보험" to "024400010006",
                 "어린이보험" to "024400010007",
-                "실손의료보험" to "024400010008",
                 "치아보험" to "024400010009",
                 "간병/치매보험" to "024400010010",
                 "기타" to "024400010011",
@@ -104,6 +103,20 @@ class LifeSummaryPdfCrawler(
             }
         }
 
+        // 실손의료보험: 별도 탭으로 쿼리 파라미터를 통해 직접 접근
+        if (categoryFilter.isEmpty() || "실손의료보험" in categoryFilter) {
+            try {
+                crawlerCommon.usePlaywright { browser ->
+                    val infos = this@LifeSummaryPdfCrawler.collectDirectCategory(browser, "실손의료보험", "보장성보험")
+                    allInfos.addAll(infos)
+                    logger.info("[실손의료보험] 수집 완료: ${infos.size}건")
+                }
+            } catch (e: Exception) {
+                logger.error("[실손의료보험] 수집 실패: ${e.message}", e)
+            }
+            crawlerCommon.randomDelay()
+        }
+
         // 저축성/변액 대분류 순회 (소분류 코드를 페이지에서 동적으로 수집)
         val otherMajors =
             MAJOR_CATEGORIES.filter { (key, _) ->
@@ -137,6 +150,7 @@ class LifeSummaryPdfCrawler(
         var failed = 0
         val errors = mutableListOf<String>()
         val categoryStats = mutableMapOf<String, Int>()
+        val downloadedFiles = mutableMapOf<String, Path>()
 
         val httpClient =
             HttpClient
@@ -150,13 +164,15 @@ class LifeSummaryPdfCrawler(
 
                 if (!force && Files.exists(savePath) && Files.size(savePath) > 0) {
                     skipped++
+                    downloadedFiles["${info.companyName}::${info.productName}"] = savePath
                     continue
                 }
 
-                val success = downloadPdf(httpClient, info, savePath)
-                if (success) {
+                val resultPath = downloadPdf(httpClient, info, savePath)
+                if (resultPath != null) {
                     downloaded++
                     categoryStats.merge(info.category, 1) { a, b -> a + b }
+                    downloadedFiles["${info.companyName}::${info.productName}"] = resultPath
                 } else {
                     failed++
                     errors.add("PDF 검증 실패: ${info.companyName}_${info.productName} (fileNo=${info.fileNo})")
@@ -182,6 +198,7 @@ class LifeSummaryPdfCrawler(
             failed = failed,
             errors = errors,
             categoryStats = categoryStats,
+            downloadedFiles = downloadedFiles,
         )
     }
 
@@ -231,6 +248,30 @@ class LifeSummaryPdfCrawler(
         }
 
         return allInfos
+    }
+
+    /** 쿼리 파라미터로 직접 접근하는 카테고리 수집 (실손의료보험 등) */
+    internal suspend fun collectDirectCategory(
+        browser: Browser,
+        category: String,
+        majorCategory: String,
+    ): List<SummaryPdfInfo> {
+        val code = SINGLE_CATEGORIES[category] ?: error("$category 코드를 찾을 수 없습니다")
+        val urlPath = MAJOR_CATEGORIES[majorCategory] ?: MAJOR_CATEGORIES["보장성보험"]!!
+        val page = crawlerCommon.createPage(browser)
+
+        try {
+            crawlerCommon.withRetry {
+                page.navigate("$BASE_URL$urlPath?search_prodGroup=$code")
+                page.waitForLoadState()
+            }
+            crawlerCommon.randomDelay()
+
+            // 이미 카테고리가 선택된 상태이므로 바로 페이지네이션 순회
+            return collectPagesFromCurrentView(page, category, majorCategory)
+        } finally {
+            page.close()
+        }
     }
 
     /** 저축성/변액 대분류 페이지에서 소분류를 동적으로 수집하고 순회 */
@@ -400,12 +441,12 @@ class LifeSummaryPdfCrawler(
         page.evaluate("fn_search(1)")
     }
 
-    /** PDF 1건 다운로드 */
+    /** PDF 1건 다운로드. 성공 시 파일 경로 반환, 실패 시 null */
     private suspend fun downloadPdf(
         httpClient: HttpClient,
         info: SummaryPdfInfo,
         savePath: Path,
-    ): Boolean =
+    ): Path? =
         withContext(Dispatchers.IO) {
             crawlerCommon.withRetry(maxRetries = 3) {
                 Files.createDirectories(savePath.parent)
@@ -425,11 +466,11 @@ class LifeSummaryPdfCrawler(
                 // PDF 매직 바이트 검증
                 if (body.size < 4 || !isPdf(body)) {
                     logger.warn("PDF 아님: ${info.companyName}_${info.productName} (fileNo=${info.fileNo}, size=${body.size})")
-                    return@withRetry false
+                    return@withRetry null
                 }
 
                 Files.write(savePath, body)
-                true
+                savePath
             }
         }
 

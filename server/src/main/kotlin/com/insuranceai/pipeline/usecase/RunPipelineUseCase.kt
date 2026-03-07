@@ -1,11 +1,14 @@
 package com.insuranceai.pipeline.usecase
 
 import com.insuranceai.pipeline.crawler.LifeInsuranceCrawler
+import com.insuranceai.pipeline.crawler.LifeSummaryPdfCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
+import com.insuranceai.pipeline.crawler.NonLifeSummaryPdfCrawler
 import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.embedder.EmbeddingService
 import com.insuranceai.pipeline.mapper.CrawlStagingMapper
+import com.insuranceai.pipeline.parser.PdfParsingService
 import com.insuranceai.pipeline.repository.CrawlStagingRepository
 import com.insuranceai.pipeline.service.ChangeDetectionService
 import com.insuranceai.pipeline.service.PipelineService
@@ -13,12 +16,14 @@ import com.insuranceai.pipeline.service.StagingPublisher
 import com.insuranceai.pipeline.validator.CrossValidator
 import com.insuranceai.pipeline.validator.ValidationService
 import com.insuranceai.policy.domain.InsuranceType
+import com.insuranceai.policy.repository.DataSourceRepository
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PolicyArticleRepository
 import com.insuranceai.policy.repository.ProductRepository
 import kotlinx.coroutines.flow.toList
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
+import java.io.File
 import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
@@ -36,7 +41,7 @@ data class PipelineOptions(
         when {
             steps.isNotEmpty() -> steps
             dryRun -> setOf(PipelineStep.CRAWL, PipelineStep.VALIDATE)
-            else -> PipelineStep.entries.toSet() - PipelineStep.SUMMARY_PDF
+            else -> PipelineStep.entries.toSet() - setOf(PipelineStep.SUMMARY_PDF, PipelineStep.PARSE_PDF)
         }
 }
 
@@ -60,12 +65,16 @@ data class TypePipelineResult(
 class RunPipelineUseCase(
     private val lifeInsuranceCrawler: LifeInsuranceCrawler,
     private val nonLifeInsuranceCrawler: NonLifeInsuranceCrawler,
+    private val lifeSummaryPdfCrawler: LifeSummaryPdfCrawler,
+    private val nonLifeSummaryPdfCrawler: NonLifeSummaryPdfCrawler,
     private val changeDetectionService: ChangeDetectionService,
     private val validationService: ValidationService,
     private val crossValidator: CrossValidator,
     private val stagingPublisher: StagingPublisher,
     private val embeddingService: EmbeddingService,
     private val pipelineService: PipelineService,
+    private val pdfParsingService: PdfParsingService,
+    private val dataSourceRepository: DataSourceRepository,
     private val crawlStagingRepository: CrawlStagingRepository,
     private val crawlStagingMapper: CrawlStagingMapper,
     private val insuranceCompanyRepository: InsuranceCompanyRepository,
@@ -199,20 +208,6 @@ class RunPipelineUseCase(
                     crawlStagingRepository.save(record.copy(validationStatus = status))
                 }
 
-                // 크로스 검증 (경고만, 파이프라인 중단 없음)
-                for (product in validationResult.passed) {
-                    try {
-                        crossValidator.validate(
-                            associationCoverages = product.coverages,
-                            pdfArticles = emptyList(),
-                            productName = product.productName,
-                            companyName = product.companyName,
-                        )
-                    } catch (e: Exception) {
-                        logger.warn("크로스 검증 오류: ${product.productName}: ${e.message}")
-                    }
-                }
-
                 logger.info("VALIDATE 완료: batchId=$batchId, 통과=${validationResult.passed.size}, 실패=${validationResult.failed.size}")
             }
 
@@ -221,6 +216,130 @@ class RunPipelineUseCase(
                 val publishResult = stagingPublisher.publish(batchId)
                 publishedCount = publishResult.productsCreated + publishResult.productsUpdated
                 logger.info("PUBLISH 완료: batchId=$batchId, 신규=${publishResult.productsCreated}, 수정=${publishResult.productsUpdated}")
+            }
+
+            // SUMMARY_PDF 단계 (PDF 다운로드 + crawl_staging에 경로 반영)
+            if (PipelineStep.SUMMARY_PDF in activeSteps) {
+                try {
+                    val pdfInfos =
+                        when (insuranceType) {
+                            InsuranceType.LIFE -> lifeSummaryPdfCrawler.collectAll(categoryFilter)
+                            InsuranceType.NON_LIFE -> nonLifeSummaryPdfCrawler.collectAll(categoryFilter)
+                        }
+
+                    if (pdfInfos.isNotEmpty()) {
+                        val report =
+                            when (insuranceType) {
+                                InsuranceType.LIFE -> lifeSummaryPdfCrawler.downloadAll(pdfInfos)
+                                InsuranceType.NON_LIFE -> nonLifeSummaryPdfCrawler.downloadAll(pdfInfos)
+                            }
+
+                        // crawl_staging 레코드에 pdfSummaryPath 반영
+                        val passedRecords =
+                            crawlStagingRepository
+                                .findByBatchIdAndValidationStatus(batchId, "PASSED")
+                                .toList()
+
+                        for (record in passedRecords) {
+                            val rawData = crawlStagingMapper.fromStagingEntity(record)
+                            val key = "${rawData.companyName}::${rawData.productName}"
+                            val pdfPath = report.downloadedFiles[key]
+
+                            if (pdfPath != null && rawData.pdfSummaryPath == null) {
+                                val updatedRawData = rawData.copy(pdfSummaryPath = pdfPath.toString())
+                                crawlStagingRepository.save(
+                                    record.copy(entityData = crawlStagingMapper.toJson(updatedRawData)),
+                                )
+                            }
+                        }
+
+                        logger.info(
+                            "SUMMARY_PDF 완료: batchId=$batchId, " +
+                                "다운로드=${report.downloaded}, 스킵=${report.skipped}, 실패=${report.failed}",
+                        )
+                    } else {
+                        logger.info("SUMMARY_PDF: 다운로드할 PDF 정보 없음")
+                    }
+                } catch (e: Exception) {
+                    logger.error("SUMMARY_PDF 단계 실패: ${e.message}", e)
+                    errors.add("SUMMARY_PDF 실패: ${e.message}")
+                }
+            }
+
+            // PARSE_PDF 단계 (PDF 파싱 → policy_articles + data_sources 저장)
+            if (PipelineStep.PARSE_PDF in activeSteps) {
+                val companyMap = buildCompanyMap()
+
+                val passedRecords =
+                    crawlStagingRepository
+                        .findByBatchIdAndValidationStatus(batchId, "PASSED")
+                        .toList()
+
+                val productsWithPdf =
+                    passedRecords
+                        .map { crawlStagingMapper.fromStagingEntity(it) }
+                        .filter { it.pdfSummaryPath != null }
+
+                for (product in productsWithPdf) {
+                    try {
+                        val file = File(product.pdfSummaryPath!!)
+                        if (!file.exists()) {
+                            logger.warn("PDF 파일 없음: ${product.pdfSummaryPath}")
+                            continue
+                        }
+
+                        // productId 확보
+                        val companyId = companyMap[product.companyName] ?: continue
+                        val matchedProduct =
+                            productRepository
+                                .findByInsuranceCompanyIdAndIsActiveTrue(companyId)
+                                .toList()
+                                .find { it.name == product.productName }
+                                ?: continue
+                        val productId = matchedProduct.id!!
+
+                        // PDF 파싱
+                        val parsingResult =
+                            pdfParsingService.parse(file, productId, product.companyName, product.productName)
+
+                        // DataSource 저장
+                        val savedDataSource = dataSourceRepository.save(parsingResult.dataSource)
+
+                        // articles에 dataSourceId 연결 후 저장 (PDF 기반 contentType만 비활성화)
+                        val articlesWithDataSource =
+                            parsingResult.articles.map { it.copy(dataSourceId = savedDataSource.id) }
+                        if (articlesWithDataSource.isNotEmpty()) {
+                            // PDF에서 추출된 contentType들만 비활성화하고 저장
+                            val pdfContentTypes = articlesWithDataSource.map { it.contentType }.toSet()
+                            for (contentType in pdfContentTypes) {
+                                val articlesOfType = articlesWithDataSource.filter { it.contentType == contentType }
+                                stagingPublisher.publishArticlesWithVersioning(productId, articlesOfType, contentType)
+                            }
+                        }
+
+                        // 크로스 검증 (실제 PDF 데이터 전달)
+                        try {
+                            crossValidator.validate(
+                                associationCoverages = product.coverages,
+                                pdfArticles = listOf(parsingResult.structuredData),
+                                productName = product.productName,
+                                companyName = product.companyName,
+                            )
+                        } catch (e: Exception) {
+                            logger.warn("크로스 검증 오류: ${product.productName}: ${e.message}")
+                        }
+
+                        logger.debug(
+                            "PARSE_PDF: ${product.companyName}/${product.productName} — " +
+                                "조문 ${articlesWithDataSource.size}건, 신뢰도 ${parsingResult.confidence}",
+                        )
+                    } catch (e: Exception) {
+                        errors.add("PDF 파싱 실패: ${product.productName}: ${e.message}")
+                        logger.error("PDF 파싱 실패: ${product.companyName}/${product.productName}", e)
+                    }
+                }
+
+                logger.info("PARSE_PDF 완료: batchId=$batchId, PDF 파싱 대상 ${productsWithPdf.size}건")
             }
 
             // EMBED 단계

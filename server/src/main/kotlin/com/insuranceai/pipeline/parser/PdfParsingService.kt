@@ -19,6 +19,7 @@ data class PdfParsingResult(
     val dataSource: DataSourceEntity,
     val confidence: Float,
     val factCheckResults: List<FactCheckResult>,
+    val structuredData: PdfStructuredData,
 )
 
 /**
@@ -89,6 +90,7 @@ class PdfParsingService(
             dataSource = dataSource,
             confidence = structuredData.overallConfidence,
             factCheckResults = factCheckResults,
+            structuredData = structuredData,
         )
     }
 

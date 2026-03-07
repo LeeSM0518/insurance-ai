@@ -35,11 +35,14 @@ object HtmlExcelParser {
         val dataRows = mutableListOf<Element>()
 
         val thead = table.selectFirst("thead")
-        val tbody = table.selectFirst("tbody")
+        val tbodies = table.select("tbody")
 
-        if (thead != null && tbody != null) {
+        if (thead != null && tbodies.isNotEmpty()) {
             headerRows.addAll(thead.select("tr"))
-            dataRows.addAll(tbody.select("tr"))
+            // 상품당 별도 <tbody>인 경우(손보 DOM 추출 등) 전체 합산
+            for (tb in tbodies) {
+                dataRows.addAll(tb.select("tr"))
+            }
         } else {
             // thead/tbody 구분 없으면 th 셀 포함 행을 헤더로 판별
             for (row in rows) {

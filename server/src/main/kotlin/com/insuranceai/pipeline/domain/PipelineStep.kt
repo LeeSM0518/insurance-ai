@@ -5,6 +5,7 @@ enum class PipelineStep {
     CRAWL,
     VALIDATE,
     PUBLISH,
-    EMBED,
     SUMMARY_PDF,
+    PARSE_PDF,
+    EMBED,
 }

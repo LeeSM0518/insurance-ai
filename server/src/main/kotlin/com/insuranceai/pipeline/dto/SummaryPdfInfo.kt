@@ -1,5 +1,7 @@
 package com.insuranceai.pipeline.dto
 
+import java.nio.file.Path
+
 /** 상품 요약서 PDF 다운로드 정보 */
 data class SummaryPdfInfo(
     val fileNo: String,
@@ -18,4 +20,6 @@ data class SummaryDownloadReport(
     val failed: Int,
     val errors: List<String>,
     val categoryStats: Map<String, Int>,
+    /** key = "${companyName}::${productName}", value = 파일 경로 */
+    val downloadedFiles: Map<String, Path> = emptyMap(),
 )

@@ -22,4 +22,7 @@ class CrawlStagingMapper(
 
     fun fromStagingEntity(entity: CrawlStagingEntity): ProductRawData =
         objectMapper.readValue(entity.entityData.asArray(), ProductRawData::class.java)
+
+    /** ProductRawData를 JSON으로 직렬화 (기존 staging entity 업데이트용) */
+    fun toJson(product: ProductRawData): Json = Json.of(objectMapper.writeValueAsString(product))
 }

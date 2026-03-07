@@ -145,6 +145,7 @@ class NonLifeSummaryPdfCrawler(
         var failed = 0
         val errors = mutableListOf<String>()
         val categoryStats = mutableMapOf<String, Int>()
+        val downloadedFiles = mutableMapOf<String, Path>()
 
         crawlerCommon.usePlaywright { browser ->
             val page = crawlerCommon.createPage(browser)
@@ -159,6 +160,7 @@ class NonLifeSummaryPdfCrawler(
 
                         if (!force && Files.exists(savePath) && Files.size(savePath) > 0) {
                             skipped++
+                            downloadedFiles["${info.companyName}::${info.productName}"] = savePath
                             continue
                         }
 
@@ -166,6 +168,7 @@ class NonLifeSummaryPdfCrawler(
                         crawlerCommon.downloadFile(page, url, savePath)
                         downloaded++
                         categoryStats.merge(info.category, 1) { a, b -> a + b }
+                        downloadedFiles["${info.companyName}::${info.productName}"] = savePath
 
                         if ((index + 1) % 10 == 0) {
                             logger.info(
@@ -194,6 +197,7 @@ class NonLifeSummaryPdfCrawler(
             failed = failed,
             errors = errors,
             categoryStats = categoryStats,
+            downloadedFiles = downloadedFiles,
         )
     }
 

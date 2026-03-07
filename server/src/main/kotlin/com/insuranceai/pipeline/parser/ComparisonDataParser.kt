@@ -41,7 +41,7 @@ class ComparisonDataParser(
         }
 
         return try {
-            val table = HtmlExcelParser.parse(filePath)
+            val table = parseExcelFile(filePath)
             logger.info("파일 파싱: ${filePath.fileName} — ${table.headers.size}컬럼, ${table.rows.size}행")
 
             val sourceUrl = resolveSourceUrl(mapping)
@@ -57,6 +57,31 @@ class ComparisonDataParser(
         } catch (e: Exception) {
             logger.error("파일 파싱 실패: ${filePath.fileName} — ${e.message}", e)
             emptyList()
+        }
+    }
+
+    /**
+     * 파일 형식 자동 감지: 바이너리 Excel(손보) vs HTML 테이블(생보)
+     *
+     * 파일 앞 8바이트의 매직 바이트로 판별:
+     * - D0 CF 11 E0 = OLE2 Compound Document (바이너리 .xls) → BinaryExcelParser
+     * - 그 외 (HTML 텍스트) → HtmlExcelParser
+     */
+    private fun parseExcelFile(filePath: Path): ParsedTable {
+        val header = filePath.toFile().inputStream().use { it.readNBytes(8) }
+        val isOle2 =
+            header.size >= 4 &&
+                header[0] == 0xD0.toByte() &&
+                header[1] == 0xCF.toByte() &&
+                header[2] == 0x11.toByte() &&
+                header[3] == 0xE0.toByte()
+
+        return if (isOle2) {
+            logger.debug("바이너리 Excel 감지: ${filePath.fileName}")
+            BinaryExcelParser.parse(filePath)
+        } else {
+            logger.debug("HTML Excel 감지: ${filePath.fileName}")
+            HtmlExcelParser.parse(filePath)
         }
     }
 
@@ -79,7 +104,10 @@ class ComparisonDataParser(
         val headers = table.headers
 
         // forward-fill 대상 컬럼 인덱스 찾기
-        val companyIdx = HtmlExcelParser.findColumnIndex(headers, "보험회사") ?: 0
+        val companyIdx =
+            HtmlExcelParser.findColumnIndex(headers, "보험회사")
+                ?: HtmlExcelParser.findColumnIndex(headers, "회사명")
+                ?: 0
         val productIdx = HtmlExcelParser.findColumnIndex(headers, "상품명") ?: 1
         val filledRows = HtmlExcelParser.forwardFill(table.rows, listOf(companyIdx, productIdx))
 
@@ -116,12 +144,6 @@ class ComparisonDataParser(
         // 담보(보장내용) 추출
         val coverages = rows.mapNotNull { row -> extractCoverage(row, headers) }
 
-        // 보험료 추출
-        val premiums = extractPremiums(firstRow, headers)
-
-        // 지수 추출
-        val indices = extractIndices(firstRow, headers, mapping.subcategory)
-
         // 공통 필드
         val renewalType = ValueCleaner.cleanRenewalType(findValue(firstRow, headers, "갱신"))
         val salesChannel = findValue(firstRow, headers, "판매채널")
@@ -131,6 +153,12 @@ class ComparisonDataParser(
         val notes = findValue(firstRow, headers, "특이사항")
         val phone = ValueCleaner.cleanPhone(findValue(firstRow, headers, "대표번호"))
         val surrenderType = ValueCleaner.cleanSurrenderType(findValue(firstRow, headers, "해약환급금"))
+
+        // 보험료 추출 (특이사항에서 비교 기준 조건 추출)
+        val premiums = extractPremiums(firstRow, headers, notes)
+
+        // 지수 추출
+        val indices = extractIndices(firstRow, headers, mapping.subcategory)
 
         // 선택적 컬럼: 이율 (종신/정기만)
         val appliedRate =
@@ -218,10 +246,11 @@ class ComparisonDataParser(
         )
     }
 
-    /** 보험료 추출 — 남/여 */
+    /** 보험료 추출 — 남/여, 특이사항에서 비교 기준 조건 추출 */
     private fun extractPremiums(
         row: List<String>,
         headers: List<String>,
+        notes: String? = null,
     ): List<PremiumData> {
         val premiums = mutableListOf<PremiumData>()
 
@@ -235,15 +264,24 @@ class ComparisonDataParser(
 
         val insuranceAmount = amountIdx?.let { ValueCleaner.cleanAmount(row.getOrElse(it) { "" }) } ?: 0L
 
+        // 특이사항에서 보험료 비교 기준 조건 추출
+        val conditions =
+            try {
+                extractPremiumConditions(notes)
+            } catch (e: ParsingException) {
+                logger.warn("보험료 기준 조건 추출 실패: ${e.message}")
+                return emptyList()
+            }
+
         if (maleIdx != null) {
             val malePremium = ValueCleaner.cleanAmount(row.getOrElse(maleIdx) { "" })
             if (malePremium != null && malePremium > 0) {
                 premiums.add(
                     PremiumData(
                         gender = "남",
-                        age = 40, // 비교공시 기준 나이 (특이사항에서 추출 가능)
-                        insurancePeriod = "",
-                        paymentPeriod = "",
+                        age = conditions.age,
+                        insurancePeriod = conditions.insurancePeriod,
+                        paymentPeriod = conditions.paymentPeriod,
                         insuranceAmount = insuranceAmount,
                         premium = malePremium,
                     ),
@@ -257,9 +295,9 @@ class ComparisonDataParser(
                 premiums.add(
                     PremiumData(
                         gender = "여",
-                        age = 40,
-                        insurancePeriod = "",
-                        paymentPeriod = "",
+                        age = conditions.age,
+                        insurancePeriod = conditions.insurancePeriod,
+                        paymentPeriod = conditions.paymentPeriod,
                         insuranceAmount = insuranceAmount,
                         premium = femalePremium,
                     ),
@@ -331,7 +369,10 @@ class ComparisonDataParser(
         sourceUrl: String = "https://pub.insure.or.kr",
     ): List<ProductRawData> {
         val headers = table.headers
-        val companyIdx = HtmlExcelParser.findColumnIndex(headers, "보험회사") ?: 0
+        val companyIdx =
+            HtmlExcelParser.findColumnIndex(headers, "보험회사")
+                ?: HtmlExcelParser.findColumnIndex(headers, "회사명")
+                ?: 0
         val productIdx = HtmlExcelParser.findColumnIndex(headers, "상품명") ?: 1
         val filledRows = HtmlExcelParser.forwardFill(table.rows, listOf(companyIdx, productIdx))
 
@@ -514,7 +555,10 @@ class ComparisonDataParser(
         sourceUrl: String = "https://pub.insure.or.kr",
     ): List<ProductRawData> {
         val headers = table.headers
-        val companyIdx = HtmlExcelParser.findColumnIndex(headers, "보험회사") ?: 0
+        val companyIdx =
+            HtmlExcelParser.findColumnIndex(headers, "보험회사")
+                ?: HtmlExcelParser.findColumnIndex(headers, "회사명")
+                ?: 0
         val productIdx = HtmlExcelParser.findColumnIndex(headers, "상품명") ?: 1
         val filledRows = HtmlExcelParser.forwardFill(table.rows, listOf(companyIdx, productIdx))
 
@@ -550,8 +594,10 @@ class ComparisonDataParser(
         // 급부별 담보 추출
         val coverages = rows.mapNotNull { row -> extractCoverage(row, headers) }
 
-        // 급부별 보험료 추출 (남/여)
-        val premiums = rows.flatMap { row -> extractPremiums(row, headers) }
+        val notes = findValue(firstRow, headers, "특이사항")
+
+        // 급부별 보험료 추출 (남/여, 특이사항에서 비교 기준 조건 추출)
+        val premiums = rows.flatMap { row -> extractPremiums(row, headers, notes) }
 
         // 지수 추출
         val indices = extractIndices(firstRow, headers, mapping.subcategory)
@@ -571,7 +617,7 @@ class ComparisonDataParser(
             indices = indices,
             checksum = checksum,
             salesStartDate = ValueCleaner.cleanDate(findValue(firstRow, headers, "판매일자")),
-            notes = findValue(firstRow, headers, "특이사항"),
+            notes = notes,
             phone = ValueCleaner.cleanPhone(findValue(firstRow, headers, "대표번호")),
             sourceUrl = sourceUrl,
         )
@@ -580,6 +626,52 @@ class ComparisonDataParser(
     // ============================================================
     // 공통 헬퍼
     // ============================================================
+
+    data class PremiumConditions(
+        val age: Int,
+        val insurancePeriod: String,
+        val paymentPeriod: String,
+    )
+
+    /**
+     * 특이사항에서 보험료 비교 기준 조건을 추출.
+     * "보험료 기준" 또는 "비교기준" 줄에서 나이/보험기간/납입기간을 파싱.
+     * 추출 실패 시 ParsingException 발생 (기본값 대체 불가 — 비교 조건이 없으면 보험료 데이터 무의미).
+     */
+    fun extractPremiumConditions(notes: String?): PremiumConditions {
+        if (notes == null) {
+            throw ParsingException("특이사항 누락: 보험료 기준 조건을 확인할 수 없음")
+        }
+
+        val targetLine =
+            notes.lines().firstOrNull {
+                it.contains("보험료") || it.contains("비교기준")
+            } ?: throw ParsingException("보험료 기준 줄을 찾지 못함: ${notes.take(100)}")
+
+        val age =
+            Regex("(\\d+)세")
+                .find(targetLine)
+                ?.groupValues
+                ?.get(1)
+                ?.toIntOrNull()
+                ?: throw ParsingException("기준 나이 추출 실패: $targetLine")
+        val insurancePeriod =
+            Regex("보험기간[:\\s]*(\\S+)")
+                .find(targetLine)
+                ?.groupValues
+                ?.get(1)
+                ?.trim()
+                ?: throw ParsingException("보험기간 추출 실패: $targetLine")
+        val paymentPeriod =
+            Regex("납입기간[:\\s]*(\\S+)")
+                .find(targetLine)
+                ?.groupValues
+                ?.get(1)
+                ?.trim()
+                ?: throw ParsingException("납입기간 추출 실패: $targetLine")
+
+        return PremiumConditions(age, insurancePeriod, paymentPeriod)
+    }
 
     /** 헤더 키워드로 값 찾기 */
     private fun findValue(

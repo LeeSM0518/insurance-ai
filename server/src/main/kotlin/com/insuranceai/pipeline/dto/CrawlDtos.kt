@@ -25,6 +25,8 @@ data class ProductRawData(
     val indices: List<IndexData> = emptyList(),
     val metrics: List<MetricData> = emptyList(),
     val surrenderValues: List<SurrenderData> = emptyList(),
+    val features: List<FeatureData> = emptyList(),
+    val yieldScenarios: List<YieldScenarioData> = emptyList(),
     val pdfSummaryPath: String? = null,
     val sourceUrl: String? = null,
     val checksum: String,
@@ -81,6 +83,18 @@ data class SurrenderData(
     val surrenderValue: Long,
     val surrenderRate: BigDecimal? = null,
     val policyholderReserve: Long? = null,
+)
+
+data class FeatureData(
+    val featureKey: String,
+    val featureValue: String,
+)
+
+data class YieldScenarioData(
+    val scenarioType: String,
+    val scenarioLabel: String,
+    val yieldRate: BigDecimal,
+    val gender: String? = null,
 )
 
 data class CrawlError(
