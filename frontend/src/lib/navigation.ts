@@ -10,14 +10,14 @@ export interface TabItem {
 }
 
 export function getActiveTab(pathname: string): TabId | null {
-  if (pathname === '/' || pathname.startsWith('/search')) return 'search';
-  if (pathname.startsWith('/chat')) return 'chat';
+  if (pathname === '/' || pathname.startsWith('/chat')) return 'chat';
+  if (pathname.startsWith('/search')) return 'search';
   if (pathname.startsWith('/my')) return 'my';
   return null;
 }
 
 export const TAB_ITEMS: TabItem[] = [
-  { id: 'search', label: '검색', path: '/', icon: Search },
-  { id: 'chat', label: 'AI상담', path: '/chat', icon: MessageSquare },
+  { id: 'chat', label: 'AI', path: '/', icon: MessageSquare },
+  { id: 'search', label: '검색', path: '/search', icon: Search },
   { id: 'my', label: 'MY', path: '/my', icon: User },
 ];

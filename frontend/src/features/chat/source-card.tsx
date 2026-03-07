@@ -4,6 +4,8 @@ import type { Source } from '@/types/chat';
 interface SourceCardProps {
   source: Source;
   index: number;
+  isActive?: boolean;
+  onSourceClick?: (source: Source, index: number) => void;
 }
 
 function relevanceColor(score: number) {
@@ -12,13 +14,23 @@ function relevanceColor(score: number) {
   return 'text-relevance-low';
 }
 
-export function SourceCard({ source, index }: SourceCardProps) {
+export function SourceCard({ source, index, isActive, onSourceClick }: SourceCardProps) {
   const navigate = useNavigate();
+
+  const handleClick = () => {
+    if (onSourceClick) {
+      onSourceClick(source, index);
+    } else {
+      navigate(`/policies/${source.articleId}`);
+    }
+  };
 
   return (
     <button
-      className="shrink-0 w-[180px] rounded-lg border bg-source-card-bg p-3 text-left transition-shadow hover:shadow-card-hover"
-      onClick={() => navigate(`/policies/${source.articleId}`)}
+      className={`shrink-0 w-[180px] rounded-lg border bg-source-card-bg p-3 text-left transition-shadow hover:shadow-card-hover ${
+        isActive ? 'ring-2 ring-primary' : ''
+      }`}
+      onClick={handleClick}
       tabIndex={0}
     >
       <div className="flex items-center gap-1.5">

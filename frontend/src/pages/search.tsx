@@ -24,7 +24,7 @@ export default function SearchPage() {
   const handleSearch = (query: string) => {
     addSearch(query);
     const params = buildSearchParams(query, filters);
-    navigate(`/search?${params}`);
+    navigate(`/search/results?${params}`);
   };
 
   return (

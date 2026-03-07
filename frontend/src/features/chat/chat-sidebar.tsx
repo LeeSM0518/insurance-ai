@@ -1,4 +1,4 @@
-import { MessageSquare, Plus } from 'lucide-react';
+import { MessageSquare, SquarePen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { SessionItem } from './session-item';
@@ -21,17 +21,20 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   return (
     <div className="flex h-full flex-col">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
-        <h2 className="text-lg font-semibold">AI 상담</h2>
-        <Button variant="outline" size="sm" className="gap-1" onClick={onNewChat}>
-          <Plus className="size-3.5" />
+      {/* 새 대화 버튼 */}
+      <div className="px-3 pt-3 pb-1">
+        <Button
+          variant="ghost"
+          className="w-full justify-start gap-2 text-sm font-normal"
+          onClick={onNewChat}
+        >
+          <SquarePen className="size-4" />
           새 대화
         </Button>
       </div>
 
       {/* 세션 목록 */}
-      <div className="flex-1 overflow-y-auto px-4">
+      <div className="flex-1 overflow-y-auto px-2">
         {sessions.length > 0 ? (
           <div className="divide-y">
             {sessions.map((session) => (

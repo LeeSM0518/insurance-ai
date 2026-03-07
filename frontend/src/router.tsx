@@ -29,15 +29,15 @@ export const router = createBrowserRouter([
     children: [
       {
         path: '/',
-        Component: SearchPage,
+        Component: ChatPage,
       },
       {
         path: '/search',
-        Component: SearchResultsPage,
+        Component: SearchPage,
       },
       {
-        path: '/chat',
-        Component: ChatPage,
+        path: '/search/results',
+        Component: SearchResultsPage,
       },
       {
         path: '/policies/:articleId',
