@@ -1,1 +1,133 @@
 @import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================
+   디자인 토큰 (CSS Custom Properties)
+   기획서: 05-design-system.md §2.1
+   shadcn v4 형식: 변수에 직접 색상값 저장
+   ============================================ */
+:root {
+  /* === 기본 배경/전경 === */
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(222 47% 11%);
+
+  /* === Primary: 보험/금융 신뢰감 블루 === */
+  --primary: hsl(221 83% 53%);
+  --primary-foreground: hsl(0 0% 100%);
+
+  /* === Secondary === */
+  --secondary: hsl(210 40% 96%);
+  --secondary-foreground: hsl(222 47% 11%);
+
+  /* === Semantic 색상 === */
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --success: hsl(142 76% 36%);
+  --warning: hsl(38 92% 50%);
+  --info: hsl(199 89% 48%);
+
+  /* === Neutral === */
+  --muted: hsl(210 40% 96%);
+  --muted-foreground: hsl(215 16% 47%);
+  --accent: hsl(210 40% 96%);
+  --accent-foreground: hsl(222 47% 11%);
+  --border: hsl(214 32% 91%);
+  --input: hsl(214 32% 91%);
+  --ring: hsl(221 83% 53%);
+
+  /* === 카드/팝오버 === */
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(222 47% 11%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(222 47% 11%);
+
+  /* === 도메인 특화 === */
+  --chat-user-bg: hsl(221 83% 96%);
+  --chat-ai-bg: hsl(0 0% 98%);
+  --source-card-bg: hsl(210 40% 98%);
+  --relevance-high: hsl(142 76% 36%);
+  --relevance-mid: hsl(38 92% 50%);
+  --relevance-low: hsl(0 84% 60%);
+
+  /* === Kakao 브랜드 === */
+  --kakao-yellow: hsl(48 100% 50%);
+  --kakao-brown: hsl(30 10% 24%);
+
+  /* === 레이아웃 === */
+  --sidebar-width: 360px;
+  --radius: 0.5rem;
+}
+
+/* ============================================
+   Tailwind v4 테마 확장 (@theme inline)
+   기획서: 05-design-system.md §2.4
+   ============================================ */
+@theme inline {
+  /* === 색상 (shadcn v4 표준 매핑) === */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* === 폰트 === */
+  --font-sans:
+    'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto,
+    'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+
+  /* === Border Radius === */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* === 브레이크포인트 (기획서 §3.1) === */
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1025px;
+
+  /* === 도메인 특화 간격 (기획서 §2.3) === */
+  --spacing-safe-bottom: env(safe-area-inset-bottom);
+  --spacing-tab-bar: 56px;
+  --spacing-header: 48px;
+  --spacing-header-desktop: 64px;
+
+  /* === Box Shadow === */
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+  --shadow-card-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-bottom-sheet: 0 -4px 16px rgb(0 0 0 / 0.12);
+  --shadow-tab-bar: 0 -1px 3px rgb(0 0 0 / 0.08);
+}
+
+/* ============================================
+   글로벌 기본 스타일
+   ============================================ */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
