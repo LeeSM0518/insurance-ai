@@ -8,6 +8,7 @@ import com.microsoft.playwright.Locator
 import com.microsoft.playwright.Page
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.apache.pdfbox.Loader
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.net.URI
@@ -16,6 +17,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 
 @Component
 class LifeSummaryPdfCrawler(
@@ -64,13 +66,6 @@ class LifeSummaryPdfCrawler(
         val ALL_CATEGORIES =
             ASSURANCE_CATEGORIES.keys +
                 setOf("저축성보험", "변액보험(보장성)", "변액보험(저축성)", "연금저축")
-
-        /** 파일명에서 특수문자 제거 */
-        fun sanitizeFileName(name: String): String =
-            name
-                .replace(Regex("""[/\\:*?"<>|]"""), "")
-                .replace(Regex("""\s+"""), "_")
-                .take(200)
 
         /** PDF 매직 바이트 확인 (%PDF) */
         fun isPdf(bytes: ByteArray): Boolean = bytes.size >= 4 && String(bytes, 0, 4) == "%PDF"
@@ -140,7 +135,7 @@ class LifeSummaryPdfCrawler(
         return allInfos
     }
 
-    /** 수집된 정보로 PDF 일괄 다운로드 */
+    /** 수집된 정보로 PDF 일괄 다운로드 (같은 회사+상품 그룹핑 → 페이지 수 기반 분류) */
     suspend fun downloadAll(
         infos: List<SummaryPdfInfo>,
         force: Boolean = false,
@@ -148,6 +143,7 @@ class LifeSummaryPdfCrawler(
         var downloaded = 0
         var skipped = 0
         var failed = 0
+        var renewalPremiumCount = 0
         val errors = mutableListOf<String>()
         val categoryStats = mutableMapOf<String, Int>()
         val downloadedFiles = mutableMapOf<String, Path>()
@@ -158,39 +154,90 @@ class LifeSummaryPdfCrawler(
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build()
 
-        for ((index, info) in infos.withIndex()) {
+        // 같은 회사+상품명으로 그룹핑
+        val groups = infos.groupBy { "${it.companyName}::${it.productName}" }
+        var processedCount = 0
+
+        for ((key, group) in groups) {
             try {
-                val savePath = buildSavePath(info)
+                val firstInfo = group.first()
+                val productDir = crawlerCommon.buildProductDir("life", firstInfo.category, firstInfo.companyName, firstInfo.productName)
+                val summaryPath = productDir.resolve("summary.pdf")
 
-                if (!force && Files.exists(savePath) && Files.size(savePath) > 0) {
-                    skipped++
-                    downloadedFiles["${info.companyName}::${info.productName}"] = savePath
-                    continue
-                }
-
-                val resultPath = downloadPdf(httpClient, info, savePath)
-                if (resultPath != null) {
-                    downloaded++
-                    categoryStats.merge(info.category, 1) { a, b -> a + b }
-                    downloadedFiles["${info.companyName}::${info.productName}"] = resultPath
+                if (group.size == 1) {
+                    // 단일 PDF → summary.pdf로 저장 (기존과 동일)
+                    if (!force && Files.exists(summaryPath) && Files.size(summaryPath) > 0) {
+                        skipped++
+                        downloadedFiles[key] = summaryPath
+                    } else {
+                        val resultPath = downloadPdf(httpClient, firstInfo, summaryPath)
+                        if (resultPath != null) {
+                            downloaded++
+                            categoryStats.merge(firstInfo.category, 1) { a, b -> a + b }
+                            downloadedFiles[key] = resultPath
+                        } else {
+                            failed++
+                            errors.add("PDF 검증 실패: ${firstInfo.companyName}_${firstInfo.productName} (fileNo=${firstInfo.fileNo})")
+                        }
+                    }
                 } else {
-                    failed++
-                    errors.add("PDF 검증 실패: ${info.companyName}_${info.productName} (fileNo=${info.fileNo})")
+                    // 복수 PDF → 각각 임시 파일로 다운로드 후 페이지 수로 분류
+                    val tmpFiles = mutableListOf<Pair<SummaryPdfInfo, Path>>()
+                    for (info in group) {
+                        val tmpPath = productDir.resolve("${info.fileNo}.pdf")
+                        val resultPath = downloadPdf(httpClient, info, tmpPath)
+                        if (resultPath != null) {
+                            tmpFiles.add(info to resultPath)
+                            downloaded++
+                            categoryStats.merge(info.category, 1) { a, b -> a + b }
+                        } else {
+                            failed++
+                            errors.add("PDF 검증 실패: ${info.companyName}_${info.productName} (fileNo=${info.fileNo})")
+                        }
+                        crawlerCommon.randomDelay()
+                    }
+
+                    // 분류: 페이지 수로 상품요약서 vs 갱신보험료 구분
+                    var summaryFound = false
+                    for ((info, tmpFile) in tmpFiles) {
+                        val pages = countPdfPages(tmpFile)
+                        if (pages == 1) {
+                            val renewalPath = productDir.resolve("renewal-premium.pdf")
+                            Files.move(tmpFile, renewalPath, StandardCopyOption.REPLACE_EXISTING)
+                            renewalPremiumCount++
+                            logger.debug("갱신보험료 PDF 분류: $key (fileNo=${info.fileNo}, 1페이지)")
+                        } else {
+                            if (summaryFound) {
+                                logger.warn("다수 페이지 PDF 복수 발견: $key (fileNo=${info.fileNo}, ${pages}페이지) — fileNo 이름 유지")
+                            } else {
+                                Files.move(tmpFile, summaryPath, StandardCopyOption.REPLACE_EXISTING)
+                                summaryFound = true
+                            }
+                        }
+                    }
+
+                    if (summaryFound) {
+                        downloadedFiles[key] = summaryPath
+                    }
                 }
 
-                if ((index + 1) % 10 == 0) {
-                    logger.info("다운로드 진행: ${index + 1}/${infos.size} (성공=$downloaded, 스킵=$skipped, 실패=$failed)")
+                processedCount += group.size
+                if (processedCount % 10 == 0) {
+                    logger.info(
+                        "다운로드 진행: $processedCount/${infos.size} (성공=$downloaded, 스킵=$skipped, 실패=$failed, 갱신보험료=$renewalPremiumCount)",
+                    )
                 }
 
                 crawlerCommon.randomDelay()
             } catch (e: Exception) {
-                failed++
-                errors.add("다운로드 실패: ${info.companyName}_${info.productName}: ${e.message}")
-                logger.warn("다운로드 실패: ${info.companyName}_${info.productName}", e)
+                failed += group.size
+                val firstInfo = group.first()
+                errors.add("다운로드 실패: ${firstInfo.companyName}_${firstInfo.productName}: ${e.message}")
+                logger.warn("다운로드 실패: ${firstInfo.companyName}_${firstInfo.productName}", e)
             }
         }
 
-        logger.info("다운로드 완료: 총=${infos.size}, 성공=$downloaded, 스킵=$skipped, 실패=$failed")
+        logger.info("다운로드 완료: 총=${infos.size}, 성공=$downloaded, 스킵=$skipped, 실패=$failed, 갱신보험료=$renewalPremiumCount")
         return SummaryDownloadReport(
             totalCollected = infos.size,
             downloaded = downloaded,
@@ -199,6 +246,7 @@ class LifeSummaryPdfCrawler(
             errors = errors,
             categoryStats = categoryStats,
             downloadedFiles = downloadedFiles,
+            renewalPremiumCount = renewalPremiumCount,
         )
     }
 
@@ -474,10 +522,10 @@ class LifeSummaryPdfCrawler(
             }
         }
 
-    /** 저장 경로 생성 (날짜별 폴더) */
-    internal fun buildSavePath(info: SummaryPdfInfo): Path {
-        val categoryDir = sanitizeFileName(info.category)
-        val fileName = "${sanitizeFileName(info.companyName)}_${sanitizeFileName(info.productName)}_${info.fileNo}.pdf"
-        return crawlerCommon.buildDatedDownloadDir("life", categoryDir).resolve(fileName)
-    }
+    /** PDF 페이지 수 확인 */
+    internal fun countPdfPages(path: Path): Int = Loader.loadPDF(path.toFile()).use { doc -> doc.numberOfPages }
+
+    /** 저장 경로 생성: .../{카테고리}/{yyyy-MM}/{회사}_{상품}/summary.pdf */
+    internal fun buildSavePath(info: SummaryPdfInfo): Path =
+        crawlerCommon.buildSummaryPdfPath("life", info.category, info.companyName, info.productName)
 }

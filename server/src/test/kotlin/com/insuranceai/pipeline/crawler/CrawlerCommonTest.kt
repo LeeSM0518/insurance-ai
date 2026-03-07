@@ -6,6 +6,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
+import java.time.YearMonth
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
@@ -82,6 +85,120 @@ class CrawlerCommonTest {
         @Test
         fun `공백 트림`() {
             assertEquals("삼성생명", crawlerCommon.normalizeCompanyName("  삼성생명  "))
+        }
+    }
+
+    @Nested
+    inner class Sanitize {
+        @Test
+        fun `특수문자를 제거한다`() {
+            assertEquals("테스트파일명", crawlerCommon.sanitize("테스트/파일명"))
+            assertEquals("테스트파일명", crawlerCommon.sanitize("테스트:파일명"))
+            assertEquals("테스트파일명", crawlerCommon.sanitize("테스트*파일명"))
+            assertEquals("테스트파일명", crawlerCommon.sanitize("테스트?파일명"))
+            assertEquals("테스트파일명", crawlerCommon.sanitize("테스트\"파일명"))
+            assertEquals("테스트파일명", crawlerCommon.sanitize("테스트<파일명>"))
+            assertEquals("테스트파일명", crawlerCommon.sanitize("테스트|파일명"))
+        }
+
+        @Test
+        fun `공백을 언더스코어로 변환한다`() {
+            assertEquals("한화생명_종신보험", crawlerCommon.sanitize("한화생명 종신보험"))
+            assertEquals("연속_공백_테스트", crawlerCommon.sanitize("연속  공백  테스트"))
+        }
+
+        @Test
+        fun `200자까지만 유지한다`() {
+            val longName = "가".repeat(300)
+            assertEquals(200, crawlerCommon.sanitize(longName).length)
+        }
+
+        @Test
+        fun `슬래시를 제거한다`() {
+            assertEquals("간병치매보험", crawlerCommon.sanitize("간병/치매보험"))
+        }
+    }
+
+    @Nested
+    inner class PathBuilders {
+        @TempDir
+        lateinit var tempDir: Path
+
+        private val tempConfig =
+            PipelineConfig(
+                crawl = PipelineConfig.CrawlConfig(downloadDir = "PLACEHOLDER"),
+            )
+
+        private fun createCrawlerCommon(downloadDir: String): CrawlerCommon =
+            CrawlerCommon(
+                PipelineConfig(crawl = PipelineConfig.CrawlConfig(downloadDir = downloadDir)),
+                insuranceCompanyRepository,
+            )
+
+        @Test
+        fun `buildCategoryDir는 올바른 경로를 생성한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val result = cc.buildCategoryDir("life", "종신보험")
+            val yearMonth = YearMonth.now().toString()
+            assertEquals(tempDir.resolve("life/종신보험/$yearMonth"), result)
+            assertTrue(result.toFile().exists())
+        }
+
+        @Test
+        fun `buildExcelPath는 excel 하위에 comparison_xls를 반환한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val result = cc.buildExcelPath("life", "종신보험")
+            val yearMonth = YearMonth.now().toString()
+            assertEquals(tempDir.resolve("life/종신보험/$yearMonth/excel/comparison.xls"), result)
+        }
+
+        @Test
+        fun `buildProductDir는 회사_상품 디렉토리를 생성한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val result = cc.buildProductDir("life", "종신보험", "삼성생명", "삼성 더착한종신보험")
+            val yearMonth = YearMonth.now().toString()
+            assertEquals(tempDir.resolve("life/종신보험/$yearMonth/삼성생명_삼성_더착한종신보험"), result)
+            assertTrue(result.toFile().exists())
+        }
+
+        @Test
+        fun `buildSummaryPdfPath는 summary_pdf를 반환한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val result = cc.buildSummaryPdfPath("non-life", "암", "메리츠화재", "메리츠 암보험")
+            val yearMonth = YearMonth.now().toString()
+            assertEquals(tempDir.resolve("non-life/암/$yearMonth/메리츠화재_메리츠_암보험/summary.pdf"), result)
+        }
+
+        @Test
+        fun `buildExtractedTextPath는 extracted_txt를 반환한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val result = cc.buildExtractedTextPath("life", "종신보험", "한화생명", "종신보험A")
+            val yearMonth = YearMonth.now().toString()
+            assertEquals(tempDir.resolve("life/종신보험/$yearMonth/한화생명_종신보험A/extracted.txt"), result)
+        }
+
+        @Test
+        fun `buildRenewalPremiumPdfPath는 renewal-premium_pdf를 반환한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val result = cc.buildRenewalPremiumPdfPath("life", "종신보험", "한화생명", "종신보험A")
+            val yearMonth = YearMonth.now().toString()
+            assertEquals(tempDir.resolve("life/종신보험/$yearMonth/한화생명_종신보험A/renewal-premium.pdf"), result)
+        }
+
+        @Test
+        fun `카테고리에 특수문자가 있으면 sanitize 처리한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val result = cc.buildCategoryDir("life", "간병/치매보험")
+            assertTrue(result.toString().contains("간병치매보험"))
+        }
+
+        @Test
+        fun `상품 디렉토리명은 200자로 제한한다`() {
+            val cc = createCrawlerCommon(tempDir.toString())
+            val longProduct = "가".repeat(300)
+            val result = cc.buildProductDir("life", "종신보험", "삼성생명", longProduct)
+            val dirName = result.fileName.toString()
+            assertTrue(dirName.length <= 200)
         }
     }
 

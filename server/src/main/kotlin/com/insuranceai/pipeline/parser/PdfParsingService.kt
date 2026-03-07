@@ -95,8 +95,8 @@ class PdfParsingService(
         )
     }
 
-    /** 텍스트 캐시 경로: PDF와 같은 디렉토리의 extracted_text.txt */
-    internal fun resolveTextCachePath(pdfFile: File): File = File(pdfFile.parentFile, "extracted_text.txt")
+    /** 텍스트 캐시 경로: 상품 디렉토리의 extracted.txt */
+    internal fun resolveTextCachePath(pdfFile: File): File = File(pdfFile.parentFile, "extracted.txt")
 
     /** 캐시 파일이 있으면 로드, 없으면 추출 후 저장 */
     private suspend fun loadOrExtractPages(

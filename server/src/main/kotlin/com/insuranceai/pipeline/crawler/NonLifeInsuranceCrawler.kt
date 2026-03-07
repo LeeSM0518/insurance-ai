@@ -221,8 +221,7 @@ class NonLifeInsuranceCrawler(
     ): Path? =
         withContext(Dispatchers.IO) {
             try {
-                val downloadDir = crawlerCommon.buildDatedDownloadDir("non-life")
-                val savePath = downloadDir.resolve("nonlife_${category.tptyCode}_${category.categoryName}.xls")
+                val savePath = crawlerCommon.buildExcelPath("non-life", category.categoryName)
 
                 if (Files.exists(savePath) && Files.size(savePath) > 0) {
                     logger.info("손보 [${category.categoryName}] 이미 다운로드됨, 스킵: $savePath")

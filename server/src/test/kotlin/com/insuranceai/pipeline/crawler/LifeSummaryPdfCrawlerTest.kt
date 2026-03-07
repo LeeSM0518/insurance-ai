@@ -4,19 +4,40 @@ import com.insuranceai.pipeline.config.PipelineConfig
 import com.insuranceai.pipeline.dto.SummaryPdfInfo
 import io.mockk.every
 import io.mockk.mockk
+import org.apache.pdfbox.pdmodel.PDDocument
+import org.apache.pdfbox.pdmodel.PDPage
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Files
 import java.nio.file.Path
 
 class LifeSummaryPdfCrawlerTest {
     private val crawlerCommon =
         mockk<CrawlerCommon>(relaxed = true) {
-            every { buildDatedDownloadDir(*anyVararg()) } answers {
-                val subPaths = args[0] as Array<*>
-                Path.of("data/summaries", *subPaths.map { it.toString() }.toTypedArray(), "2026-03-07")
+            every { sanitize(any()) } answers {
+                val name = firstArg<String>()
+                name
+                    .replace(Regex("""[/\\:*?"<>|]"""), "")
+                    .replace(Regex("""\s+"""), "_")
+                    .take(200)
+            }
+            every { buildSummaryPdfPath(any(), any(), any(), any()) } answers {
+                val type = args[0] as String
+                val category = args[1] as String
+                val company = args[2] as String
+                val product = args[3] as String
+                val sanitize = { name: String ->
+                    name
+                        .replace(Regex("""[/\\:*?"<>|]"""), "")
+                        .replace(Regex("""\s+"""), "_")
+                        .take(200)
+                }
+                val dirName = "${sanitize(company)}_${sanitize(product)}".take(200)
+                Path.of("data/summaries", type, sanitize(category), "2026-03", dirName, "summary.pdf")
             }
         }
     private val config =
@@ -24,37 +45,6 @@ class LifeSummaryPdfCrawlerTest {
             crawl = PipelineConfig.CrawlConfig(downloadDir = "data/summaries"),
         )
     private val crawler = LifeSummaryPdfCrawler(crawlerCommon, config)
-
-    @Nested
-    inner class SanitizeFileNameTest {
-        @Test
-        fun `특수문자를 제거한다`() {
-            assertEquals("테스트파일명", LifeSummaryPdfCrawler.sanitizeFileName("테스트/파일명"))
-            assertEquals("테스트파일명", LifeSummaryPdfCrawler.sanitizeFileName("테스트:파일명"))
-            assertEquals("테스트파일명", LifeSummaryPdfCrawler.sanitizeFileName("테스트*파일명"))
-            assertEquals("테스트파일명", LifeSummaryPdfCrawler.sanitizeFileName("테스트?파일명"))
-            assertEquals("테스트파일명", LifeSummaryPdfCrawler.sanitizeFileName("테스트\"파일명"))
-            assertEquals("테스트파일명", LifeSummaryPdfCrawler.sanitizeFileName("테스트<파일명>"))
-            assertEquals("테스트파일명", LifeSummaryPdfCrawler.sanitizeFileName("테스트|파일명"))
-        }
-
-        @Test
-        fun `공백을 언더스코어로 변환한다`() {
-            assertEquals("한화생명_종신보험", LifeSummaryPdfCrawler.sanitizeFileName("한화생명 종신보험"))
-            assertEquals("연속_공백_테스트", LifeSummaryPdfCrawler.sanitizeFileName("연속  공백  테스트"))
-        }
-
-        @Test
-        fun `200자까지만 유지한다`() {
-            val longName = "가".repeat(300)
-            assertEquals(200, LifeSummaryPdfCrawler.sanitizeFileName(longName).length)
-        }
-
-        @Test
-        fun `슬래시를 제거한다`() {
-            assertEquals("간병치매보험", LifeSummaryPdfCrawler.sanitizeFileName("간병/치매보험"))
-        }
-    }
 
     @Nested
     inner class IsPdfTest {
@@ -114,7 +104,7 @@ class LifeSummaryPdfCrawlerTest {
             val path = crawler.buildSavePath(info)
 
             assertEquals(
-                Path.of("data/summaries/life/종신보험/2026-03-07/한화생명_간편가입_제로백H종신보험_무배당_41658.pdf"),
+                Path.of("data/summaries/life/종신보험/2026-03/한화생명_간편가입_제로백H종신보험_무배당/summary.pdf"),
                 path,
             )
         }
@@ -135,9 +125,41 @@ class LifeSummaryPdfCrawlerTest {
 
             // 슬래시가 제거된 디렉토리명
             assertEquals(
-                Path.of("data/summaries/life/간병치매보험/2026-03-07/삼성생명_테스트보험_12345.pdf"),
+                Path.of("data/summaries/life/간병치매보험/2026-03/삼성생명_테스트보험/summary.pdf"),
                 path,
             )
+        }
+    }
+
+    @Nested
+    inner class CountPdfPagesTest {
+        @TempDir
+        lateinit var tempDir: Path
+
+        /** 지정 페이지 수의 PDF 파일을 생성 */
+        private fun createPdf(
+            path: Path,
+            pageCount: Int,
+        ) {
+            Files.createDirectories(path.parent)
+            PDDocument().use { doc ->
+                repeat(pageCount) { doc.addPage(PDPage()) }
+                doc.save(path.toFile())
+            }
+        }
+
+        @Test
+        fun `1페이지 PDF의 페이지 수를 올바르게 반환한다`() {
+            val pdfPath = tempDir.resolve("single.pdf")
+            createPdf(pdfPath, 1)
+            assertEquals(1, crawler.countPdfPages(pdfPath))
+        }
+
+        @Test
+        fun `다수 페이지 PDF의 페이지 수를 올바르게 반환한다`() {
+            val pdfPath = tempDir.resolve("multi.pdf")
+            createPdf(pdfPath, 15)
+            assertEquals(15, crawler.countPdfPages(pdfPath))
         }
     }
 

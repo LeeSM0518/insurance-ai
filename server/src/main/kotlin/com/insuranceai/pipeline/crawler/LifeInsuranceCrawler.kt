@@ -161,11 +161,7 @@ class LifeInsuranceCrawler(
     ): Path? =
         withContext(Dispatchers.IO) {
             try {
-                val downloadDir = crawlerCommon.buildDatedDownloadDir("life")
-                val savePath =
-                    downloadDir.resolve(
-                        "life_${categoryInfo.category}_${categoryInfo.subcategory ?: "all"}.xls",
-                    )
+                val savePath = crawlerCommon.buildExcelPath("life", categoryInfo.displayName)
 
                 // 동일 파일이 이미 존재하면 스킵
                 if (java.nio.file.Files

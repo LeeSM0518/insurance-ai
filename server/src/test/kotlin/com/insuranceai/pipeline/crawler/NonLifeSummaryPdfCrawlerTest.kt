@@ -13,9 +13,26 @@ import java.nio.file.Path
 class NonLifeSummaryPdfCrawlerTest {
     private val crawlerCommon =
         mockk<CrawlerCommon>(relaxed = true) {
-            every { buildDatedDownloadDir(*anyVararg()) } answers {
-                val subPaths = args[0] as Array<*>
-                Path.of("data/summaries", *subPaths.map { it.toString() }.toTypedArray(), "2026-03-07")
+            every { sanitize(any()) } answers {
+                val name = firstArg<String>()
+                name
+                    .replace(Regex("""[/\\:*?"<>|]"""), "")
+                    .replace(Regex("""\s+"""), "_")
+                    .take(200)
+            }
+            every { buildSummaryPdfPath(any(), any(), any(), any()) } answers {
+                val type = args[0] as String
+                val category = args[1] as String
+                val company = args[2] as String
+                val product = args[3] as String
+                val sanitize = { name: String ->
+                    name
+                        .replace(Regex("""[/\\:*?"<>|]"""), "")
+                        .replace(Regex("""\s+"""), "_")
+                        .take(200)
+                }
+                val dirName = "${sanitize(company)}_${sanitize(product)}".take(200)
+                Path.of("data/summaries", type, sanitize(category), "2026-03", dirName, "summary.pdf")
             }
         }
     private val config =
@@ -23,26 +40,6 @@ class NonLifeSummaryPdfCrawlerTest {
             crawl = PipelineConfig.CrawlConfig(downloadDir = "data/summaries"),
         )
     private val crawler = NonLifeSummaryPdfCrawler(crawlerCommon, config)
-
-    @Nested
-    inner class SanitizeFileNameTest {
-        @Test
-        fun `특수문자를 제거한다`() {
-            assertEquals("테스트파일명", NonLifeSummaryPdfCrawler.sanitizeFileName("테스트/파일명"))
-            assertEquals("테스트파일명", NonLifeSummaryPdfCrawler.sanitizeFileName("테스트:파일명"))
-        }
-
-        @Test
-        fun `공백을 언더스코어로 변환한다`() {
-            assertEquals("메리츠화재_암보험", NonLifeSummaryPdfCrawler.sanitizeFileName("메리츠화재 암보험"))
-        }
-
-        @Test
-        fun `200자까지만 유지한다`() {
-            val longName = "가".repeat(300)
-            assertEquals(200, NonLifeSummaryPdfCrawler.sanitizeFileName(longName).length)
-        }
-    }
 
     @Nested
     inner class BuildSavePathTest {
@@ -61,7 +58,7 @@ class NonLifeSummaryPdfCrawlerTest {
             val path = crawler.buildSavePath(info)
 
             assertEquals(
-                Path.of("data/summaries/non-life/암/2026-03-07/메리츠화재_메리츠_암보험_87207.pdf"),
+                Path.of("data/summaries/non-life/암/2026-03/메리츠화재_메리츠_암보험/summary.pdf"),
                 path,
             )
         }

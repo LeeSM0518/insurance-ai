@@ -2,6 +2,7 @@ package com.insuranceai.pipeline.parser
 
 import com.insuranceai.policy.domain.ContentType
 import io.mockk.mockk
+import java.io.File
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -58,6 +59,14 @@ class PdfParsingServiceTest {
         assertEquals(500000L, entities[0].surrenderValue)
         assertTrue(entities[0].surrenderRate!!.toDouble() > 41.0)
         assertTrue(entities[0].surrenderRate!!.toDouble() < 42.0)
+    }
+
+    @Test
+    fun `resolveTextCachePath는 같은 디렉토리의 extracted_txt를 반환한다`() {
+        val pdfFile = File("/data/summaries/life/종신보험/2026-03/삼성생명_종신보험A/summary.pdf")
+        val result = service.resolveTextCachePath(pdfFile)
+        assertEquals("extracted.txt", result.name)
+        assertEquals(pdfFile.parentFile, result.parentFile)
     }
 
     @Test

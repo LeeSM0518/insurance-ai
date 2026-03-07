@@ -17,6 +17,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.security.MessageDigest
 import java.time.LocalDate
+import java.time.YearMonth
 
 @Component
 class CrawlerCommon(
@@ -88,13 +89,79 @@ class CrawlerCommon(
             savePath
         }
 
-    /** 오늘 날짜 기반 다운로드 디렉토리 경로 생성 (예: data/summaries/life/2026-03-07/) */
+    /** @deprecated buildCategoryDir / buildExcelPath / buildProductDir 사용 */
+    @Deprecated("새 경로 빌더 사용", ReplaceWith("buildCategoryDir(type, category)"))
     fun buildDatedDownloadDir(vararg subPaths: String): Path {
         val date = LocalDate.now().toString()
         val base = Path.of(config.crawl.downloadDir, *subPaths, date)
         Files.createDirectories(base)
         return base
     }
+
+    /** 파일/디렉토리명에서 특수문자 제거 */
+    fun sanitize(name: String): String =
+        name
+            .replace(Regex("""[/\\:*?"<>|]"""), "")
+            .replace(Regex("""\s+"""), "_")
+            .take(200)
+
+    /** 카테고리 기반 경로: data/summaries/{type}/{category}/{yyyy-MM}/ */
+    fun buildCategoryDir(
+        type: String,
+        category: String,
+    ): Path {
+        val date = YearMonth.now().toString()
+        val base = Path.of(config.crawl.downloadDir, type, sanitize(category), date)
+        Files.createDirectories(base)
+        return base
+    }
+
+    /** 엑셀 경로: .../{category}/{yyyy-MM}/excel/comparison.xls */
+    fun buildExcelPath(
+        type: String,
+        category: String,
+    ): Path {
+        val dir = buildCategoryDir(type, category).resolve("excel")
+        Files.createDirectories(dir)
+        return dir.resolve("comparison.xls")
+    }
+
+    /** 상품 디렉토리 경로: .../{category}/{yyyy-MM}/{회사}_{상품}/ */
+    fun buildProductDir(
+        type: String,
+        category: String,
+        company: String,
+        product: String,
+    ): Path {
+        val dirName = "${sanitize(company)}_${sanitize(product)}".take(200)
+        val dir = buildCategoryDir(type, category).resolve(dirName)
+        Files.createDirectories(dir)
+        return dir
+    }
+
+    /** PDF 경로: .../{회사}_{상품}/summary.pdf */
+    fun buildSummaryPdfPath(
+        type: String,
+        category: String,
+        company: String,
+        product: String,
+    ): Path = buildProductDir(type, category, company, product).resolve("summary.pdf")
+
+    /** 갱신보험료 PDF 경로: .../{회사}_{상품}/renewal-premium.pdf */
+    fun buildRenewalPremiumPdfPath(
+        type: String,
+        category: String,
+        company: String,
+        product: String,
+    ): Path = buildProductDir(type, category, company, product).resolve("renewal-premium.pdf")
+
+    /** 텍스트 캐시 경로: .../{회사}_{상품}/extracted.txt */
+    fun buildExtractedTextPath(
+        type: String,
+        category: String,
+        company: String,
+        product: String,
+    ): Path = buildProductDir(type, category, company, product).resolve("extracted.txt")
 
     fun normalizeCompanyName(name: String): String = name.replace(Regex("\\(주\\)|㈜|주식회사|보험(?=\\s*$)"), "").trim()
 

@@ -25,13 +25,6 @@ class NonLifeSummaryPdfCrawler(
 
     companion object {
         const val BASE_URL = "https://kpub.knia.or.kr"
-
-        /** 파일명에서 특수문자 제거 */
-        fun sanitizeFileName(name: String): String =
-            name
-                .replace(Regex("""[/\\:*?"<>|]"""), "")
-                .replace(Regex("""\s+"""), "_")
-                .take(200)
     }
 
     /** 모든 카테고리에서 SummaryPdfInfo 수집 */
@@ -201,10 +194,7 @@ class NonLifeSummaryPdfCrawler(
         )
     }
 
-    /** 저장 경로 생성 (날짜별 폴더) */
-    internal fun buildSavePath(info: SummaryPdfInfo): Path {
-        val categoryDir = sanitizeFileName(info.category)
-        val fileName = "${sanitizeFileName(info.companyName)}_${sanitizeFileName(info.productName)}_${info.fileNo}.pdf"
-        return crawlerCommon.buildDatedDownloadDir("non-life", categoryDir).resolve(fileName)
-    }
+    /** 저장 경로 생성: .../{카테고리}/{yyyy-MM}/{회사}_{상품}/summary.pdf */
+    internal fun buildSavePath(info: SummaryPdfInfo): Path =
+        crawlerCommon.buildSummaryPdfPath("non-life", info.category, info.companyName, info.productName)
 }

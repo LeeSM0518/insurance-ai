@@ -22,4 +22,6 @@ data class SummaryDownloadReport(
     val categoryStats: Map<String, Int>,
     /** key = "${companyName}::${productName}", value = 파일 경로 */
     val downloadedFiles: Map<String, Path> = emptyMap(),
+    /** 갱신보험료 PDF 다운로드 건수 */
+    val renewalPremiumCount: Int = 0,
 )

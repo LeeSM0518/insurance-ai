@@ -77,10 +77,10 @@ class PdfTextCacheTest {
     // -- resolveTextCachePath --
 
     @Test
-    fun `resolveTextCachePath는 PDF와 같은 디렉토리에 extracted_text txt를 반환한다`() {
+    fun `resolveTextCachePath는 PDF와 같은 디렉토리에 extracted txt를 반환한다`() {
         val pdfFile = File(tempDir, "summary.pdf")
         val cachePath = service.resolveTextCachePath(pdfFile)
-        assertEquals(File(tempDir, "extracted_text.txt"), cachePath)
+        assertEquals(File(tempDir, "extracted.txt"), cachePath)
     }
 
     // -- parse 캐시 동작 --
@@ -108,7 +108,7 @@ class PdfTextCacheTest {
             coVerify(exactly = 1) { pdfTextExtractor.extract(pdfFile) }
 
             // 캐시 파일이 생성됨
-            val cacheFile = File(tempDir, "extracted_text.txt")
+            val cacheFile = File(tempDir, "extracted.txt")
             assertTrue(cacheFile.exists())
             assertTrue(cacheFile.readText().contains("--- PAGE 1 ---"))
 
@@ -123,7 +123,7 @@ class PdfTextCacheTest {
             pdfFile.writeText("dummy pdf content")
 
             // 캐시 파일 미리 생성 (PDF보다 최신)
-            val cacheFile = File(tempDir, "extracted_text.txt")
+            val cacheFile = File(tempDir, "extracted.txt")
             cacheFile.writeText("--- PAGE 1 ---\n캐시된 텍스트", Charsets.UTF_8)
             cacheFile.setLastModified(System.currentTimeMillis() + 1000)
 
@@ -144,7 +144,7 @@ class PdfTextCacheTest {
             pdfFile.writeText("updated pdf content")
 
             // 캐시 파일이 PDF보다 오래됨
-            val cacheFile = File(tempDir, "extracted_text.txt")
+            val cacheFile = File(tempDir, "extracted.txt")
             cacheFile.writeText("--- PAGE 1 ---\n오래된 캐시", Charsets.UTF_8)
             cacheFile.setLastModified(pdfFile.lastModified() - 1000)
 
@@ -175,7 +175,7 @@ class PdfTextCacheTest {
             pdfFile.writeText("dummy pdf content")
 
             // 유효한 캐시 파일이 있음
-            val cacheFile = File(tempDir, "extracted_text.txt")
+            val cacheFile = File(tempDir, "extracted.txt")
             cacheFile.writeText("--- PAGE 1 ---\n기존 캐시 텍스트", Charsets.UTF_8)
             cacheFile.setLastModified(System.currentTimeMillis() + 1000)
 
