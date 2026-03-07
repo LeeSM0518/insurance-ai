@@ -9,4 +9,6 @@ interface InsuranceCompanyRepository : CoroutineCrudRepository<InsuranceCompanyE
     fun findByIsActiveTrue(): Flow<InsuranceCompanyEntity>
 
     fun findByType(type: String): Flow<InsuranceCompanyEntity>
+
+    fun findByNameIn(names: Collection<String>): Flow<InsuranceCompanyEntity>
 }

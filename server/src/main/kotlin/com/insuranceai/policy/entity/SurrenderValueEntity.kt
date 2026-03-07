@@ -16,9 +16,11 @@ data class SurrenderValueEntity(
     val id: UUID? = null,
     val productId: UUID,
     val elapsedMonths: Int,
-    val premiumPaid: Long,
+    val premiumPaid: Long? = null,
     val surrenderValue: Long,
-    val surrenderRate: BigDecimal,
+    val surrenderRate: BigDecimal? = null,
+    val gender: String? = null,
+    val policyholderReserve: Long? = null,
     val createdAt: Instant = Instant.now(),
 ) : Persistable<UUID> {
     override fun getId(): UUID? = id

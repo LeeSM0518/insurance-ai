@@ -6,6 +6,7 @@ import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
 import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 @Table("products")
@@ -27,6 +28,13 @@ data class ProductEntity(
     val maturityAmount: Long? = null,
     val yieldRate: BigDecimal? = null,
     val checksum: String? = null,
+    val surrenderType: String? = null,
+    val productType: String? = null,
+    val salesStartDate: LocalDate? = null,
+    val isUniversal: Boolean = false,
+    val notes: String? = null,
+    val expenseRatio: BigDecimal? = null,
+    val disclosureUrl: String? = null,
     val isActive: Boolean = true,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = createdAt,
