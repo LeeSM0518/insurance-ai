@@ -8,6 +8,8 @@ app:
     # categories: []      # 빈 리스트면 전체 카테고리
     # incremental: false
     # dry-run: false
+    # steps: []            # CRAWL,VALIDATE,PUBLISH,EMBED (빈 리스트면 전체)
+    # batch-id:            # CRAWL 없이 실행 시 이전 batchId 지정
     crawl:
       delay-min-ms: 2000
       delay-max-ms: 5000

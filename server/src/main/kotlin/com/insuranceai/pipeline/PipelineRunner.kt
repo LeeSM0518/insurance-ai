@@ -3,6 +3,7 @@ package com.insuranceai.pipeline
 import com.insuranceai.pipeline.config.PipelineConfig
 import com.insuranceai.pipeline.crawler.LifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
+import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.pipeline.usecase.PipelineOptions
 import com.insuranceai.pipeline.usecase.RunPipelineUseCase
 import com.insuranceai.policy.domain.InsuranceType
@@ -22,6 +23,12 @@ class PipelineRunner(
 
     override fun run(vararg args: String?) {
         runBlocking {
+            // batchId 필수 검증: CRAWL 없이 다른 단계만 실행 시 batchId 필요
+            if (config.steps.isNotEmpty() && PipelineStep.CRAWL !in config.steps && config.batchId == null) {
+                logger.error("CRAWL 단계 없이 실행하려면 --app.pipeline.batch-id 옵션이 필요합니다.")
+                return@runBlocking
+            }
+
             // 카테고리 조기 검증
             if (config.categories.isNotEmpty()) {
                 val validCategories =
@@ -42,12 +49,17 @@ class PipelineRunner(
                     categories = config.categories,
                     incremental = config.incremental,
                     dryRun = config.dryRun,
+                    steps = config.steps.toSet(),
+                    batchId = config.batchId,
                 )
 
+            val activeSteps = options.resolveSteps()
             logger.info(
                 "파이프라인 시작: type=${options.type ?: "ALL"}, " +
                     "categories=${options.categories.ifEmpty { listOf("ALL") }}, " +
-                    "incremental=${options.incremental}, dryRun=${options.dryRun}",
+                    "steps=$activeSteps, " +
+                    "batchId=${options.batchId ?: "(신규 생성)"}, " +
+                    "incremental=${options.incremental}",
             )
 
             val result = runPipelineUseCase.runWithOptions(options)
@@ -56,8 +68,8 @@ class PipelineRunner(
                 """
                 ===== 파이프라인 실행 리포트 =====
                 소요 시간: ${result.totalDuration}
-                생보: 수집=${result.life.crawled}, 파싱=${result.life.parsed}, 검증=${result.life.validated}, 반영=${result.life.published}, 임베딩=${result.life.embedded}
-                손보: 수집=${result.nonLife.crawled}, 파싱=${result.nonLife.parsed}, 검증=${result.nonLife.validated}, 반영=${result.nonLife.published}, 임베딩=${result.nonLife.embedded}
+                생보: 수집=${result.life.crawled}, 파싱=${result.life.parsed}, 검증=${result.life.validated}, 반영=${result.life.published}, 임베딩=${result.life.embedded}, batchId=${result.life.batchId ?: "-"}
+                손보: 수집=${result.nonLife.crawled}, 파싱=${result.nonLife.parsed}, 검증=${result.nonLife.validated}, 반영=${result.nonLife.published}, 임베딩=${result.nonLife.embedded}, batchId=${result.nonLife.batchId ?: "-"}
                 에러: ${(result.life.errors + result.nonLife.errors).joinToString("; ")}
                 ================================
                 """.trimIndent(),

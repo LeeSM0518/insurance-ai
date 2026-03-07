@@ -2,6 +2,8 @@ package com.insuranceai.pipeline.usecase
 
 import com.insuranceai.pipeline.crawler.LifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
+import com.insuranceai.pipeline.domain.PipelineStep
+import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.embedder.EmbeddingService
 import com.insuranceai.pipeline.mapper.CrawlStagingMapper
 import com.insuranceai.pipeline.repository.CrawlStagingRepository
@@ -26,7 +28,17 @@ data class PipelineOptions(
     val categories: List<String> = emptyList(),
     val incremental: Boolean = false,
     val dryRun: Boolean = false,
-)
+    val steps: Set<PipelineStep> = emptySet(),
+    val batchId: String? = null,
+) {
+    /** 실행할 단계 결정: steps 명시 > dryRun > 전체 */
+    fun resolveSteps(): Set<PipelineStep> =
+        when {
+            steps.isNotEmpty() -> steps
+            dryRun -> setOf(PipelineStep.CRAWL, PipelineStep.VALIDATE)
+            else -> PipelineStep.entries.toSet()
+        }
+}
 
 data class PipelineResult(
     val life: TypePipelineResult,
@@ -41,6 +53,7 @@ data class TypePipelineResult(
     val published: Int,
     val embedded: Int,
     val errors: List<String>,
+    val batchId: String? = null,
 )
 
 @Component
@@ -64,6 +77,7 @@ class RunPipelineUseCase(
     /** 옵션 기반 파이프라인 실행 */
     suspend fun runWithOptions(options: PipelineOptions = PipelineOptions()): PipelineResult {
         val emptyResult = TypePipelineResult(0, 0, 0, 0, 0, emptyList())
+        val activeSteps = options.resolveSteps()
         val typesToRun =
             when (options.type) {
                 InsuranceType.LIFE -> listOf(InsuranceType.LIFE)
@@ -74,7 +88,7 @@ class RunPipelineUseCase(
         val (results, duration) =
             measureTimedValue {
                 typesToRun.associateWith { type ->
-                    runForInsuranceType(type, options.incremental, options.categories, options.dryRun)
+                    runForInsuranceType(type, options.incremental, options.categories, activeSteps, options.batchId)
                 }
             }
 
@@ -105,92 +119,120 @@ class RunPipelineUseCase(
         insuranceType: InsuranceType,
         incremental: Boolean,
         categoryFilter: List<String> = emptyList(),
-        dryRun: Boolean = false,
+        activeSteps: Set<PipelineStep>,
+        existingBatchId: String? = null,
     ): TypePipelineResult {
-        val batchId = UUID.randomUUID().toString()
+        val batchId = existingBatchId ?: UUID.randomUUID().toString()
         val errors = mutableListOf<String>()
+        var crawledCount = 0
+        var productsToProcess = emptyList<ProductRawData>()
+        var validatedProducts = emptyList<ProductRawData>()
+        var publishedCount = 0
+        var embeddedCount = 0
 
         try {
-            // 1. 배치 이력 시작
-            pipelineService.startBatch(insuranceType, batchId)
+            // CRAWL 단계
+            if (PipelineStep.CRAWL in activeSteps) {
+                pipelineService.startBatch(insuranceType, batchId)
 
-            // 2. 크롤링
-            val crawlResult =
-                when (insuranceType) {
-                    InsuranceType.LIFE -> lifeInsuranceCrawler.crawlAll(categoryFilter)
-                    InsuranceType.NON_LIFE -> nonLifeInsuranceCrawler.crawlAll(categoryFilter)
-                }
-
-            val crawledCount = crawlResult.totalProducts
-            if (crawlResult.products.isEmpty()) {
-                pipelineService.failBatch(batchId, "수집된 상품 0건")
-                return TypePipelineResult(0, 0, 0, 0, 0, listOf("수집된 상품 0건"))
-            }
-
-            // 3. 변경 감지 (증분 모드)
-            val productsToProcess =
-                if (incremental) {
-                    val changes = changeDetectionService.detectChanges(crawlResult.products, insuranceType)
-                    // 삭제된 상품 비활성화
-                    if (changes.deletedProductIds.isNotEmpty()) {
-                        stagingPublisher.deactivateProducts(changes.deletedProductIds)
+                val crawlResult =
+                    when (insuranceType) {
+                        InsuranceType.LIFE -> lifeInsuranceCrawler.crawlAll(categoryFilter)
+                        InsuranceType.NON_LIFE -> nonLifeInsuranceCrawler.crawlAll(categoryFilter)
                     }
-                    changes.newProducts + changes.changedProducts
-                } else {
-                    crawlResult.products
+
+                crawledCount = crawlResult.totalProducts
+                if (crawlResult.products.isEmpty()) {
+                    pipelineService.failBatch(batchId, "수집된 상품 0건")
+                    return TypePipelineResult(0, 0, 0, 0, 0, listOf("수집된 상품 0건"), batchId)
                 }
 
-            if (productsToProcess.isEmpty()) {
-                pipelineService.completeBatch(batchId, crawledCount, crawledCount, 0)
-                return TypePipelineResult(crawledCount, 0, 0, 0, 0, emptyList())
-            }
+                // 변경 감지 (증분 모드)
+                productsToProcess =
+                    if (incremental) {
+                        val changes = changeDetectionService.detectChanges(crawlResult.products, insuranceType)
+                        if (changes.deletedProductIds.isNotEmpty()) {
+                            stagingPublisher.deactivateProducts(changes.deletedProductIds)
+                        }
+                        changes.newProducts + changes.changedProducts
+                    } else {
+                        crawlResult.products
+                    }
 
-            // 4. 스테이징 저장
-            for (product in productsToProcess) {
-                val entity = crawlStagingMapper.toStagingEntity(product, batchId)
-                crawlStagingRepository.save(entity)
-            }
-
-            // 5. L1~L4 검증
-            val validationResult = validationService.validate(productsToProcess, batchId, insuranceType.name)
-            val validatedCount = validationResult.passed.size
-
-            // 6. 스테이징 레코드 상태 업데이트
-            val stagingRecords = crawlStagingRepository.findByBatchId(batchId).toList()
-            val passedNames = validationResult.passed.map { it.productName }.toSet()
-            for (record in stagingRecords) {
-                val rawData = crawlStagingMapper.fromStagingEntity(record)
-                val status = if (rawData.productName in passedNames) "PASSED" else "FAILED"
-                crawlStagingRepository.save(record.copy(validationStatus = status))
-            }
-
-            // 7. 크로스 검증 (경고만, 파이프라인 중단 없음)
-            for (product in validationResult.passed) {
-                try {
-                    crossValidator.validate(
-                        associationCoverages = product.coverages,
-                        pdfArticles = emptyList(),
-                        productName = product.productName,
-                        companyName = product.companyName,
-                    )
-                } catch (e: Exception) {
-                    logger.warn("크로스 검증 오류: ${product.productName}: ${e.message}")
+                if (productsToProcess.isEmpty()) {
+                    pipelineService.completeBatch(batchId, crawledCount, crawledCount, 0)
+                    return TypePipelineResult(crawledCount, 0, 0, 0, 0, emptyList(), batchId)
                 }
+
+                // 스테이징 저장
+                for (product in productsToProcess) {
+                    val entity = crawlStagingMapper.toStagingEntity(product, batchId)
+                    crawlStagingRepository.save(entity)
+                }
+
+                logger.info("CRAWL 완료: batchId=$batchId, ${productsToProcess.size}건 스테이징 저장")
             }
 
-            // 8. 본 테이블 반영 (WAP) — dryRun 시 스킵
-            var publishedCount = 0
-            var embeddedCount = 0
+            // VALIDATE 단계
+            if (PipelineStep.VALIDATE in activeSteps) {
+                // CRAWL 없이 VALIDATE만 실행 시 스테이징에서 데이터 복원
+                if (PipelineStep.CRAWL !in activeSteps) {
+                    val stagingRecords = crawlStagingRepository.findByBatchId(batchId).toList()
+                    if (stagingRecords.isEmpty()) {
+                        return TypePipelineResult(0, 0, 0, 0, 0, listOf("batchId=${batchId}에 해당하는 스테이징 데이터 없음"), batchId)
+                    }
+                    productsToProcess = stagingRecords.map { crawlStagingMapper.fromStagingEntity(it) }
+                    crawledCount = productsToProcess.size
+                    logger.info("스테이징에서 데이터 복원: batchId=$batchId, ${productsToProcess.size}건")
+                }
 
-            if (dryRun) {
-                logger.info("dry-run 모드: publish/embed 단계 스킵 (크로스 검증까지 완료)")
-            } else {
+                // L1~L4 검증
+                val validationResult = validationService.validate(productsToProcess, batchId, insuranceType.name)
+                validatedProducts = validationResult.passed
+
+                // 스테이징 레코드 상태 업데이트
+                val stagingRecords = crawlStagingRepository.findByBatchId(batchId).toList()
+                val passedNames = validationResult.passed.map { it.productName }.toSet()
+                for (record in stagingRecords) {
+                    val rawData = crawlStagingMapper.fromStagingEntity(record)
+                    val status = if (rawData.productName in passedNames) "PASSED" else "FAILED"
+                    crawlStagingRepository.save(record.copy(validationStatus = status))
+                }
+
+                // 크로스 검증 (경고만, 파이프라인 중단 없음)
+                for (product in validationResult.passed) {
+                    try {
+                        crossValidator.validate(
+                            associationCoverages = product.coverages,
+                            pdfArticles = emptyList(),
+                            productName = product.productName,
+                            companyName = product.companyName,
+                        )
+                    } catch (e: Exception) {
+                        logger.warn("크로스 검증 오류: ${product.productName}: ${e.message}")
+                    }
+                }
+
+                logger.info("VALIDATE 완료: batchId=$batchId, 통과=${validationResult.passed.size}, 실패=${validationResult.failed.size}")
+            }
+
+            // PUBLISH 단계
+            if (PipelineStep.PUBLISH in activeSteps) {
                 val publishResult = stagingPublisher.publish(batchId)
                 publishedCount = publishResult.productsCreated + publishResult.productsUpdated
+                logger.info("PUBLISH 완료: batchId=$batchId, 신규=${publishResult.productsCreated}, 수정=${publishResult.productsUpdated}")
+            }
 
-                // 9. 임베딩 (신규/변경 조문)
+            // EMBED 단계
+            if (PipelineStep.EMBED in activeSteps) {
+                // 검증 통과 목록이 없으면 스테이징에서 PASSED 레코드 복원
+                if (validatedProducts.isEmpty()) {
+                    val passedRecords = crawlStagingRepository.findByBatchIdAndValidationStatus(batchId, "PASSED").toList()
+                    validatedProducts = passedRecords.map { crawlStagingMapper.fromStagingEntity(it) }
+                }
+
                 val companyMap = buildCompanyMap()
-                for (product in validationResult.passed) {
+                for (product in validatedProducts) {
                     try {
                         val companyId = companyMap[product.companyName] ?: continue
                         val matchedProduct =
@@ -214,9 +256,11 @@ class RunPipelineUseCase(
                         logger.error("임베딩 실패: ${product.productName}", e)
                     }
                 }
+                logger.info("EMBED 완료: batchId=$batchId, ${embeddedCount}건")
             }
 
-            // 10. 배치 완료
+            // 배치 완료 기록
+            val validatedCount = validatedProducts.size
             pipelineService.completeBatch(
                 batchId = batchId,
                 productCount = crawledCount,
@@ -231,6 +275,7 @@ class RunPipelineUseCase(
                 published = publishedCount,
                 embedded = embeddedCount,
                 errors = errors,
+                batchId = batchId,
             )
         } catch (e: Exception) {
             logger.error("파이프라인 전체 실패: insuranceType=$insuranceType", e)
@@ -239,7 +284,7 @@ class RunPipelineUseCase(
             } catch (failEx: Exception) {
                 logger.error("배치 실패 기록 오류", failEx)
             }
-            return TypePipelineResult(0, 0, 0, 0, 0, listOf(e.message ?: "알 수 없는 오류"))
+            return TypePipelineResult(0, 0, 0, 0, 0, listOf(e.message ?: "알 수 없는 오류"), batchId)
         }
     }
 

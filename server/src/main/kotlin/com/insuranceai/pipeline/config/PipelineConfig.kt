@@ -1,5 +1,6 @@
 package com.insuranceai.pipeline.config
 
+import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.policy.domain.InsuranceType
 import org.springframework.boot.context.properties.ConfigurationProperties
 
@@ -11,6 +12,8 @@ data class PipelineConfig(
     val categories: List<String> = emptyList(),
     val incremental: Boolean = false,
     val dryRun: Boolean = false,
+    val steps: List<PipelineStep> = emptyList(),
+    val batchId: String? = null,
 ) {
     data class CrawlConfig(
         val delayMinMs: Long = 2000,
