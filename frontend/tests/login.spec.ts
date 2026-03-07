@@ -50,8 +50,11 @@ test.describe('404 화면', () => {
     ).toBeVisible();
   });
 
-  test('메인으로 이동 버튼이 동작한다', async ({ page }) => {
+  test('메인으로 이동 버튼 클릭 시 비인증 상태에서는 /login으로 이동한다', async ({
+    page,
+  }) => {
     await page.getByRole('button', { name: '메인으로 이동' }).click();
-    await expect(page).toHaveURL('/');
+    // 비인증 상태이므로 ProtectedRoute에 의해 /login으로 리다이렉트
+    await expect(page).toHaveURL('/login');
   });
 });

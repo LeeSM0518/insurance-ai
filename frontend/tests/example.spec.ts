@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import { mockAuthenticatedUser } from './fixtures';
 
 test('앱이 정상적으로 로딩된다', async ({ page }) => {
+  await mockAuthenticatedUser(page);
   await page.goto('/');
   await expect(page).toHaveTitle(/Insurance AI/);
 });
@@ -12,6 +14,7 @@ test('존재하지 않는 경로는 404 페이지를 표시한다', async ({ pag
 });
 
 test('404 페이지에서 메인으로 이동할 수 있다', async ({ page }) => {
+  await mockAuthenticatedUser(page);
   await page.goto('/nonexistent');
   await page.getByRole('button', { name: '메인으로 이동' }).click();
   await expect(page).toHaveURL('/');

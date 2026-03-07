@@ -1,8 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { mockAuthenticatedUser } from './fixtures';
 
 test.describe('AI 상담 통합 화면', () => {
   test.describe('데스크톱', () => {
     test.beforeEach(async ({ page }) => {
+      await mockAuthenticatedUser(page);
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto('/');
     });
@@ -151,6 +153,7 @@ test.describe('AI 상담 통합 화면', () => {
 
   test.describe('모바일', () => {
     test.beforeEach(async ({ page }) => {
+      await mockAuthenticatedUser(page);
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto('/');
     });

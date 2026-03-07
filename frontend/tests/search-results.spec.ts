@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { mockAuthenticatedUser } from './fixtures';
 
 test.describe('검색 결과 화면', () => {
   test.beforeEach(async ({ page }) => {
+    await mockAuthenticatedUser(page);
     await page.goto('/search/results?q=암보험');
   });
 
@@ -45,7 +47,6 @@ test.describe('검색 결과 화면', () => {
 
   test('데스크톱 뷰포트에서 2컬럼 그리드로 표시된다', async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 800 });
-    await page.goto('/search/results?q=암보험');
     const grid = page.locator('.grid');
     await expect(grid).toHaveClass(/desktop:grid-cols-2/);
   });

@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { lazy } from 'react';
-import { AppLayoutRoute } from '@/components/layout/app-layout-route';
+import { AuthLayout } from '@/components/auth/auth-layout';
+import { ProtectedAppLayoutRoute } from '@/components/layout/app-layout-route';
 
 // 페이지 lazy loading (기획서 05 §8.1)
 const LoginPage = lazy(() => import('@/pages/login'));
@@ -13,50 +14,56 @@ const MyPage = lazy(() => import('@/pages/my'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const router = createBrowserRouter([
-  // 인증 불필요 (레이아웃 없음)
   {
-    path: '/login',
-    Component: LoginPage,
-  },
-  {
-    path: '/auth/callback',
-    Component: AuthCallbackPage,
-  },
-
-  // 인증 필요 (AppLayout 적용, Step 5에서 ProtectedRoute 추가)
-  {
-    Component: AppLayoutRoute,
+    // 최상위: AuthProvider 래퍼
+    Component: AuthLayout,
     children: [
+      // 인증 불필요
       {
-        path: '/',
-        Component: ChatPage,
+        path: '/login',
+        Component: LoginPage,
       },
       {
-        path: '/chat',
-        Component: ChatPage,
+        path: '/auth/callback',
+        Component: AuthCallbackPage,
       },
+
+      // 인증 필요 (ProtectedRoute + AppLayout)
       {
-        path: '/search',
-        Component: SearchPage,
+        Component: ProtectedAppLayoutRoute,
+        children: [
+          {
+            path: '/',
+            Component: ChatPage,
+          },
+          {
+            path: '/chat',
+            Component: ChatPage,
+          },
+          {
+            path: '/search',
+            Component: SearchPage,
+          },
+          {
+            path: '/search/results',
+            Component: SearchResultsPage,
+          },
+          {
+            path: '/policies/:articleId',
+            Component: PolicyDetailPage,
+          },
+          {
+            path: '/my',
+            Component: MyPage,
+          },
+        ],
       },
+
+      // 404
       {
-        path: '/search/results',
-        Component: SearchResultsPage,
-      },
-      {
-        path: '/policies/:articleId',
-        Component: PolicyDetailPage,
-      },
-      {
-        path: '/my',
-        Component: MyPage,
+        path: '*',
+        Component: NotFoundPage,
       },
     ],
-  },
-
-  // 404
-  {
-    path: '*',
-    Component: NotFoundPage,
   },
 ]);
