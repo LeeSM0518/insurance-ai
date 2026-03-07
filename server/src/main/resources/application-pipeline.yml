@@ -2,6 +2,16 @@ spring:
   main:
     web-application-type: none    # 웹 서버 비활성화 (CLI 모드)
 
+app:
+  pipeline:
+    crawl:
+      delay-min-ms: 2000
+      delay-max-ms: 5000
+      max-retries: 3
+      user-agent: InsuranceAI-Bot/1.0
+      download-dir: data/summaries
+      headless: true
+
 logging:
   level:
     com.insuranceai.pipeline: DEBUG

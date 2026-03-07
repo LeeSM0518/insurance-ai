@@ -9,4 +9,6 @@ interface ProductRepository : CoroutineCrudRepository<ProductEntity, UUID> {
     fun findByInsuranceCompanyId(companyId: UUID): Flow<ProductEntity>
 
     fun findByIsActiveTrue(): Flow<ProductEntity>
+
+    fun findByInsuranceCompanyIdAndIsActiveTrue(companyId: UUID): Flow<ProductEntity>
 }

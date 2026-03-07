@@ -26,6 +26,7 @@ data class ProductEntity(
     val guaranteedInterestRate: BigDecimal? = null,
     val maturityAmount: Long? = null,
     val yieldRate: BigDecimal? = null,
+    val checksum: String? = null,
     val isActive: Boolean = true,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = createdAt,

@@ -9,4 +9,6 @@ interface CrawlStagingRepository : CoroutineCrudRepository<CrawlStagingEntity, U
     fun findByBatchId(batchId: String): Flow<CrawlStagingEntity>
 
     fun findByValidationStatus(status: String): Flow<CrawlStagingEntity>
+
+    suspend fun countByBatchId(batchId: String): Long
 }
