@@ -1,0 +1,16 @@
+server:
+  port: 8888
+
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  packages-to-scan: com.insuranceai
+
+logging:
+  level:
+    root: warn
+    com.insuranceai: info
+    org.springdoc: info

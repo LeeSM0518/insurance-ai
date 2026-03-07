@@ -1,9 +1,10 @@
 plugins {
+    kotlin("jvm") version "2.3.10"
+    kotlin("plugin.spring") version "2.3.10"
     id("org.springframework.boot") version "3.5.11"
     id("io.spring.dependency-management") version "1.1.7"
     id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
-    kotlin("jvm") version "2.3.10"
-    kotlin("plugin.spring") version "2.3.10"
+    id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
 }
 
 group = "com.insuranceai"
@@ -107,6 +108,14 @@ kotlin {
 tasks.withType<Test> {
     dependsOn("ktlintFormat")
     useJUnitPlatform()
+}
+
+// OpenAPI spec 생성 설정
+openApi {
+    apiDocsUrl.set("http://localhost:8888/v3/api-docs")
+    outputDir.set(layout.buildDirectory.dir("openapi"))
+    outputFileName.set("openapi.json")
+    waitTimeInSeconds.set(60)
 }
 
 // KtLint 설정
