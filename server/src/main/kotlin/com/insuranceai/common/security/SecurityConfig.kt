@@ -1,6 +1,7 @@
 package com.insuranceai.common.security
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.insuranceai.auth.filter.JwtAuthenticationFilter
 import com.insuranceai.auth.property.SecurityProperties
 import com.insuranceai.common.dto.ServiceResponse
 import org.springframework.context.annotation.Bean
@@ -10,6 +11,7 @@ import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder
 import org.springframework.security.config.web.server.ServerHttpSecurity
 import org.springframework.security.web.server.SecurityWebFilterChain
 import org.springframework.security.web.server.ServerAuthenticationEntryPoint
@@ -23,6 +25,7 @@ import reactor.core.publisher.Mono
 class SecurityConfig(
     private val securityProperties: SecurityProperties,
     private val objectMapper: ObjectMapper,
+    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
 ) {
     @Bean
     fun securityWebFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain =
@@ -36,7 +39,8 @@ class SecurityConfig(
                     exchange.pathMatchers(path).permitAll()
                 }
                 exchange.anyExchange().authenticated()
-            }.exceptionHandling { it.authenticationEntryPoint(unauthorizedEntryPoint()) }
+            }.addFilterBefore(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+            .exceptionHandling { it.authenticationEntryPoint(unauthorizedEntryPoint()) }
             .headers { headers ->
                 headers.frameOptions {
                     it.mode(
@@ -56,6 +60,7 @@ class SecurityConfig(
                         HttpMethod.GET.name(),
                         HttpMethod.POST.name(),
                         HttpMethod.PUT.name(),
+                        HttpMethod.PATCH.name(),
                         HttpMethod.DELETE.name(),
                         HttpMethod.OPTIONS.name(),
                     )
