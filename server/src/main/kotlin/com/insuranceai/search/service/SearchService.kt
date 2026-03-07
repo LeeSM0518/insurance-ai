@@ -29,13 +29,10 @@ class SearchService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    companion object {
-        private val COMPARISON_KEYWORDS = listOf("비교", "vs", "차이", "차이점", "어디가", "넓은 순서", "좋은 순서", "뭐가 달라")
-    }
-
     suspend fun search(
         request: SearchRequest,
         userId: UUID,
+        isComparison: Boolean = false,
     ): SearchResponse {
         // 쿼리 검증
         if (request.query.isBlank()) throw SearchError.QueryMissing
@@ -66,8 +63,8 @@ class SearchService(
         // RRF 통합
         var fusedResults = rankFusionService.fuse(keywordResults, vectorResults)
 
-        // 비교 질의 감지 시 다양성 보장
-        if (isComparisonQuery(request.query)) {
+        // 비교 질의 시 다양성 보장 (호출자가 QuestionAnalyzer 결과를 전달)
+        if (isComparison) {
             fusedResults = rankFusionService.ensureDiversity(fusedResults)
         }
 
@@ -134,9 +131,6 @@ class SearchService(
             results = items,
         )
     }
-
-    /** 비교 질의 감지 */
-    internal fun isComparisonQuery(query: String): Boolean = COMPARISON_KEYWORDS.any { keyword -> query.contains(keyword) }
 
     /** 보충 데이터 존재 여부 일괄 조회 (N+1 방지) */
     private suspend fun loadSupplementaryExistence(productIds: List<UUID>): Map<UUID, SupplementaryInfo> =

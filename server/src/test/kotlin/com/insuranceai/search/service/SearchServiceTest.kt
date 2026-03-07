@@ -180,11 +180,76 @@ class SearchServiceTest {
         }
 
     @Test
-    fun `비교 질의 감지가 올바르게 동작한다`() {
-        assertTrue(service.isComparisonQuery("삼성생명 vs 한화생명"))
-        assertTrue(service.isComparisonQuery("암보험 비교해주세요"))
-        assertTrue(service.isComparisonQuery("차이점이 뭔가요"))
-        assertTrue(service.isComparisonQuery("뭐가 달라"))
-        assertFalse(service.isComparisonQuery("면책사항 알려주세요"))
-    }
+    fun `isComparison이 true이면 다양성 보장이 적용된다`() =
+        runTest {
+            val companyId1 = UUID.randomUUID()
+            val companyId2 = UUID.randomUUID()
+            val keywordResults =
+                (1..6).map { rank ->
+                    KeywordSearchResult(
+                        articleId = UUID.randomUUID(),
+                        productId = productId,
+                        productName = "보험 $rank",
+                        companyId = if (rank <= 4) companyId1 else companyId2,
+                        companyName = if (rank <= 4) "삼성생명" else "한화생명",
+                        insuranceType = "LIFE",
+                        contentType = "COVERAGE",
+                        articleNumber = null,
+                        articleTitle = null,
+                        content = "내용 $rank",
+                        dataSource = null,
+                        rank = rank,
+                    )
+                }
+
+            coEvery { keywordSearchService.search("암보험 비교", any(), any()) } returns keywordResults
+            coEvery { vectorSearchService.search("암보험 비교", any(), any(), any()) } returns emptyList()
+            every { surrenderValueRepository.findByProductIdIn(any()) } returns emptyFlow()
+            every { premiumExampleRepository.findByProductIdIn(any()) } returns emptyFlow()
+            every { productIndexRepository.findByProductIdIn(any()) } returns emptyFlow()
+
+            val response =
+                service.search(
+                    SearchRequest(query = "암보험 비교"),
+                    userId,
+                    isComparison = true,
+                )
+
+            assertTrue(response.totalCount > 0)
+        }
+
+    @Test
+    fun `isComparison이 false이면 다양성 보장이 적용되지 않는다`() =
+        runTest {
+            val keywordResult =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "테스트 보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = null,
+                    articleTitle = null,
+                    content = "내용",
+                    dataSource = null,
+                    rank = 1,
+                )
+
+            coEvery { keywordSearchService.search("면책", any(), any()) } returns listOf(keywordResult)
+            coEvery { vectorSearchService.search("면책", any(), any(), any()) } returns emptyList()
+            every { surrenderValueRepository.findByProductIdIn(any()) } returns emptyFlow()
+            every { premiumExampleRepository.findByProductIdIn(any()) } returns emptyFlow()
+            every { productIndexRepository.findByProductIdIn(any()) } returns emptyFlow()
+
+            val response =
+                service.search(
+                    SearchRequest(query = "면책"),
+                    userId,
+                    isComparison = false,
+                )
+
+            assertEquals(1, response.totalCount)
+        }
 }

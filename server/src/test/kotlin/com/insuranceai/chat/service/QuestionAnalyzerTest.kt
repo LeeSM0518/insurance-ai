@@ -1,9 +1,15 @@
 package com.insuranceai.chat.service
 
+import com.insuranceai.chat.dto.QuestionAnalysis
+import com.insuranceai.chat.dto.SupplementaryNeeds
+import com.insuranceai.common.ai.PromptLoader
+import com.insuranceai.common.ai.SuspendingChatClient
 import com.insuranceai.policy.entity.InsuranceCompanyEntity
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.verify
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -12,11 +18,12 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class QuestionAnalyzerTest {
+    private val suspendingChatClient = mockk<SuspendingChatClient>()
+    private val promptLoader = mockk<PromptLoader>()
     private val insuranceCompanyRepository = mockk<InsuranceCompanyRepository>()
-    private val analyzer = QuestionAnalyzer(insuranceCompanyRepository)
+    private val analyzer = QuestionAnalyzer(suspendingChatClient, promptLoader, insuranceCompanyRepository)
 
     init {
-        // 보험사 목록 수동 로드 (테스트에서는 @EventListener 동작하지 않음)
         every { insuranceCompanyRepository.findByIsActiveTrue() } returns
             flowOf(
                 InsuranceCompanyEntity(name = "삼성생명", type = "LIFE"),
@@ -24,100 +31,132 @@ class QuestionAnalyzerTest {
                 InsuranceCompanyEntity(name = "DB손해보험", type = "NON_LIFE"),
             )
         analyzer.loadCompanyNames()
+
+        every { promptLoader.render(any(), any()) } returns "시스템 프롬프트"
     }
 
     @Test
-    fun `보험사 추출 - 질문에 포함된 보험사를 추출한다`() {
-        val companies = analyzer.extractCompanies("삼성생명 암보험 면책사항 알려주세요")
-        assertEquals(listOf("삼성생명"), companies)
-    }
-
-    @Test
-    fun `보험사 추출 - 복수 보험사를 추출한다`() {
-        val companies = analyzer.extractCompanies("삼성생명과 한화생명 비교해주세요")
-        assertEquals(listOf("삼성생명", "한화생명"), companies)
-    }
-
-    @Test
-    fun `보험사 추출 - 없으면 빈 리스트`() {
-        val companies = analyzer.extractCompanies("암보험 면책사항 알려주세요")
-        assertTrue(companies.isEmpty())
-    }
-
-    @Test
-    fun `카테고리 추출 - 암보험`() {
-        val categories = analyzer.extractCategories("암보험 보장내용")
-        assertTrue(categories.contains("CANCER"))
-    }
-
-    @Test
-    fun `카테고리 추출 - 실손보험`() {
-        val categories = analyzer.extractCategories("실손보험 가입 조건")
-        assertTrue(categories.contains("HEALTH"))
-    }
-
-    @Test
-    fun `카테고리 추출 - 복수 카테고리`() {
-        val categories = analyzer.extractCategories("종신보험과 암보험 차이")
-        assertTrue(categories.contains("WHOLE_LIFE"))
-        assertTrue(categories.contains("CANCER"))
-    }
-
-    @Test
-    fun `내용유형 추출 - 면책`() {
-        val contentTypes = analyzer.extractContentTypes("면책사항 알려주세요")
-        assertTrue(contentTypes.contains("EXEMPTION"))
-    }
-
-    @Test
-    fun `내용유형 추출 - 감액`() {
-        val contentTypes = analyzer.extractContentTypes("감액기간이 어떻게 되나요")
-        assertTrue(contentTypes.contains("REDUCTION"))
-    }
-
-    @Test
-    fun `내용유형 추출 - 보장`() {
-        val contentTypes = analyzer.extractContentTypes("보장범위가 어디까지인가요")
-        assertTrue(contentTypes.contains("COVERAGE"))
-    }
-
-    @Test
-    fun `비교 의도 감지`() {
-        assertTrue(analyzer.detectComparison("삼성생명 vs 한화생명"))
-        assertTrue(analyzer.detectComparison("암보험 비교해주세요"))
-        assertTrue(analyzer.detectComparison("차이점이 뭔가요"))
-        assertTrue(analyzer.detectComparison("뭐가 달라"))
-        assertFalse(analyzer.detectComparison("면책사항 알려주세요"))
-    }
-
-    @Test
-    fun `보충 데이터 필요 여부 - 해약환급금`() {
-        val needs = analyzer.detectSupplementaryNeeds("해약환급금이 얼마인가요")
-        assertTrue(needs.surrenderValue)
-        assertFalse(needs.premiumExample)
-        assertFalse(needs.priceIndex)
-    }
-
-    @Test
-    fun `보충 데이터 필요 여부 - 보험료`() {
-        val needs = analyzer.detectSupplementaryNeeds("월 납입 보험료가 얼마인가요")
-        assertTrue(needs.premiumExample)
-    }
-
-    @Test
-    fun `보충 데이터 필요 여부 - 가격지수`() {
-        val needs = analyzer.detectSupplementaryNeeds("가격지수 알려주세요")
-        assertTrue(needs.priceIndex)
-    }
-
-    @Test
-    fun `통합 분석이 올바르게 동작한다`() =
+    fun `LLM 호출로 질문 분석 결과를 반환한다`() =
         runTest {
-            val analysis = analyzer.analyze("삼성생명 암보험 면책사항 비교해주세요")
+            val expected =
+                QuestionAnalysis(
+                    companies = listOf("삼성생명"),
+                    categories = listOf("CANCER"),
+                    contentTypes = listOf("EXEMPTION"),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+            coEvery {
+                suspendingChatClient.callEntity(
+                    userMessage = any(),
+                    systemMessage = any(),
+                    responseType = QuestionAnalysis::class.java,
+                )
+            } returns expected
 
-            assertEquals(listOf("삼성생명"), analysis.companies)
-            assertTrue(analysis.categories.contains("CANCER"))
-            assertTrue(analysis.contentTypes.contains("EXEMPTION"))
-            assertTrue(analysis.isComparison)
+            val result = analyzer.analyze("삼성생명 암보험 면책사항 알려주세요")
+
+            assertEquals(listOf("삼성생명"), result.companies)
+            assertTrue(result.categories.contains("CANCER"))
+            assertTrue(result.contentTypes.contains("EXEMPTION"))
+            assertFalse(result.isComparison)
+        }
+
+    @Test
+    fun `비교 질의를 감지한다`() =
+        runTest {
+            val expected =
+                QuestionAnalysis(
+                    companies = listOf("삼성생명", "한화생명"),
+                    categories = listOf("CANCER"),
+                    contentTypes = emptyList(),
+                    isComparison = true,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+            coEvery {
+                suspendingChatClient.callEntity(
+                    userMessage = any(),
+                    systemMessage = any(),
+                    responseType = QuestionAnalysis::class.java,
+                )
+            } returns expected
+
+            val result = analyzer.analyze("삼성생명 한화생명 암보험 비교해주세요")
+
+            assertTrue(result.isComparison)
+            assertEquals(2, result.companies.size)
+        }
+
+    @Test
+    fun `보충 데이터 필요 여부를 감지한다`() =
+        runTest {
+            val expected =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = emptyList(),
+                    contentTypes = listOf("TERMINATION"),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(surrenderValue = true),
+                )
+            coEvery {
+                suspendingChatClient.callEntity(
+                    userMessage = any(),
+                    systemMessage = any(),
+                    responseType = QuestionAnalysis::class.java,
+                )
+            } returns expected
+
+            val result = analyzer.analyze("해약환급금이 얼마인가요")
+
+            assertTrue(result.needsSupplementary.surrenderValue)
+            assertFalse(result.needsSupplementary.premiumExample)
+        }
+
+    @Test
+    fun `LLM 호출 실패 시 기본값을 반환한다`() =
+        runTest {
+            coEvery {
+                suspendingChatClient.callEntity(
+                    userMessage = any(),
+                    systemMessage = any(),
+                    responseType = QuestionAnalysis::class.java,
+                )
+            } throws RuntimeException("LLM 호출 실패")
+
+            val result = analyzer.analyze("삼성생명 암보험")
+
+            assertTrue(result.companies.isEmpty())
+            assertTrue(result.categories.isEmpty())
+            assertTrue(result.contentTypes.isEmpty())
+            assertFalse(result.isComparison)
+            assertFalse(result.needsSupplementary.surrenderValue)
+        }
+
+    @Test
+    fun `프롬프트에 보험사 목록이 주입된다`() =
+        runTest {
+            coEvery {
+                suspendingChatClient.callEntity(
+                    userMessage = any(),
+                    systemMessage = any(),
+                    responseType = QuestionAnalysis::class.java,
+                )
+            } returns
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = emptyList(),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+
+            analyzer.analyze("테스트 질문")
+
+            verify {
+                promptLoader.render(
+                    "chat/question-analysis.st",
+                    mapOf("companyNames" to "삼성생명, 한화생명, DB손해보험"),
+                )
+            }
         }
 }
