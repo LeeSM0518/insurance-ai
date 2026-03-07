@@ -93,7 +93,6 @@ dependencies {
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:r2dbc")
     testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.flywaydb.flyway:flyway-spring-test:10.0.0")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
