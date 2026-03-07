@@ -2,6 +2,7 @@ package com.insuranceai.pipeline.crawler
 
 import com.insuranceai.pipeline.config.PipelineConfig
 import com.insuranceai.pipeline.dto.SummaryPdfInfo
+import io.mockk.every
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -11,7 +12,13 @@ import org.junit.jupiter.api.Test
 import java.nio.file.Path
 
 class LifeSummaryPdfCrawlerTest {
-    private val crawlerCommon = mockk<CrawlerCommon>(relaxed = true)
+    private val crawlerCommon =
+        mockk<CrawlerCommon>(relaxed = true) {
+            every { buildDatedDownloadDir(*anyVararg()) } answers {
+                val subPaths = args[0] as Array<*>
+                Path.of("data/summaries", *subPaths.map { it.toString() }.toTypedArray(), "2026-03-07")
+            }
+        }
     private val config =
         PipelineConfig(
             crawl = PipelineConfig.CrawlConfig(downloadDir = "data/summaries"),
@@ -107,7 +114,7 @@ class LifeSummaryPdfCrawlerTest {
             val path = crawler.buildSavePath(info)
 
             assertEquals(
-                Path.of("data/summaries/life/종신보험/한화생명_간편가입_제로백H종신보험_무배당_41658.pdf"),
+                Path.of("data/summaries/life/종신보험/2026-03-07/한화생명_간편가입_제로백H종신보험_무배당_41658.pdf"),
                 path,
             )
         }
@@ -128,7 +135,7 @@ class LifeSummaryPdfCrawlerTest {
 
             // 슬래시가 제거된 디렉토리명
             assertEquals(
-                Path.of("data/summaries/life/간병치매보험/삼성생명_테스트보험_12345.pdf"),
+                Path.of("data/summaries/life/간병치매보험/2026-03-07/삼성생명_테스트보험_12345.pdf"),
                 path,
             )
         }

@@ -29,6 +29,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.r2dbc.postgresql.codec.Json
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -99,7 +100,7 @@ class RunPipelineUseCaseTest {
 
     private fun setupStagingMocks() {
         every { crawlStagingMapper.toStagingEntity(any(), any()) } returns
-            CrawlStagingEntity(batchId = "b1", entityType = "PRODUCT", entityData = "{}")
+            CrawlStagingEntity(batchId = "b1", entityType = "PRODUCT", entityData = Json.of("{}"))
         coEvery { crawlStagingRepository.save(any()) } answers {
             firstArg<CrawlStagingEntity>().copy(id = UUID.randomUUID())
         }
@@ -109,7 +110,7 @@ class RunPipelineUseCaseTest {
         coEvery { validationService.validate(any(), any(), any()) } returns
             ValidationResult(passed, emptyList(), emptyList(), false)
         coEvery { crawlStagingRepository.findByBatchId(any()) } returns
-            flowOf(CrawlStagingEntity(id = UUID.randomUUID(), batchId = "b1", entityType = "PRODUCT", entityData = "{}"))
+            flowOf(CrawlStagingEntity(id = UUID.randomUUID(), batchId = "b1", entityType = "PRODUCT", entityData = Json.of("{}")))
         every { crawlStagingMapper.fromStagingEntity(any()) } returns testProduct
         every { crossValidator.validate(any(), any(), any(), any()) } returns
             CrossValidator.CrossValidationResult(1, 0, 0, 0, 0, emptyList())
@@ -343,7 +344,7 @@ class RunPipelineUseCaseTest {
 
             setupBatchMocks()
             coEvery { crawlStagingRepository.findByBatchIdAndValidationStatus(batchId, "PASSED") } returns
-                flowOf(CrawlStagingEntity(id = UUID.randomUUID(), batchId = batchId, entityType = "PRODUCT", entityData = "{}"))
+                flowOf(CrawlStagingEntity(id = UUID.randomUUID(), batchId = batchId, entityType = "PRODUCT", entityData = Json.of("{}")))
             every { crawlStagingMapper.fromStagingEntity(any()) } returns testProduct
             coEvery { insuranceCompanyRepository.findByIsActiveTrue() } returns flowOf(company)
             coEvery {

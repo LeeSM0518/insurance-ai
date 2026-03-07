@@ -19,6 +19,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.r2dbc.postgresql.codec.Json
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Nested
@@ -92,7 +93,7 @@ class StagingPublisherTest {
                         id = UUID.randomUUID(),
                         batchId = "batch-001",
                         entityType = "PRODUCT",
-                        entityData = "{}",
+                        entityData = Json.of("{}"),
                         validationStatus = "PASSED",
                     )
 

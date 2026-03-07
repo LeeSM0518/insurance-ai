@@ -94,6 +94,24 @@ class SchemaValidatorTest {
         }
 
     @Test
+    fun `NON_RENEWAL renewalType은 정상이다`() =
+        runTest {
+            mockActiveCompanies("삼성생명")
+            val product = validProduct().copy(renewalType = "NON_RENEWAL")
+            val issues = validator.validate(product)
+            assertTrue(issues.none { it.message.contains("renewalType") })
+        }
+
+    @Test
+    fun `RENEWAL renewalType은 정상이다`() =
+        runTest {
+            mockActiveCompanies("삼성생명")
+            val product = validProduct().copy(renewalType = "RENEWAL")
+            val issues = validator.validate(product)
+            assertTrue(issues.none { it.message.contains("renewalType") })
+        }
+
+    @Test
     fun `null renewalType은 에러가 아니다`() =
         runTest {
             mockActiveCompanies("삼성생명")
