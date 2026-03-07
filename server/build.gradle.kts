@@ -66,6 +66,9 @@ dependencies {
     // Apache POI — 엑셀 파싱
     implementation("org.apache.poi:poi-ooxml:5.4.1")
 
+    // Apache PDFBox — PDF 텍스트 추출
+    implementation("org.apache.pdfbox:pdfbox:3.0.4")
+
     // Cache
     implementation("com.github.ben-manes.caffeine:caffeine")
 
@@ -83,7 +86,7 @@ dependencies {
     }
 
     // Env
-    implementation("me.paulschwarz:spring-dotenv:4.0.0")
+    implementation("io.github.cdimascio:dotenv-java:3.1.0")
 
     // Test
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
