@@ -1,5 +1,8 @@
 package com.insuranceai.chat.dto
 
+import com.insuranceai.policy.dto.PremiumExampleItem
+import com.insuranceai.policy.dto.ProductIndexItem
+import com.insuranceai.policy.dto.SurrenderValueItem
 import java.util.UUID
 
 /** SSE 이벤트 래퍼 (02-search-chat.md 기반) */
@@ -30,11 +33,10 @@ data class DoneEvent(
     val supplementary: SupplementaryData? = null,
 )
 
-/** Step 10에서 Policy DTO 구현 시 List<Any> → 구체적 DTO 타입으로 변경 예정 */
 data class SupplementaryData(
-    val surrenderValues: List<Any> = emptyList(),
-    val premiumExamples: List<Any> = emptyList(),
-    val priceIndices: List<Any> = emptyList(),
+    val surrenderValues: List<SurrenderValueItem> = emptyList(),
+    val premiumExamples: List<PremiumExampleItem> = emptyList(),
+    val priceIndices: List<ProductIndexItem> = emptyList(),
 )
 
 data class ErrorEvent(
