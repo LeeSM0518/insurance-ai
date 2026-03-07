@@ -32,6 +32,10 @@ export const router = createBrowserRouter([
         Component: ChatPage,
       },
       {
+        path: '/chat',
+        Component: ChatPage,
+      },
+      {
         path: '/search',
         Component: SearchPage,
       },
