@@ -1,0 +1,7 @@
+spring:
+  main:
+    web-application-type: none    # 웹 서버 비활성화 (CLI 모드)
+
+logging:
+  level:
+    com.insuranceai.pipeline: DEBUG

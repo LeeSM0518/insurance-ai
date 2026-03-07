@@ -1,0 +1,35 @@
+spring:
+  ai:
+    anthropic:
+      api-key: test-api-key
+      chat:
+        options:
+          model: claude-sonnet-4-6-20250514
+    openai:
+      api-key: test-api-key
+      embedding:
+        options:
+          model: text-embedding-3-small
+
+logging:
+  level:
+    root: INFO
+    com.insuranceai: DEBUG
+    org.springframework.r2dbc: DEBUG
+    org.springframework.security: DEBUG
+
+app:
+  jwt:
+    access-token-secret: test-access-token-secret-key-for-testing-purposes-only-minimum-256-bits
+    refresh-token-secret: test-refresh-token-secret-key-for-testing-purposes-only-minimum-256-bits
+    access-token-expiration: 3600000      # 1시간
+    refresh-token-expiration: 2592000000  # 30일
+  security:
+    permit-paths:
+      - /api/v1/auth/**
+      - /actuator/health
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /webjars/**
+    cors-allowed-origins:
+      - http://localhost:5173

@@ -5,14 +5,69 @@ spring:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
   r2dbc:
-    url: ${DATABASE_URL:r2dbc:postgresql://localhost:5432/insurance_ai}
-    username: ${DATABASE_USERNAME:insurance}
-    password: ${DATABASE_PASSWORD:password}
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:insurance_ai}
+    username: ${DB_USERNAME:insurance}
+    password: ${DB_PASSWORD:password}
+    pool:
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
 
   flyway:
     enabled: true
-    baseline-on-migrate: true
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:insurance_ai}
+    user: ${DB_USERNAME:insurance}
+    password: ${DB_PASSWORD:password}
     locations: classpath:db/migration
 
+  ai:
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      chat:
+        options:
+          model: claude-sonnet-4-6-20250514
+          max-tokens: 4096
+          temperature: 0.1
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      embedding:
+        options:
+          model: text-embedding-3-small
+          dimensions: 1536
+
 server:
-  port: 8080
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+app:
+  jwt:
+    access-token-secret: ${JWT_ACCESS_TOKEN_SECRET}
+    refresh-token-secret: ${JWT_REFRESH_TOKEN_SECRET}
+    access-token-expiration: 1800000       # 30분
+    refresh-token-expiration: 1209600000   # 14일
+  security:
+    permit-paths:
+      - /api/v1/auth/**
+      - /actuator/health
+      - /swagger-ui/**
+      - /v3/api-docs/**
+      - /webjars/**
+    cors-allowed-origins:
+      - ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  kakao:
+    client-id: ${KAKAO_CLIENT_ID:}
+    user-info-url: https://kapi.kakao.com/v2/user/me
+  search:
+    default-size: 20
+    max-size: 50
+    min-similarity: 0.5
+    rrf-k: 60
+  chat:
+    max-history-messages: 20
+    max-context-tokens: 16500
+    heartbeat-interval: 15s
+  rate-limit:
+    search: 60
+    chat: 20
+    auth: 10
+    global: 300
