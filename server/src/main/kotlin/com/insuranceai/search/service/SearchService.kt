@@ -1,10 +1,15 @@
 package com.insuranceai.search.service
 
+import com.insuranceai.chat.dto.QuestionAnalysis
 import com.insuranceai.common.util.TextUtil
+import com.insuranceai.policy.domain.ContentType
+import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import com.insuranceai.search.dto.CompanyInfo
+import com.insuranceai.search.dto.FusedSearchResult
+import com.insuranceai.search.dto.SearchFilters
 import com.insuranceai.search.dto.SearchRequest
 import com.insuranceai.search.dto.SearchResponse
 import com.insuranceai.search.dto.SearchResultItem
@@ -13,6 +18,7 @@ import com.insuranceai.search.error.SearchError
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.flow.toSet
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -26,6 +32,7 @@ class SearchService(
     private val surrenderValueRepository: SurrenderValueRepository,
     private val premiumExampleRepository: PremiumExampleRepository,
     private val productIndexRepository: ProductIndexRepository,
+    private val insuranceCompanyRepository: InsuranceCompanyRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -38,36 +45,7 @@ class SearchService(
         if (request.query.isBlank()) throw SearchError.QueryMissing
         if (request.query.length > 200) throw SearchError.QueryTooLong
 
-        // 병렬 실행: 키워드 + 벡터 검색
-        val (keywordResults, vectorResults) =
-            coroutineScope {
-                val keywordDeferred =
-                    async {
-                        keywordSearchService.search(
-                            query = request.query,
-                            filters = request.filters,
-                        )
-                    }
-                val vectorDeferred =
-                    async {
-                        vectorSearchService.search(
-                            query = request.query,
-                            filters = request.filters,
-                        )
-                    }
-                keywordDeferred.await() to vectorDeferred.await()
-            }
-
-        log.debug("키워드 검색: {} 건, 벡터 검색: {} 건", keywordResults.size, vectorResults.size)
-
-        // RRF 통합
-        var fusedResults = rankFusionService.fuse(keywordResults, vectorResults)
-
-        // 비교 질의 시 다양성 보장 (호출자가 QuestionAnalyzer 결과를 전달)
-        if (isComparison) {
-            fusedResults = rankFusionService.ensureDiversity(fusedResults)
-        }
-
+        val fusedResults = executeHybridSearch(request.query, request.filters, isComparison)
         val totalCount = fusedResults.size
 
         // 페이지네이션 적용
@@ -78,14 +56,11 @@ class SearchService(
         val productIds = pagedResults.map { it.productId }.distinct()
         val supplementaryMap = loadSupplementaryExistence(productIds)
 
-        // 하이라이트 적용: 키워드 전용 결과에만 하이라이트가 이미 적용되어 있으므로,
-        // 벡터 전용 결과에만 추가 하이라이트 적용
-        val keywordArticleIds = keywordResults.map { it.articleId }.toSet()
-
+        // 하이라이트 적용
         val items =
             pagedResults.map { result ->
                 val highlight =
-                    if (result.articleId in keywordArticleIds) {
+                    if (result.keywordRank != null) {
                         result.content
                     } else {
                         TextUtil.highlightKeyword(
@@ -130,6 +105,66 @@ class SearchService(
             hasNext = offset + request.size < totalCount,
             results = items,
         )
+    }
+
+    /** RAG용 검색 (페이지네이션 없이 Top 10 반환) */
+    suspend fun searchForRag(
+        query: String,
+        analysis: QuestionAnalysis,
+    ): List<FusedSearchResult> {
+        val companyIds =
+            if (analysis.companies.isNotEmpty()) {
+                insuranceCompanyRepository
+                    .findByNameIn(analysis.companies)
+                    .map { it.id!! }
+                    .toList()
+                    .takeIf { it.isNotEmpty() }
+            } else {
+                null
+            }
+
+        val contentTypes =
+            analysis.contentTypes
+                .mapNotNull { name ->
+                    try {
+                        ContentType.valueOf(name)
+                    } catch (_: IllegalArgumentException) {
+                        null
+                    }
+                }.takeIf { it.isNotEmpty() }
+
+        val filters =
+            SearchFilters(
+                companyIds = companyIds,
+                categories = analysis.categories.takeIf { it.isNotEmpty() },
+                contentTypes = contentTypes,
+            )
+
+        return executeHybridSearch(query, filters, analysis.isComparison).take(10)
+    }
+
+    /** 병렬 검색 + RRF 통합 공통 로직 */
+    private suspend fun executeHybridSearch(
+        query: String,
+        filters: SearchFilters,
+        isComparison: Boolean,
+    ): List<FusedSearchResult> {
+        val (keywordResults, vectorResults) =
+            coroutineScope {
+                val keywordDeferred = async { keywordSearchService.search(query, filters) }
+                val vectorDeferred = async { vectorSearchService.search(query, filters) }
+                keywordDeferred.await() to vectorDeferred.await()
+            }
+
+        log.debug("키워드 검색: {} 건, 벡터 검색: {} 건", keywordResults.size, vectorResults.size)
+
+        var fusedResults = rankFusionService.fuse(keywordResults, vectorResults)
+
+        if (isComparison) {
+            fusedResults = rankFusionService.ensureDiversity(fusedResults)
+        }
+
+        return fusedResults
     }
 
     /** 보충 데이터 존재 여부 일괄 조회 (N+1 방지) */

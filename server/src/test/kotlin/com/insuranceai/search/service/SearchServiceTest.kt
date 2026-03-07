@@ -1,7 +1,11 @@
 package com.insuranceai.search.service
 
+import com.insuranceai.chat.dto.QuestionAnalysis
+import com.insuranceai.chat.dto.SupplementaryNeeds
+import com.insuranceai.policy.entity.InsuranceCompanyEntity
 import com.insuranceai.policy.entity.ProductIndexEntity
 import com.insuranceai.policy.entity.SurrenderValueEntity
+import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
@@ -31,6 +35,8 @@ class SearchServiceTest {
     private val premiumExampleRepository = mockk<PremiumExampleRepository>()
     private val productIndexRepository = mockk<ProductIndexRepository>()
 
+    private val insuranceCompanyRepository = mockk<InsuranceCompanyRepository>()
+
     private val service =
         SearchService(
             keywordSearchService,
@@ -39,6 +45,7 @@ class SearchServiceTest {
             surrenderValueRepository,
             premiumExampleRepository,
             productIndexRepository,
+            insuranceCompanyRepository,
         )
 
     private val userId = UUID.randomUUID()
@@ -251,5 +258,104 @@ class SearchServiceTest {
                 )
 
             assertEquals(1, response.totalCount)
+        }
+
+    @Test
+    fun `searchForRag - 정상 흐름`() =
+        runTest {
+            val companyId = UUID.randomUUID()
+            val analysis =
+                QuestionAnalysis(
+                    companies = listOf("삼성생명"),
+                    categories = emptyList(),
+                    contentTypes = listOf("EXEMPTION"),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+
+            every { insuranceCompanyRepository.findByNameIn(listOf("삼성생명")) } returns
+                flowOf(InsuranceCompanyEntity(id = companyId, name = "삼성생명", type = "LIFE"))
+
+            val keywordResult =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "종신보험",
+                    companyId = companyId,
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "EXEMPTION",
+                    articleNumber = "제5조",
+                    articleTitle = "면책사항",
+                    content = "면책 내용",
+                    dataSource = "ASSOCIATION",
+                    rank = 1,
+                )
+
+            coEvery { keywordSearchService.search("면책", any(), any()) } returns listOf(keywordResult)
+            coEvery { vectorSearchService.search("면책", any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("면책", analysis)
+
+            assertEquals(1, results.size)
+            assertEquals("삼성생명", results[0].companyName)
+        }
+
+    @Test
+    fun `searchForRag - 보험사명이 없으면 필터 없이 검색한다`() =
+        runTest {
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = emptyList(),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+
+            coEvery { keywordSearchService.search("보험", any(), any()) } returns emptyList()
+            coEvery { vectorSearchService.search("보험", any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("보험", analysis)
+
+            assertTrue(results.isEmpty())
+        }
+
+    @Test
+    fun `searchForRag - 최대 10개만 반환한다`() =
+        runTest {
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = emptyList(),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+
+            val keywordResults =
+                (1..15).map { rank ->
+                    KeywordSearchResult(
+                        articleId = UUID.randomUUID(),
+                        productId = productId,
+                        productName = "보험 $rank",
+                        companyId = UUID.randomUUID(),
+                        companyName = "보험사",
+                        insuranceType = "LIFE",
+                        contentType = "COVERAGE",
+                        articleNumber = null,
+                        articleTitle = null,
+                        content = "내용 $rank",
+                        dataSource = null,
+                        rank = rank,
+                    )
+                }
+
+            coEvery { keywordSearchService.search("보험", any(), any()) } returns keywordResults
+            coEvery { vectorSearchService.search("보험", any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("보험", analysis)
+
+            assertEquals(10, results.size)
         }
 }
