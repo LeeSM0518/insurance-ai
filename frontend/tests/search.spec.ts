@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('메인/검색 화면', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/search');
   });
 
   test('기본 렌더링: 히어로 텍스트, 검색바, 필터, 추천 검색어가 표시된다', async ({ page }) => {
@@ -20,20 +20,20 @@ test.describe('메인/검색 화면', () => {
   test('검색어 입력 후 Enter로 검색 페이지로 이동한다', async ({ page }) => {
     await page.getByLabel('약관 검색').fill('암보험 면책기간');
     await page.getByLabel('약관 검색').press('Enter');
-    await expect(page).toHaveURL(/\/search\?q=%EC%95%94%EB%B3%B4%ED%97%98/);
+    await expect(page).toHaveURL(/\/search\/results\?q=%EC%95%94%EB%B3%B4%ED%97%98/);
   });
 
   test('검색 버튼 클릭으로 검색 페이지로 이동한다', async ({ page }) => {
     await page.getByLabel('약관 검색').fill('실손보험');
     await page.getByRole('button', { name: '검색' }).click();
-    await expect(page).toHaveURL(/\/search\?q=/);
+    await expect(page).toHaveURL(/\/search\/results\?q=/);
   });
 
   test('빈 검색어 제출 시 이동하지 않는다', async ({ page }) => {
     await page.getByLabel('약관 검색').press('Enter');
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/search');
     await page.getByRole('button', { name: '검색' }).click();
-    await expect(page).toHaveURL('/');
+    await expect(page).toHaveURL('/search');
   });
 
   test('AI에게 질문하기 클릭 시 (빈 검색바) /chat으로 이동한다', async ({ page }) => {
@@ -83,12 +83,12 @@ test.describe('메인/검색 화면', () => {
     });
     await page.reload();
     await page.getByText('클릭검색어').click();
-    await expect(page).toHaveURL(/\/search\?q=/);
+    await expect(page).toHaveURL(/\/search\/results\?q=/);
   });
 
   test('추천 검색어 클릭 시 해당 키워드로 검색 이동한다', async ({ page }) => {
     await page.getByText('#암보험 면책기간').click();
-    await expect(page).toHaveURL(/\/search\?q=/);
+    await expect(page).toHaveURL(/\/search\/results\?q=/);
   });
 
   test('최근 검색 없을 때 최근 검색 섹션이 숨겨진다', async ({ page }) => {

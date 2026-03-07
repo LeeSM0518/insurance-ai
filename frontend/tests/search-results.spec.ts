@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test.describe('검색 결과 화면', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/search?q=암보험');
+    await page.goto('/search/results?q=암보험');
   });
 
   test('검색어가 URL에서 검색바에 표시된다', async ({ page }) => {
@@ -45,7 +45,7 @@ test.describe('검색 결과 화면', () => {
 
   test('데스크톱 뷰포트에서 2컬럼 그리드로 표시된다', async ({ page }) => {
     await page.setViewportSize({ width: 1200, height: 800 });
-    await page.goto('/search?q=암보험');
+    await page.goto('/search/results?q=암보험');
     const grid = page.locator('.grid');
     await expect(grid).toHaveClass(/desktop:grid-cols-2/);
   });
