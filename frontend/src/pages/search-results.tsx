@@ -1,7 +1,100 @@
+import { useState, useMemo } from 'react';
+import { useSearchParams, useNavigate } from 'react-router';
+import { MessageSquare, SearchX } from 'lucide-react';
+import { SearchBar } from '@/features/search/search-bar';
+import { ActiveFilters } from '@/features/search/active-filters';
+import { SearchResultCount } from '@/features/search/search-result-count';
+import { PolicyCard } from '@/features/search/policy-card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Button } from '@/components/ui/button';
+import { parseSearchParams, buildSearchParams } from '@/lib/search-params';
+import { MOCK_INSURANCE_COMPANIES } from '@/mocks/search-data';
+import { MOCK_SEARCH_RESULTS } from '@/mocks/search-results-data';
+import type { SearchFilters, ContentType } from '@/types/search';
+
 export default function SearchResultsPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { query, filters: initialFilters } = useMemo(() => parseSearchParams(searchParams), [searchParams]);
+  const [filters, setFilters] = useState<SearchFilters>(initialFilters);
+
+  // 검색 실행 (URL 업데이트)
+  const handleSearch = (newQuery: string) => {
+    setSearchParams(buildSearchParams(newQuery, filters));
+  };
+
+  // 필터 변경 시 URL 업데이트
+  const updateFilters = (newFilters: SearchFilters) => {
+    setFilters(newFilters);
+    setSearchParams(buildSearchParams(query, newFilters));
+  };
+
+  // 필터 제거 핸들러
+  const removeCompany = (id: string) => {
+    updateFilters({ ...filters, insuranceCompanyIds: filters.insuranceCompanyIds.filter((c) => c !== id) });
+  };
+  const removeInsuranceType = () => {
+    updateFilters({ ...filters, insuranceType: null, categories: [] });
+  };
+  const removeCategory = (code: string) => {
+    updateFilters({ ...filters, categories: filters.categories.filter((c) => c !== code) });
+  };
+  const removeContentType = (type: ContentType) => {
+    updateFilters({ ...filters, contentTypes: filters.contentTypes.filter((t) => t !== type) });
+  };
+
+  // Mock 데이터 필터링 (실제로는 서버에서 처리)
+  const results = MOCK_SEARCH_RESULTS;
+
   return (
-    <div className="flex-1 flex items-center justify-center">
-      <h1 className="text-xl font-semibold">검색 결과</h1>
+    <div className="flex-1 flex flex-col">
+      <div className="px-4 pt-4 space-y-3">
+        {/* 검색바 */}
+        <SearchBar onSearch={handleSearch} defaultValue={query} />
+
+        {/* 적용 필터 칩 */}
+        <ActiveFilters
+          filters={filters}
+          companies={MOCK_INSURANCE_COMPANIES}
+          onRemoveCompany={removeCompany}
+          onRemoveInsuranceType={removeInsuranceType}
+          onRemoveCategory={removeCategory}
+          onRemoveContentType={removeContentType}
+        />
+
+        {/* 결과 카운트 */}
+        <SearchResultCount count={results.length} />
+      </div>
+
+      {/* 결과 리스트 */}
+      <div className="flex-1 px-4 py-3">
+        {results.length > 0 ? (
+          <div className="grid grid-cols-1 desktop:grid-cols-2 gap-3">
+            {results.map((item) => (
+              <PolicyCard key={item.id} item={item} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon={SearchX} title="검색 결과가 없습니다" description="다른 검색어로 시도해보세요" />
+        )}
+      </div>
+
+      {/* AI 질문 CTA 하단 고정 */}
+      <div className="sticky bottom-tab-bar desktop:bottom-0 px-4 py-3 border-t bg-background">
+        <Button
+          className="w-full gap-2"
+          onClick={() => {
+            if (query) {
+              navigate(`/chat?q=${encodeURIComponent(query)}`);
+            } else {
+              navigate('/chat');
+            }
+          }}
+        >
+          <MessageSquare className="size-4" />
+          AI에게 질문하기
+        </Button>
+      </div>
     </div>
   );
 }
