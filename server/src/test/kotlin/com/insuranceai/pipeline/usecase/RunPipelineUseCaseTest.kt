@@ -287,6 +287,7 @@ class RunPipelineUseCaseTest {
             val batchId = "existing-batch-123"
 
             setupBatchMocks()
+            setupStagingMocks()
             setupValidationMocks()
 
             val result =
