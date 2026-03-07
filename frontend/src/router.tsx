@@ -7,7 +7,6 @@ const LoginPage = lazy(() => import('@/pages/login'));
 const AuthCallbackPage = lazy(() => import('@/pages/auth-callback'));
 const SearchPage = lazy(() => import('@/pages/search'));
 const SearchResultsPage = lazy(() => import('@/pages/search-results'));
-const ChatListPage = lazy(() => import('@/pages/chat-list'));
 const ChatPage = lazy(() => import('@/pages/chat'));
 const PolicyDetailPage = lazy(() => import('@/pages/policy-detail'));
 const MyPage = lazy(() => import('@/pages/my'));
@@ -38,10 +37,6 @@ export const router = createBrowserRouter([
       },
       {
         path: '/chat',
-        Component: ChatListPage,
-      },
-      {
-        path: '/chat/:sessionId',
         Component: ChatPage,
       },
       {

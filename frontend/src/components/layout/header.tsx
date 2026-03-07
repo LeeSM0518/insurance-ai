@@ -10,7 +10,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-background border-b border-border h-header desktop:h-header-desktop flex items-center px-4">
-      <div className="flex items-center justify-between w-full max-w-5xl mx-auto">
+      <div className="flex items-center justify-between w-full">
         {/* 로고 */}
         <NavLink to="/" className="text-lg font-bold text-primary">
           Insurance AI

@@ -1,19 +1,20 @@
-import { useNavigate } from 'react-router';
-import { ArrowLeft } from 'lucide-react';
+import { PanelLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface ChatHeaderProps {
   title: string;
+  isDesktop: boolean;
+  onToggleSidebar: () => void;
 }
 
-export function ChatHeader({ title }: ChatHeaderProps) {
-  const navigate = useNavigate();
-
+export function ChatHeader({ title, isDesktop, onToggleSidebar }: ChatHeaderProps) {
   return (
     <header className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background px-2 py-2">
-      <Button variant="ghost" size="icon-sm" onClick={() => navigate('/chat')} aria-label="뒤로가기">
-        <ArrowLeft className="size-4" />
-      </Button>
+      {!isDesktop && (
+        <Button variant="ghost" size="icon-sm" onClick={onToggleSidebar} aria-label="대화 목록">
+          <PanelLeft className="size-4" />
+        </Button>
+      )}
       <h1 className="text-sm font-semibold truncate">{title}</h1>
     </header>
   );

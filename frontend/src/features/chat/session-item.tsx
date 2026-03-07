@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { useSwipeable } from 'react-swipeable';
 import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,11 +7,12 @@ import type { ChatSession } from '@/types/chat';
 
 interface SessionItemProps {
   session: ChatSession;
+  isActive?: boolean;
+  onSelect: (id: string) => void;
   onDelete: (id: string) => void;
 }
 
-export function SessionItem({ session, onDelete }: SessionItemProps) {
-  const navigate = useNavigate();
+export function SessionItem({ session, isActive, onSelect, onDelete }: SessionItemProps) {
   const [offsetX, setOffsetX] = useState(0);
 
   const handlers = useSwipeable({
@@ -51,12 +51,12 @@ export function SessionItem({ session, onDelete }: SessionItemProps) {
       {/* 세션 카드 */}
       <div
         {...handlers}
-        className="relative cursor-pointer border-b bg-card px-4 py-3 transition-transform"
+        className={`relative cursor-pointer border-b bg-card px-4 py-3 transition-transform ${isActive ? 'bg-muted' : ''}`}
         style={{ transform: `translateX(-${offsetX}px)` }}
-        onClick={() => navigate(`/chat/${session.id}`)}
+        onClick={() => onSelect(session.id)}
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') navigate(`/chat/${session.id}`);
+          if (e.key === 'Enter') onSelect(session.id);
         }}
       >
         <h3 className="text-sm font-medium truncate">{session.title}</h3>
