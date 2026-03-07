@@ -29,7 +29,14 @@ class AuthController(
     suspend fun login(
         @RequestBody request: LoginRequest,
     ): ResponseEntity<ServiceResponse<LoginResponse>> {
-        val result = authService.login(request.kakaoAccessToken)
+        val result =
+            if (request.code != null && request.redirectUri != null) {
+                authService.loginWithCode(request.code, request.redirectUri)
+            } else if (request.kakaoAccessToken != null) {
+                authService.login(request.kakaoAccessToken)
+            } else {
+                throw com.insuranceai.auth.error.AuthError.InvalidRequest
+            }
         return ResponseEntity.ok(ServiceResponse.ok(result))
     }
 

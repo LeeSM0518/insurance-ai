@@ -15,6 +15,8 @@
 
 
 export interface LoginRequest {
-    'kakaoAccessToken': string;
+    'kakaoAccessToken'?: string;
+    'code'?: string;
+    'redirectUri'?: string;
 }
 

@@ -268,11 +268,14 @@
         "properties": {
           "kakaoAccessToken": {
             "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "redirectUri": {
+            "type": "string"
           }
-        },
-        "required": [
-          "kakaoAccessToken"
-        ]
+        }
       },
       "LoginResponse": {
         "type": "object",

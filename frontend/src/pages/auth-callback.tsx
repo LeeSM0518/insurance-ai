@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/hooks/use-auth';
 import { getApi } from '@/lib/api';
-import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -34,23 +33,12 @@ export default function AuthCallbackPage() {
 
   async function handleOAuthCallback(code: string) {
     try {
-      // 카카오 authorization_code로 토큰 교환
-      const tokenResponse = await axios.post(
-        'https://kauth.kakao.com/oauth/token',
-        new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: import.meta.env.VITE_KAKAO_REST_API_KEY,
-          redirect_uri: import.meta.env.VITE_KAKAO_REDIRECT_URI,
-          code,
-        }),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-      );
-
-      const kakaoAccessToken = tokenResponse.data.access_token;
-
-      // 백엔드 로그인 API 호출
+      // authorization_code를 백엔드로 전송하여 토큰 교환 + 로그인 처리
       const loginResponse = await getApi().login({
-        loginRequest: { kakaoAccessToken },
+        loginRequest: {
+          code,
+          redirectUri: import.meta.env.VITE_KAKAO_REDIRECT_URI,
+        },
       });
 
       const loginData = loginResponse.data.data;

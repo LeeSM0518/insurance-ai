@@ -23,6 +23,11 @@ class AuthService(
         return issueTokens(user)
     }
 
+    suspend fun loginWithCode(code: String, redirectUri: String): LoginResponse {
+        val kakaoAccessToken = kakaoOAuthClient.exchangeCode(code, redirectUri)
+        return login(kakaoAccessToken)
+    }
+
     suspend fun refresh(refreshToken: String): TokenRefreshResponse {
         if (!tokenService.validateRefreshToken(refreshToken)) {
             throw AuthError.InvalidRefreshToken()

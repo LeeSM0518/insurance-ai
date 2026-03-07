@@ -5,7 +5,9 @@
 
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**kakaoAccessToken** | **string** |  | [default to undefined]
+**kakaoAccessToken** | **string** |  | [optional] [default to undefined]
+**code** | **string** |  | [optional] [default to undefined]
+**redirectUri** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -14,6 +16,8 @@ import { LoginRequest } from './api';
 
 const instance: LoginRequest = {
     kakaoAccessToken,
+    code,
+    redirectUri,
 };
 ```
 

@@ -15,13 +15,44 @@ data class KakaoUserInfo(
 
 @Component
 class KakaoOAuthClient(
-    appProperties: AppProperties,
+    private val appProperties: AppProperties,
 ) {
     private val webClient =
         WebClient
             .builder()
             .baseUrl(appProperties.kakao.userInfoUrl)
             .build()
+
+    private val tokenClient =
+        WebClient
+            .builder()
+            .baseUrl("https://kauth.kakao.com")
+            .build()
+
+    /**
+     * authorization_code를 카카오 access_token으로 교환합니다.
+     */
+    suspend fun exchangeCode(code: String, redirectUri: String): String {
+        val response =
+            runCatching {
+                tokenClient
+                    .post()
+                    .uri("/oauth/token")
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .bodyValue(
+                        "grant_type=authorization_code" +
+                            "&client_id=${appProperties.kakao.clientId}" +
+                            "&redirect_uri=$redirectUri" +
+                            "&code=$code",
+                    )
+                    .retrieve()
+                    .awaitBody<JsonNode>()
+            }.getOrElse {
+                throw AuthError.KakaoAuthFailed
+            }
+
+        return response["access_token"]?.asText() ?: throw AuthError.KakaoAuthFailed
+    }
 
     suspend fun getUserInfo(kakaoAccessToken: String): KakaoUserInfo {
         val response =

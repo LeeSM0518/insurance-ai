@@ -31,4 +31,8 @@ sealed class AuthError(
     data object KakaoAuthFailed : AuthError("카카오 인증에 실패했습니다") {
         override val status = HttpStatus.BAD_REQUEST
     }
+
+    data object InvalidRequest : AuthError("kakaoAccessToken 또는 code/redirectUri가 필요합니다") {
+        override val status = HttpStatus.BAD_REQUEST
+    }
 }
