@@ -101,7 +101,9 @@ class PdfParsingService(
 
         return when {
             // 10% 미만: 텍스트 결과 그대로 사용
-            ocrRatio < 0.1f -> extraction.pages
+            ocrRatio < 0.1f -> {
+                extraction.pages
+            }
 
             // 50% 초과: 전체 Vision 처리
             ocrRatio > 0.5f -> {
