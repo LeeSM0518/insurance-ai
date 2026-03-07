@@ -4,6 +4,10 @@ spring:
 
 app:
   pipeline:
+    # type: LIFE          # LIFE | NON_LIFE (미지정 시 전체)
+    # categories: []      # 빈 리스트면 전체 카테고리
+    # incremental: false
+    # dry-run: false
     crawl:
       delay-min-ms: 2000
       delay-max-ms: 5000

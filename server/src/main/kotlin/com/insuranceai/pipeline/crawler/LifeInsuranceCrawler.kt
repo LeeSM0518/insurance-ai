@@ -47,11 +47,22 @@ class LifeInsuranceCrawler(
             )
     }
 
-    suspend fun crawlAll(): CrawlResult {
+    suspend fun crawlAll(categoryFilter: List<String> = emptyList()): CrawlResult {
         val allProducts = mutableListOf<ProductRawData>()
         val allErrors = mutableListOf<CrawlError>()
 
-        for (category in CATEGORIES) {
+        val categoriesToCrawl =
+            if (categoryFilter.isEmpty()) {
+                CATEGORIES
+            } else {
+                val invalid = categoryFilter - CATEGORIES.toSet()
+                if (invalid.isNotEmpty()) {
+                    logger.warn("생보 알 수 없는 카테고리 무시: $invalid")
+                }
+                CATEGORIES.filter { it in categoryFilter }
+            }
+
+        for (category in categoriesToCrawl) {
             try {
                 val products =
                     crawlerCommon.usePlaywright { browser ->

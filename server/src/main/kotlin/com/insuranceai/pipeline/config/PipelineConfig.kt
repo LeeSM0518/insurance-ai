@@ -1,11 +1,16 @@
 package com.insuranceai.pipeline.config
 
+import com.insuranceai.policy.domain.InsuranceType
 import org.springframework.boot.context.properties.ConfigurationProperties
 
 @ConfigurationProperties(prefix = "app.pipeline")
 data class PipelineConfig(
     val crawl: CrawlConfig = CrawlConfig(),
     val pdf: PdfConfig = PdfConfig(),
+    val type: InsuranceType? = null,
+    val categories: List<String> = emptyList(),
+    val incremental: Boolean = false,
+    val dryRun: Boolean = false,
 ) {
     data class CrawlConfig(
         val delayMinMs: Long = 2000,

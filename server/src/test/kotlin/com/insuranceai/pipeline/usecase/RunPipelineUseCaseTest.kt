@@ -27,6 +27,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Test
@@ -93,8 +94,8 @@ class RunPipelineUseCaseTest {
 
             coEvery { pipelineService.startBatch(any(), any()) } returns
                 CrawlHistoryEntity(batchId = "b1", insuranceType = "LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
-            coEvery { lifeInsuranceCrawler.crawlAll() } returns emptyCrawlResult
-            coEvery { nonLifeInsuranceCrawler.crawlAll() } returns emptyCrawlResult
+            coEvery { lifeInsuranceCrawler.crawlAll(any()) } returns emptyCrawlResult
+            coEvery { nonLifeInsuranceCrawler.crawlAll(any()) } returns emptyCrawlResult
             coEvery { pipelineService.failBatch(any(), any()) } returns Unit
 
             val result = useCase.runFullPipeline()
@@ -128,8 +129,8 @@ class RunPipelineUseCaseTest {
 
             coEvery { pipelineService.startBatch(any(), any()) } returns
                 CrawlHistoryEntity(batchId = "b1", insuranceType = "LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
-            coEvery { lifeInsuranceCrawler.crawlAll() } returns crawlResult
-            coEvery { nonLifeInsuranceCrawler.crawlAll() } returns emptyCrawlResult
+            coEvery { lifeInsuranceCrawler.crawlAll(any()) } returns crawlResult
+            coEvery { nonLifeInsuranceCrawler.crawlAll(any()) } returns emptyCrawlResult
             coEvery { pipelineService.failBatch(any(), any()) } returns Unit
 
             // 스테이징 저장
@@ -212,8 +213,8 @@ class RunPipelineUseCaseTest {
 
             coEvery { pipelineService.startBatch(any(), any()) } returns
                 CrawlHistoryEntity(batchId = "b1", insuranceType = "LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
-            coEvery { lifeInsuranceCrawler.crawlAll() } returns crawlResult
-            coEvery { nonLifeInsuranceCrawler.crawlAll() } returns emptyCrawlResult
+            coEvery { lifeInsuranceCrawler.crawlAll(any()) } returns crawlResult
+            coEvery { nonLifeInsuranceCrawler.crawlAll(any()) } returns emptyCrawlResult
             coEvery { pipelineService.failBatch(any(), any()) } returns Unit
 
             every { crawlStagingMapper.toStagingEntity(any(), any()) } returns
@@ -244,5 +245,148 @@ class RunPipelineUseCaseTest {
             assertEquals(1, result.life.crawled)
             assertTrue(result.life.errors.isNotEmpty())
             coVerify { pipelineService.completeBatch(any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `runWithOptions type=LIFE면 생보 크롤러만 호출`() =
+        runTest {
+            val crawlResult =
+                CrawlResult(
+                    insuranceType = InsuranceType.LIFE,
+                    totalProducts = 0,
+                    successCount = 0,
+                    failureCount = 0,
+                    products = emptyList(),
+                    errors = emptyList(),
+                )
+
+            coEvery { pipelineService.startBatch(any(), any()) } returns
+                CrawlHistoryEntity(batchId = "b1", insuranceType = "LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
+            coEvery { lifeInsuranceCrawler.crawlAll(any()) } returns crawlResult
+            coEvery { pipelineService.failBatch(any(), any()) } returns Unit
+
+            val result = useCase.runWithOptions(PipelineOptions(type = InsuranceType.LIFE))
+
+            coVerify(exactly = 1) { lifeInsuranceCrawler.crawlAll(any()) }
+            coVerify(exactly = 0) { nonLifeInsuranceCrawler.crawlAll(any()) }
+            assertEquals(0, result.nonLife.crawled)
+        }
+
+    @Test
+    fun `runWithOptions type=NON_LIFE면 손보 크롤러만 호출`() =
+        runTest {
+            val crawlResult =
+                CrawlResult(
+                    insuranceType = InsuranceType.NON_LIFE,
+                    totalProducts = 0,
+                    successCount = 0,
+                    failureCount = 0,
+                    products = emptyList(),
+                    errors = emptyList(),
+                )
+
+            coEvery { pipelineService.startBatch(any(), any()) } returns
+                CrawlHistoryEntity(batchId = "b1", insuranceType = "NON_LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
+            coEvery { nonLifeInsuranceCrawler.crawlAll(any()) } returns crawlResult
+            coEvery { pipelineService.failBatch(any(), any()) } returns Unit
+
+            val result = useCase.runWithOptions(PipelineOptions(type = InsuranceType.NON_LIFE))
+
+            coVerify(exactly = 0) { lifeInsuranceCrawler.crawlAll(any()) }
+            coVerify(exactly = 1) { nonLifeInsuranceCrawler.crawlAll(any()) }
+            assertEquals(0, result.life.crawled)
+        }
+
+    @Test
+    fun `runWithOptions type=null이면 양쪽 크롤러 모두 호출`() =
+        runTest {
+            val emptyCrawlResult =
+                CrawlResult(
+                    insuranceType = InsuranceType.LIFE,
+                    totalProducts = 0,
+                    successCount = 0,
+                    failureCount = 0,
+                    products = emptyList(),
+                    errors = emptyList(),
+                )
+
+            coEvery { pipelineService.startBatch(any(), any()) } returns
+                CrawlHistoryEntity(batchId = "b1", insuranceType = "LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
+            coEvery { lifeInsuranceCrawler.crawlAll(any()) } returns emptyCrawlResult
+            coEvery { nonLifeInsuranceCrawler.crawlAll(any()) } returns emptyCrawlResult.copy(insuranceType = InsuranceType.NON_LIFE)
+            coEvery { pipelineService.failBatch(any(), any()) } returns Unit
+
+            useCase.runWithOptions(PipelineOptions(type = null))
+
+            coVerify(exactly = 1) { lifeInsuranceCrawler.crawlAll(any()) }
+            coVerify(exactly = 1) { nonLifeInsuranceCrawler.crawlAll(any()) }
+        }
+
+    @Test
+    fun `runWithOptions categories가 크롤러에 전달됨`() =
+        runTest {
+            val categorySlot = slot<List<String>>()
+            val emptyCrawlResult =
+                CrawlResult(
+                    insuranceType = InsuranceType.LIFE,
+                    totalProducts = 0,
+                    successCount = 0,
+                    failureCount = 0,
+                    products = emptyList(),
+                    errors = emptyList(),
+                )
+
+            coEvery { pipelineService.startBatch(any(), any()) } returns
+                CrawlHistoryEntity(batchId = "b1", insuranceType = "LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
+            coEvery { lifeInsuranceCrawler.crawlAll(capture(categorySlot)) } returns emptyCrawlResult
+            coEvery { pipelineService.failBatch(any(), any()) } returns Unit
+
+            useCase.runWithOptions(PipelineOptions(type = InsuranceType.LIFE, categories = listOf("암보험")))
+
+            assertEquals(listOf("암보험"), categorySlot.captured)
+        }
+
+    @Test
+    fun `runWithOptions dryRun=true면 publish와 embed가 호출되지 않음`() =
+        runTest {
+            val crawlResult =
+                CrawlResult(
+                    insuranceType = InsuranceType.LIFE,
+                    totalProducts = 1,
+                    successCount = 1,
+                    failureCount = 0,
+                    products = listOf(testProduct),
+                    errors = emptyList(),
+                )
+
+            coEvery { pipelineService.startBatch(any(), any()) } returns
+                CrawlHistoryEntity(batchId = "b1", insuranceType = "LIFE", totalProducts = 0, successCount = 0, failureCount = 0)
+            coEvery { lifeInsuranceCrawler.crawlAll(any()) } returns crawlResult
+
+            every { crawlStagingMapper.toStagingEntity(any(), any()) } returns
+                CrawlStagingEntity(batchId = "b1", entityType = "PRODUCT", entityData = "{}")
+            coEvery { crawlStagingRepository.save(any()) } answers {
+                firstArg<CrawlStagingEntity>().copy(id = UUID.randomUUID())
+            }
+            coEvery { validationService.validate(any(), any(), any()) } returns
+                ValidationResult(listOf(testProduct), emptyList(), emptyList(), false)
+            coEvery { crawlStagingRepository.findByBatchId(any()) } returns
+                flowOf(CrawlStagingEntity(id = UUID.randomUUID(), batchId = "b1", entityType = "PRODUCT", entityData = "{}"))
+            every { crawlStagingMapper.fromStagingEntity(any()) } returns testProduct
+            every { crossValidator.validate(any(), any(), any(), any()) } returns
+                CrossValidator.CrossValidationResult(1, 0, 0, 0, 0, emptyList())
+
+            coEvery { pipelineService.completeBatch(any(), any(), any(), any()) } returns Unit
+
+            val result = useCase.runWithOptions(PipelineOptions(type = InsuranceType.LIFE, dryRun = true))
+
+            // publish/embed 호출되지 않음
+            coVerify(exactly = 0) { stagingPublisher.publish(any()) }
+            coVerify(exactly = 0) { embeddingService.embedArticles(any()) }
+            // 크로스 검증은 수행됨
+            coVerify(exactly = 1) { crossValidator.validate(any(), any(), any(), any()) }
+            assertEquals(1, result.life.crawled)
+            assertEquals(0, result.life.published)
+            assertEquals(0, result.life.embedded)
         }
 }

@@ -21,6 +21,13 @@ import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.measureTimedValue
 
+data class PipelineOptions(
+    val type: InsuranceType? = null,
+    val categories: List<String> = emptyList(),
+    val incremental: Boolean = false,
+    val dryRun: Boolean = false,
+)
+
 data class PipelineResult(
     val life: TypePipelineResult,
     val nonLife: TypePipelineResult,
@@ -54,24 +61,32 @@ class RunPipelineUseCase(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    /** 전체 파이프라인 실행 (초기 적재 모드) */
-    suspend fun runFullPipeline(): PipelineResult {
-        val (result, duration) =
+    /** 옵션 기반 파이프라인 실행 */
+    suspend fun runWithOptions(options: PipelineOptions = PipelineOptions()): PipelineResult {
+        val emptyResult = TypePipelineResult(0, 0, 0, 0, 0, emptyList())
+        val typesToRun =
+            when (options.type) {
+                InsuranceType.LIFE -> listOf(InsuranceType.LIFE)
+                InsuranceType.NON_LIFE -> listOf(InsuranceType.NON_LIFE)
+                null -> listOf(InsuranceType.LIFE, InsuranceType.NON_LIFE)
+            }
+
+        val (results, duration) =
             measureTimedValue {
-                val life = runForInsuranceType(InsuranceType.LIFE, incremental = false)
-                val nonLife = runForInsuranceType(InsuranceType.NON_LIFE, incremental = false)
-                life to nonLife
+                typesToRun.associateWith { type ->
+                    runForInsuranceType(type, options.incremental, options.categories, options.dryRun)
+                }
             }
 
         val pipelineResult =
             PipelineResult(
-                life = result.first,
-                nonLife = result.second,
+                life = results[InsuranceType.LIFE] ?: emptyResult,
+                nonLife = results[InsuranceType.NON_LIFE] ?: emptyResult,
                 totalDuration = duration,
             )
 
         logger.info(
-            "전체 파이프라인 완료: 소요시간=$duration, " +
+            "파이프라인 완료: 소요시간=$duration, " +
                 "생보(수집=${pipelineResult.life.crawled}, 검증=${pipelineResult.life.validated}), " +
                 "손보(수집=${pipelineResult.nonLife.crawled}, 검증=${pipelineResult.nonLife.validated})",
         )
@@ -79,26 +94,18 @@ class RunPipelineUseCase(
         return pipelineResult
     }
 
-    /** 증분 수집 모드 (변경분만) */
-    suspend fun runIncrementalPipeline(): PipelineResult {
-        val (result, duration) =
-            measureTimedValue {
-                val life = runForInsuranceType(InsuranceType.LIFE, incremental = true)
-                val nonLife = runForInsuranceType(InsuranceType.NON_LIFE, incremental = true)
-                life to nonLife
-            }
+    /** 전체 파이프라인 실행 (초기 적재 모드) */
+    suspend fun runFullPipeline(): PipelineResult = runWithOptions(PipelineOptions())
 
-        return PipelineResult(
-            life = result.first,
-            nonLife = result.second,
-            totalDuration = duration,
-        )
-    }
+    /** 증분 수집 모드 (변경분만) */
+    suspend fun runIncrementalPipeline(): PipelineResult = runWithOptions(PipelineOptions(incremental = true))
 
     /** 단일 보험 유형 파이프라인 */
     private suspend fun runForInsuranceType(
         insuranceType: InsuranceType,
         incremental: Boolean,
+        categoryFilter: List<String> = emptyList(),
+        dryRun: Boolean = false,
     ): TypePipelineResult {
         val batchId = UUID.randomUUID().toString()
         val errors = mutableListOf<String>()
@@ -110,8 +117,8 @@ class RunPipelineUseCase(
             // 2. 크롤링
             val crawlResult =
                 when (insuranceType) {
-                    InsuranceType.LIFE -> lifeInsuranceCrawler.crawlAll()
-                    InsuranceType.NON_LIFE -> nonLifeInsuranceCrawler.crawlAll()
+                    InsuranceType.LIFE -> lifeInsuranceCrawler.crawlAll(categoryFilter)
+                    InsuranceType.NON_LIFE -> nonLifeInsuranceCrawler.crawlAll(categoryFilter)
                 }
 
             val crawledCount = crawlResult.totalProducts
@@ -171,37 +178,41 @@ class RunPipelineUseCase(
                 }
             }
 
-            // 8. 본 테이블 반영 (WAP)
-            val publishResult = stagingPublisher.publish(batchId)
-            val publishedCount = publishResult.productsCreated + publishResult.productsUpdated
-
-            // 9. 임베딩 (신규/변경 조문)
+            // 8. 본 테이블 반영 (WAP) — dryRun 시 스킵
+            var publishedCount = 0
             var embeddedCount = 0
-            val companyMap = buildCompanyMap()
-            for (product in validationResult.passed) {
-                try {
-                    val companyId = companyMap[product.companyName] ?: continue
-                    // 상품 조회
-                    val matchedProduct =
-                        productRepository
-                            .findByInsuranceCompanyIdAndIsActiveTrue(companyId)
-                            .toList()
-                            .find { it.name == product.productName }
-                            ?: continue
 
-                    // 해당 상품의 활성 조문 조회 후 임베딩
-                    val articles =
-                        policyArticleRepository
-                            .findByProductId(matchedProduct.id!!)
-                            .toList()
-                            .filter { it.isActive }
+            if (dryRun) {
+                logger.info("dry-run 모드: publish/embed 단계 스킵 (크로스 검증까지 완료)")
+            } else {
+                val publishResult = stagingPublisher.publish(batchId)
+                publishedCount = publishResult.productsCreated + publishResult.productsUpdated
 
-                    if (articles.isNotEmpty()) {
-                        embeddedCount += embeddingService.embedArticles(articles)
+                // 9. 임베딩 (신규/변경 조문)
+                val companyMap = buildCompanyMap()
+                for (product in validationResult.passed) {
+                    try {
+                        val companyId = companyMap[product.companyName] ?: continue
+                        val matchedProduct =
+                            productRepository
+                                .findByInsuranceCompanyIdAndIsActiveTrue(companyId)
+                                .toList()
+                                .find { it.name == product.productName }
+                                ?: continue
+
+                        val articles =
+                            policyArticleRepository
+                                .findByProductId(matchedProduct.id!!)
+                                .toList()
+                                .filter { it.isActive }
+
+                        if (articles.isNotEmpty()) {
+                            embeddedCount += embeddingService.embedArticles(articles)
+                        }
+                    } catch (e: Exception) {
+                        errors.add("임베딩 실패: ${product.productName}: ${e.message}")
+                        logger.error("임베딩 실패: ${product.productName}", e)
                     }
-                } catch (e: Exception) {
-                    errors.add("임베딩 실패: ${product.productName}: ${e.message}")
-                    logger.error("임베딩 실패: ${product.productName}", e)
                 }
             }
 
