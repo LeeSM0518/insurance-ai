@@ -17,14 +17,14 @@ test.describe('SSE 자동 재연결', () => {
     await expect(retryButton).toHaveCount(0);
   });
 
-  test('StreamingIndicator에 재연결 상태가 표시될 수 있다', async ({ page }) => {
-    // 정상 메시지 전송 시 재연결 텍스트가 나타나지 않는지 확인
+  test('정상 스트리밍 시 재연결 텍스트가 표시되지 않는다', async ({ page }) => {
+    // 정상 메시지 전송 후 재연결 텍스트가 나타나지 않는지 확인
     const input = page.getByLabel('메시지를 입력하세요');
     await input.fill('테스트 질문');
     await page.getByRole('button', { name: '메시지 전송' }).click();
 
-    // searching 상태가 먼저 표시됨 (재연결이 아닌 정상 흐름)
-    await expect(page.getByText('관련 약관을 검색 중입니다...')).toBeVisible();
+    // 스트리밍 완료 후 AI 응답 확인
+    await expect(page.getByText('면책기간이란?')).toBeVisible({ timeout: 10000 });
     // 재연결 중 텍스트는 보이지 않아야 함
     await expect(page.getByText('재연결 중...')).toHaveCount(0);
   });

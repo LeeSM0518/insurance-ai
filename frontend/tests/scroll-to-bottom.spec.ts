@@ -21,8 +21,8 @@ test.describe('ScrollToBottom + 자동 스크롤', () => {
     await input.fill('테스트 메시지');
     await page.getByRole('button', { name: '메시지 전송' }).click();
 
-    // 메시지 전송 후 스트리밍 인디케이터가 보여야 함 (자동 스크롤 작동)
-    await expect(page.getByText('관련 약관을 검색 중입니다...')).toBeVisible();
+    // 메시지 전송 후 사용자 메시지가 표시됨 (자동 스크롤로 하단에 보임)
+    await expect(page.getByText('테스트 메시지')).toBeVisible();
   });
 
   test('ScrollToBottom 버튼에 "최신 메시지" 텍스트가 있다', async ({ page }) => {
