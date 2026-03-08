@@ -79,8 +79,10 @@ test.describe('SSE 스트리밍 UI', () => {
     await input.fill('면책기간 설명해주세요');
     await page.getByRole('button', { name: '메시지 전송' }).click();
 
-    // 완료 후 메시지 내용 확인
-    await expect(page.getByText('면책기간이란?')).toBeVisible({ timeout: 30000 });
+    // 스트리밍 완료 후 추천 질문이 표시되면 done 상태 (추천 질문은 done 후에만 나타남)
+    await expect(
+      page.getByText('면책기간 중 다른 보험사로 가입하면 어떻게 되나요?'),
+    ).toBeVisible({ timeout: 30000 });
     // 입력창이 다시 활성화됨
     await expect(page.getByLabel('메시지를 입력하세요')).toBeEnabled();
   });

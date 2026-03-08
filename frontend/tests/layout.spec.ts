@@ -13,9 +13,8 @@ test('메인 페이지에 하단 탭바가 표시된다 (모바일)', async ({ p
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto('/');
   await expect(page.getByRole('navigation', { name: '하단 탭' })).toBeVisible();
-  await expect(page.getByRole('link', { name: '검색' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'AI', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'MY' })).toBeVisible();
+  await expect(page.getByRole('link', { name: '검색' })).toBeVisible();
 });
 
 test('데스크톱에서 하단 탭바가 숨겨진다', async ({ page }) => {
@@ -30,9 +29,8 @@ test('데스크톱 Header에 네비게이션 탭이 표시된다', async ({ page
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/');
   const header = page.getByRole('banner');
-  await expect(header.getByRole('link', { name: '검색' })).toBeVisible();
   await expect(header.getByRole('link', { name: 'AI', exact: true })).toBeVisible();
-  await expect(header.getByRole('link', { name: 'MY' })).toBeVisible();
+  await expect(header.getByRole('link', { name: '검색' })).toBeVisible();
 });
 
 test('하단 탭으로 페이지 간 이동이 가능하다', async ({ page }) => {
@@ -43,10 +41,6 @@ test('하단 탭으로 페이지 간 이동이 가능하다', async ({ page }) =
   // 검색 탭 클릭
   await page.getByRole('link', { name: '검색' }).click();
   await expect(page).toHaveURL('/search');
-
-  // MY 탭 클릭
-  await page.getByRole('link', { name: 'MY' }).click();
-  await expect(page).toHaveURL('/my');
 
   // AI 탭 클릭 (홈으로)
   await page.getByRole('link', { name: 'AI', exact: true }).click();
