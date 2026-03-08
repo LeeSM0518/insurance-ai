@@ -52,7 +52,8 @@ data class PremiumExampleItem(
     val age: Int?,
     val insurancePeriod: String,
     val paymentPeriod: String,
-    val insuranceAmount: Long,
+    val insuranceAmount: Long?,
+    val insuranceAmountText: String? = null,
     val premium: Long,
 )
 

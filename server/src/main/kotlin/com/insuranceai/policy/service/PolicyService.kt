@@ -126,6 +126,7 @@ class PolicyService(
                             insurancePeriod = it.insurancePeriod,
                             paymentPeriod = it.paymentPeriod,
                             insuranceAmount = it.insuranceAmount,
+                            insuranceAmountText = it.insuranceAmountText,
                             premium = it.premium,
                         )
                     },
@@ -184,6 +185,7 @@ class PolicyService(
                                 insurancePeriod = it.insurancePeriod,
                                 paymentPeriod = it.paymentPeriod,
                                 insuranceAmount = it.insuranceAmount,
+                                insuranceAmountText = it.insuranceAmountText,
                                 premium = it.premium,
                             )
                         }

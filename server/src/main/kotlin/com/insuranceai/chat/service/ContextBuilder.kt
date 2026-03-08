@@ -5,6 +5,7 @@ import com.insuranceai.chat.dto.SourceInfo
 import com.insuranceai.chat.entity.ChatMessageEntity
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
+import com.insuranceai.policy.repository.ProductRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import com.insuranceai.search.dto.FusedSearchResult
 import kotlinx.coroutines.flow.toList
@@ -22,6 +23,7 @@ class ContextBuilder(
     private val surrenderValueRepository: SurrenderValueRepository,
     private val premiumExampleRepository: PremiumExampleRepository,
     private val productIndexRepository: ProductIndexRepository,
+    private val productRepository: ProductRepository,
 ) {
     companion object {
         const val MAX_ARTICLES = 10
@@ -181,11 +183,33 @@ class ContextBuilder(
                     sb.appendLine("| 성별 | 나이 | 보험기간 | 납입기간 | 보험가입금액 | 보험료 |")
                     sb.appendLine("|------|------|---------|---------|-----------|-------|")
                     examples.forEach { e ->
+                        val amountDisplay = e.insuranceAmountText ?: e.insuranceAmount?.toString() ?: "-"
                         sb.appendLine(
-                            "| ${e.gender} | ${e.age} | ${e.insurancePeriod} | ${e.paymentPeriod} | ${e.insuranceAmount} | ${e.premium} |",
+                            "| ${e.gender} | ${e.age} | ${e.insurancePeriod} | ${e.paymentPeriod} | $amountDisplay | ${e.premium} |",
                         )
                     }
                     sb.appendLine()
+                }
+
+                // 이율 정보 표시
+                val product = productRepository.findById(productId)
+                if (product != null) {
+                    val hasRateInfo =
+                        product.declaredInterestRate != null ||
+                            product.guaranteedInterestRate != null ||
+                            product.guaranteedInterestRateText != null ||
+                            product.appliedInterestRate != null
+                    if (hasRateInfo) {
+                        sb.appendLine("### 이율 정보")
+                        product.appliedInterestRate?.let { sb.appendLine("- 적용이율: $it%") }
+                        product.declaredInterestRate?.let { sb.appendLine("- 공시이율: $it%") }
+                        if (product.guaranteedInterestRateText != null) {
+                            sb.appendLine("- 최저보증이율: ${product.guaranteedInterestRateText}")
+                        } else if (product.guaranteedInterestRate != null) {
+                            sb.appendLine("- 최저보증이율: ${product.guaranteedInterestRate}%")
+                        }
+                        sb.appendLine()
+                    }
                 }
             }
         }
