@@ -1,6 +1,6 @@
 import { cva } from 'class-variance-authority';
 import Markdown from 'react-markdown';
-import { CopyShareButtons } from './copy-share-buttons';
+import { MessageActions } from './message-actions';
 import { SourceTooltip } from './source-tooltip';
 import { processChildren } from './source-ref-utils';
 import type { ChatMessage as ChatMessageType, Source } from '@/types/chat';
@@ -86,7 +86,7 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
               {message.content}
             </Markdown>
           </div>
-          <CopyShareButtons content={message.content} className="mt-2" />
+          <MessageActions content={message.content} messageId={message.id} className="mt-2" />
         </div>
       ) : (
         <p className="text-sm">{message.content}</p>

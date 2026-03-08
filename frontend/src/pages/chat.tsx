@@ -1,5 +1,6 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useBlocker } from 'react-router';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { ChatHeader } from '@/features/chat/chat-header';
 import { ChatSidebar } from '@/features/chat/chat-sidebar';
 import { ChatMessage } from '@/features/chat/chat-message';
@@ -11,12 +12,15 @@ import { SourceTabPanel } from '@/features/chat/source-tab-panel';
 import type { SourceTab } from '@/features/chat/source-tab-panel';
 import { StreamingIndicator } from '@/features/chat/streaming-indicator';
 import { StreamingMessage } from '@/features/chat/streaming-message';
+import { ScrollToBottom } from '@/features/chat/scroll-to-bottom';
 import { SourceTabContent } from '@/features/chat/source-tab-content';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useResizeHandle } from '@/hooks/use-resize-handle';
 import { useStreamingChat } from '@/hooks/use-streaming-chat';
+import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { MOCK_SESSIONS } from '@/mocks/chat-data';
 import { toast } from 'sonner';
 import type { ChatSession, Source } from '@/types/chat';
@@ -26,6 +30,7 @@ const SOURCE_PANEL_MAX = 700;
 const SOURCE_PANEL_DEFAULT = 360;
 
 const MAX_TABS = 5;
+const MAX_RETRIES = 3;
 
 export default function ChatPage() {
   const isDesktop = useMediaQuery('(min-width: 1025px)');
@@ -38,8 +43,15 @@ export default function ChatPage() {
   const [mobileSourceSheet, setMobileSourceSheet] = useState<Source | null>(null);
 
   // 스트리밍 채팅 Hook
-  const { messages, streamingState, isStreaming, sendMessage } =
+  const { messages, streamingState, isStreaming, sendMessage, retryStreaming } =
     useStreamingChat(activeSessionId);
+
+  // 스크롤 컨테이너 ref + 자동 스크롤
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const { isAtBottom, scrollToBottom } = useAutoScroll({
+    containerRef: scrollContainerRef,
+    deps: [messages, streamingState.streamingContent, streamingState.phase],
+  });
 
   const handleSourceResize = useCallback((width: number) => {
     setSourcePanelWidth(width);
@@ -62,6 +74,8 @@ export default function ChatPage() {
     if (!isDesktop) setSidebarOpen(false);
     setOpenTabs([]);
     setActiveTabId(null);
+    // 세션 전환 시 하단으로 스크롤
+    setTimeout(() => scrollToBottom('instant'), 0);
   };
 
   const handleNewChat = () => {
@@ -196,74 +210,109 @@ export default function ChatPage() {
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
         />
 
-        {/* 메시지 영역 */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4" role="log" aria-live="polite">
-          {messages.map((message) => (
-            <div key={message.id}>
-              {message.role === 'ASSISTANT' && message.sources && message.sources.length > 0 && (
-                <SourceCards
-                  sources={message.sources}
-                  onSourceClick={isDesktop ? handleOpenSource : undefined}
-                  activeArticleId={isDesktop ? activeTabId : undefined}
-                />
-              )}
-              <ChatMessage
-                message={message}
-                onSourceClick={
-                  isDesktop && message.sources
-                    ? (index) => {
-                        const source = message.sources![index - 1];
-                        if (source) handleOpenSource(source, index - 1);
-                      }
-                    : undefined
-                }
-                onMobileSourceTap={!isDesktop ? handleMobileSourceTap : undefined}
-                activeSourceIndex={
-                  isDesktop && activeTabId && message.sources
-                    ? message.sources.findIndex((s) => s.articleId === activeTabId) + 1 || null
-                    : null
-                }
-              />
-              {message.role === 'ASSISTANT' && message.suggestedQuestions && (
-                <SuggestedQuestions
-                  questions={message.suggestedQuestions}
-                  onSelect={handleSuggestedQuestion}
-                />
-              )}
-            </div>
-          ))}
-
-          {/* 스트리밍 중인 AI 응답 */}
-          {isStreaming && (
-            <div>
-              {/* searching/generating 단계 인디케이터 */}
-              <StreamingIndicator phase={streamingState.phase} />
-
-              {/* sources_found 이후: 출처 카드 표시 */}
-              {streamingState.sources.length > 0 && (
-                <SourceCards
-                  sources={streamingState.sources}
-                  onSourceClick={isDesktop ? handleOpenSource : undefined}
-                  activeArticleId={isDesktop ? activeTabId : undefined}
-                />
-              )}
-
-              {/* streaming 단계: 실시간 텍스트 */}
-              {streamingState.phase === 'streaming' && streamingState.streamingContent && (
-                <StreamingMessage
-                  content={streamingState.streamingContent}
+        {/* 메시지 영역 (relative 컨테이너) */}
+        <div className="relative flex-1 min-h-0">
+          <div
+            ref={scrollContainerRef}
+            className="h-full overflow-y-auto px-4 py-3 space-y-4"
+            role="log"
+            aria-live="polite"
+          >
+            {messages.map((message) => (
+              <div key={message.id}>
+                {message.role === 'ASSISTANT' && message.sources && message.sources.length > 0 && (
+                  <SourceCards
+                    sources={message.sources}
+                    onSourceClick={isDesktop ? handleOpenSource : undefined}
+                    activeArticleId={isDesktop ? activeTabId : undefined}
+                  />
+                )}
+                <ChatMessage
+                  message={message}
                   onSourceClick={
-                    isDesktop
+                    isDesktop && message.sources
                       ? (index) => {
-                          const source = streamingState.sources[index - 1];
+                          const source = message.sources![index - 1];
                           if (source) handleOpenSource(source, index - 1);
                         }
                       : undefined
                   }
+                  onMobileSourceTap={!isDesktop ? handleMobileSourceTap : undefined}
+                  activeSourceIndex={
+                    isDesktop && activeTabId && message.sources
+                      ? message.sources.findIndex((s) => s.articleId === activeTabId) + 1 || null
+                      : null
+                  }
                 />
-              )}
-            </div>
-          )}
+                {message.role === 'ASSISTANT' && message.suggestedQuestions && (
+                  <SuggestedQuestions
+                    questions={message.suggestedQuestions}
+                    onSelect={handleSuggestedQuestion}
+                  />
+                )}
+              </div>
+            ))}
+
+            {/* 스트리밍 중인 AI 응답 */}
+            {isStreaming && (
+              <div>
+                {/* searching/generating 단계 인디케이터 + 재연결 상태 */}
+                <StreamingIndicator
+                  phase={streamingState.phase}
+                  retryInfo={{
+                    isReconnecting: streamingState.isReconnecting,
+                    retryCount: streamingState.retryCount,
+                    maxRetries: MAX_RETRIES,
+                  }}
+                />
+
+                {/* sources_found 이후: 출처 카드 표시 */}
+                {streamingState.sources.length > 0 && (
+                  <SourceCards
+                    sources={streamingState.sources}
+                    onSourceClick={isDesktop ? handleOpenSource : undefined}
+                    activeArticleId={isDesktop ? activeTabId : undefined}
+                  />
+                )}
+
+                {/* streaming 단계: 실시간 텍스트 */}
+                {streamingState.phase === 'streaming' && streamingState.streamingContent && (
+                  <StreamingMessage
+                    content={streamingState.streamingContent}
+                    onSourceClick={
+                      isDesktop
+                        ? (index) => {
+                            const source = streamingState.sources[index - 1];
+                            if (source) handleOpenSource(source, index - 1);
+                          }
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            )}
+
+            {/* 에러 상태: 재시도 UI */}
+            {streamingState.phase === 'error' && (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <AlertTriangle className="size-5" />
+                  <span className="text-sm">연결이 끊어졌습니다.</span>
+                </div>
+                <p className="text-sm text-muted-foreground">다시 시도해주세요.</p>
+                <Button variant="outline" size="sm" onClick={retryStreaming}>
+                  <RefreshCw className="size-4" />
+                  다시 시도
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* ScrollToBottom 버튼 */}
+          <ScrollToBottom
+            visible={!isAtBottom}
+            onClick={() => scrollToBottom('smooth')}
+          />
         </div>
 
         {/* 면책 고지 + 입력 영역 */}

@@ -1,11 +1,25 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import type { StreamingState } from '@/hooks/use-streaming-chat';
 
 interface StreamingIndicatorProps {
   phase: StreamingState['phase'];
+  retryInfo?: {
+    isReconnecting: boolean;
+    retryCount: number;
+    maxRetries: number;
+  };
 }
 
-export function StreamingIndicator({ phase }: StreamingIndicatorProps) {
+export function StreamingIndicator({ phase, retryInfo }: StreamingIndicatorProps) {
+  if (retryInfo?.isReconnecting) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+        <RefreshCw className="size-4 animate-spin" />
+        <span>연결이 끊어졌습니다. 재연결 중... ({retryInfo.retryCount}/{retryInfo.maxRetries})</span>
+      </div>
+    );
+  }
+
   if (phase === 'searching') {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
