@@ -1,8 +1,11 @@
 package com.insuranceai.pipeline.validator
 
 import com.insuranceai.pipeline.dto.CoverageData
+import com.insuranceai.pipeline.dto.IndexData
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.dto.SurrenderData
+import java.math.BigDecimal
+import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -103,6 +106,39 @@ class ConsistencyValidatorTest {
                 product(name = "보험A"), // 중복 2
             )
         val issues = validator.validate(products)
-        assertEquals(2, issues.count { it.message.contains("중복") })
+        assertEquals(2, issues.count { it.message.contains("중복 상품") })
+    }
+
+    @Test
+    fun `중복 지수를 감지한다`() {
+        val today = LocalDate.now()
+        val duplicateIndices =
+            listOf(
+                IndexData(indexType = "COVERAGE", gender = "남", value = BigDecimal("100.0"), baseDate = today),
+                IndexData(indexType = "COVERAGE", gender = "남", value = BigDecimal("100.0"), baseDate = today), // 중복
+                IndexData(indexType = "COVERAGE", gender = "여", value = BigDecimal("95.0"), baseDate = today),
+            )
+        val products =
+            listOf(
+                product().copy(indices = duplicateIndices),
+            )
+        val issues = validator.validate(products)
+        assertTrue(issues.any { it.message.contains("중복 지수") })
+    }
+
+    @Test
+    fun `성별이 다른 지수는 중복이 아니다`() {
+        val today = LocalDate.now()
+        val indices =
+            listOf(
+                IndexData(indexType = "COVERAGE", gender = "남", value = BigDecimal("100.0"), baseDate = today),
+                IndexData(indexType = "COVERAGE", gender = "여", value = BigDecimal("95.0"), baseDate = today),
+            )
+        val products =
+            listOf(
+                product().copy(indices = indices),
+            )
+        val issues = validator.validate(products)
+        assertTrue(issues.none { it.message.contains("중복 지수") })
     }
 }

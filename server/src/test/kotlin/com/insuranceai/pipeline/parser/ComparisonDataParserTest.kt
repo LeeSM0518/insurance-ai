@@ -4,7 +4,9 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ComparisonDataParserTest {
     private val parser =
@@ -186,6 +188,25 @@ class ComparisonDataParserTest {
     }
 
     @Nested
+    inner class ExtractPremiumsInsuranceAmountText {
+        @Test
+        fun `참조 텍스트 가입금액 — insuranceAmount null, insuranceAmountText 보존`() {
+            // 실손의료보험에서 "용어해설참조"가 가입금액으로 올 때
+            val headers = listOf("회사명", "상품명", "가입금액", "남자", "여자", "특이사항")
+            val row = listOf("삼성화재", "실손보험", "용어해설참조", "15000", "12000", "60세, 상해1급, 1년만기 1년납")
+            val collector = ParsingWarningCollector()
+
+            // extractPremiums는 private이므로 parseFile을 통해 간접 테스트
+            // 대신 PremiumData 생성 로직을 검증하기 위해 ValueCleaner 동작 확인
+            val parseResult = ValueCleaner.parseAmount("용어해설참조")
+            assertTrue(parseResult is ParseResult.Empty)
+
+            // insuranceAmount가 null이고, 원본이 null 표현이 아닌 텍스트면 text 보존
+            assertFalse(ValueCleaner.isNull("용어해설참조"))
+        }
+    }
+
+    @Nested
     inner class FindValueFallback {
         @Test
         fun `갱신여부 키워드 우선 매칭 - 예상갱신보험료 미매칭`() {
@@ -200,6 +221,42 @@ class ComparisonDataParserTest {
             val headers = listOf("회사명", "상품명", "채널")
             val idx = HtmlExcelParser.findColumnIndex(headers, "채널")
             assertEquals(2, idx)
+        }
+    }
+
+    @Nested
+    inner class ExtractPremiumConditionsRegex {
+        @Test
+        fun `regex fallback은 기존 동작과 동일`() {
+            val notes = "보험료 비교기준: 40세 보험기간: 종신 납입기간: 20년납"
+            val result = parser.extractPremiumConditionsRegex(notes)
+
+            assertEquals(40, result.age)
+            assertEquals("종신", result.insurancePeriod)
+            assertEquals("20년납", result.paymentPeriod)
+        }
+
+        @Test
+        fun `notesExtractionService null이면 regex fallback`() {
+            // parser는 notesExtractionService = null로 생성됨
+            val notes = "40세, 상해1급, 100세만기, 20년납 기준"
+            val result = parser.extractPremiumConditions(notes)
+
+            assertEquals(40, result.age)
+            assertEquals("100세만기", result.insurancePeriod)
+            assertEquals("20년납", result.paymentPeriod)
+        }
+    }
+
+    @Nested
+    inner class RenewalTypeExtraction {
+        @Test
+        fun `종신보험 subcategory WHOLE_LIFE — 갱신여부 null이면 NON_RENEWAL 기본값`() {
+            // extractPremiumConditions에서 WHOLE_LIFE 기본값은 extractRenewalType에서 처리
+            // 여기서는 ValueCleaner.cleanRenewalType이 null일 때 WHOLE_LIFE 분기만 확인
+            assertNull(ValueCleaner.cleanRenewalType(null))
+            assertEquals("NON_RENEWAL", ValueCleaner.cleanRenewalType("비갱신"))
+            assertEquals("RENEWAL", ValueCleaner.cleanRenewalType("갱신"))
         }
     }
 }

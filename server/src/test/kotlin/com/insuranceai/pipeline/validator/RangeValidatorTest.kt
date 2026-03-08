@@ -32,7 +32,7 @@ class RangeValidatorTest {
             validProduct().copy(
                 premiumExamples =
                     listOf(
-                        PremiumData("남", 30, "20년", "20년", 100000000, 20_000_000),
+                        PremiumData("남", 30, "20년", "20년", 100000000, premium = 20_000_000),
                     ),
             )
         val issues = validator.validate(product)
@@ -45,7 +45,7 @@ class RangeValidatorTest {
             validProduct().copy(
                 premiumExamples =
                     listOf(
-                        PremiumData("남", 30, "20년", "20년", 100000000, 10_000_000),
+                        PremiumData("남", 30, "20년", "20년", 100000000, premium = 10_000_000),
                     ),
             )
         val issues = validator.validate(product)

@@ -118,8 +118,8 @@ class NormalizationServiceTest {
                 checksum = "abc123",
                 premiumExamples =
                     listOf(
-                        PremiumData("남", 40, "종신", "20년납", 100000000, 50000),
-                        PremiumData("여", 40, "종신", "20년납", 100000000, 42000),
+                        PremiumData("남", 40, "종신", "20년납", 100000000, premium = 50000),
+                        PremiumData("여", 40, "종신", "20년납", 100000000, premium = 42000),
                     ),
                 appliedInterestRate = BigDecimal("3.50"),
                 declaredInterestRate = BigDecimal("2.80"),

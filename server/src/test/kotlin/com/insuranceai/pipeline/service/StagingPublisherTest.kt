@@ -170,7 +170,7 @@ class StagingPublisherTest {
                         notes = "보험료 기준 40세",
                         premiumExamples =
                             listOf(
-                                PremiumData("남", 40, "종신", "20년납", 100000000, 50000),
+                                PremiumData("남", 40, "종신", "20년납", 100000000, premium = 50000),
                             ),
                         checksum = "newchecksum",
                     )
@@ -613,6 +613,73 @@ class StagingPublisherTest {
                 coVerify {
                     productFeatureRepository.save(match { it.key == "유사암포함" && it.value == "N" })
                 }
+            }
+    }
+
+    @Nested
+    inner class CompanyAliasMapping {
+        @Test
+        fun `aliases가 있는 보험사는 약칭으로도 매핑된다`() =
+            runTest {
+                val aliasCompanyId = UUID.randomUUID()
+                val companyWithAlias =
+                    InsuranceCompanyEntity(
+                        id = aliasCompanyId,
+                        name = "한화손해보험",
+                        type = "NON_LIFE",
+                        aliases = listOf("한화손보"),
+                    )
+
+                val rawData =
+                    ProductRawData(
+                        companyName = "한화손보", // 약칭 사용
+                        productName = "상해보험A",
+                        category = "NL_PROTECTION",
+                        coverages = listOf(CoverageData("사망", "사망 시", "1억", "MAIN")),
+                        checksum = "alias123",
+                    )
+
+                val stagingEntity =
+                    CrawlStagingEntity(
+                        id = UUID.randomUUID(),
+                        batchId = "batch-alias",
+                        entityType = "PRODUCT",
+                        entityData = Json.of("{}"),
+                        validationStatus = "PASSED",
+                    )
+
+                val newProduct =
+                    ProductEntity(
+                        insuranceCompanyId = aliasCompanyId,
+                        name = "상해보험A",
+                        category = "NL_PROTECTION",
+                        checksum = "alias123",
+                    )
+
+                setupDataSourceMock()
+                coEvery {
+                    crawlStagingRepository.findByBatchIdAndValidationStatus("batch-alias", "PASSED")
+                } returns flowOf(stagingEntity)
+                every { crawlStagingMapper.fromStagingEntity(stagingEntity) } returns rawData
+                coEvery { insuranceCompanyRepository.findByIsActiveTrue() } returns flowOf(companyWithAlias)
+                coEvery {
+                    productRepository.findByInsuranceCompanyIdAndIsActiveTrue(aliasCompanyId)
+                } returns flowOf()
+                every { normalizationService.toProductEntity(rawData, aliasCompanyId) } returns newProduct
+                coEvery { productRepository.save(any()) } answers {
+                    firstArg<ProductEntity>().copy(id = UUID.randomUUID())
+                }
+                coEvery { premiumExampleRepository.findByProductId(any()) } returns flowOf()
+                coEvery { productIndexRepository.findByProductId(any()) } returns flowOf()
+                coEvery { productMetricRepository.findByProductId(any()) } returns flowOf()
+                coEvery { policyArticleRepository.findByProductId(any()) } returns flowOf()
+                coEvery { policyArticleRepository.save(any()) } answers { firstArg() }
+                coEvery { surrenderValueRepository.deleteByProductId(any()) } returns Unit
+
+                val result = publisher.publish("batch-alias")
+
+                // 약칭으로 보험사가 매핑되어 상품이 생성됨
+                assertEquals(1, result.productsCreated)
             }
     }
 

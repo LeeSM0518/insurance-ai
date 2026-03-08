@@ -6,6 +6,7 @@ import com.insuranceai.chat.entity.ChatMessageEntity
 import com.insuranceai.policy.entity.SurrenderValueEntity
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
+import com.insuranceai.policy.repository.ProductRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import com.insuranceai.search.dto.FusedSearchResult
 import io.mockk.every
@@ -23,8 +24,9 @@ class ContextBuilderTest {
     private val surrenderValueRepository = mockk<SurrenderValueRepository>()
     private val premiumExampleRepository = mockk<PremiumExampleRepository>()
     private val productIndexRepository = mockk<ProductIndexRepository>()
+    private val productRepository = mockk<ProductRepository>()
 
-    private val builder = ContextBuilder(surrenderValueRepository, premiumExampleRepository, productIndexRepository)
+    private val builder = ContextBuilder(surrenderValueRepository, premiumExampleRepository, productIndexRepository, productRepository)
 
     private val productId = UUID.randomUUID()
 

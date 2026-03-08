@@ -77,7 +77,7 @@ class SchemaValidatorTest {
                 validProduct().copy(
                     premiumExamples =
                         listOf(
-                            PremiumData("남", 30, "20년", "20년", 100000000, -1000),
+                            PremiumData("남", 30, "20년", "20년", 100000000, premium = -1000),
                         ),
                 )
             val issues = validator.validate(product)

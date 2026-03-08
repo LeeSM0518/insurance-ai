@@ -31,7 +31,7 @@ class CrawlDtosTest {
     inner class PremiumDataSerialization {
         @Test
         fun `직렬화 역직렬화`() {
-            val data = PremiumData("남", 40, "80세만기", "20년납", 30000000, 85000)
+            val data = PremiumData("남", 40, "80세만기", "20년납", 30000000, premium = 85000)
             val json = objectMapper.writeValueAsString(data)
             val restored = objectMapper.readValue(json, PremiumData::class.java)
             assertEquals(data, restored)
@@ -39,7 +39,7 @@ class CrawlDtosTest {
 
         @Test
         fun `age nullable 직렬화 역직렬화`() {
-            val data = PremiumData("남", null, "10년만기", "전기납", 50000000, 120000)
+            val data = PremiumData("남", null, "10년만기", "전기납", 50000000, premium = 120000)
             val json = objectMapper.writeValueAsString(data)
             val restored = objectMapper.readValue(json, PremiumData::class.java)
             assertEquals(data, restored)

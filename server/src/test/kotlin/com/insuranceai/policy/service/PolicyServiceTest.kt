@@ -28,6 +28,7 @@ import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PolicyServiceTest {
@@ -228,6 +229,30 @@ class PolicyServiceTest {
             assertEquals(1, result.surrenderValues.size)
             assertTrue(result.premiumExamples.isEmpty())
             assertTrue(result.priceIndices.isEmpty())
+        }
+
+    @Test
+    fun `getPremiumExamples - nullable insuranceAmount와 text 필드`() =
+        runTest {
+            every { premiumExampleRepository.findByProductId(productId) } returns
+                flowOf(
+                    PremiumExampleEntity(
+                        productId = productId,
+                        gender = "남",
+                        age = 60,
+                        insurancePeriod = "1년만기",
+                        paymentPeriod = "1년납",
+                        insuranceAmount = null,
+                        insuranceAmountText = "용어해설참조",
+                        premium = 15000,
+                    ),
+                )
+
+            val result = service.getPremiumExamples(productId)
+
+            assertEquals(1, result.examples.size)
+            assertNull(result.examples[0].insuranceAmount)
+            assertEquals("용어해설참조", result.examples[0].insuranceAmountText)
         }
 
     @Test

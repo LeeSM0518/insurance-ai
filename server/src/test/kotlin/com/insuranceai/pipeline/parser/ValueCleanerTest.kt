@@ -91,33 +91,32 @@ class ValueCleanerTest {
     @Nested
     inner class ParseGuaranteedRate {
         @Test
-        fun `단순 괄호 - 최저보증이율 추출`() {
-            assertEquals(0, BigDecimal("0.3").compareTo(ValueCleaner.parseGuaranteedRate("1.90(0.3)")))
+        fun `순수 단일 이율 — 해당 값 반환`() {
+            assertEquals(0, BigDecimal("0.5").compareTo(ValueCleaner.parseGuaranteedRate("0.5%")))
         }
 
         @Test
-        fun `복잡한 괄호 - 첫 번째 숫자 추출`() {
-            assertEquals(
-                0,
-                BigDecimal("1.25").compareTo(
-                    ValueCleaner.parseGuaranteedRate("1.95(5년이하 1.25, 5년초과 15년이하 : 1.0, 15년초과 : 0.3)"),
-                ),
+        fun `순수 단일 이율(퍼센트 없음) — 해당 값 반환`() {
+            assertEquals(0, BigDecimal("2.70").compareTo(ValueCleaner.parseGuaranteedRate("2.70")))
+        }
+
+        @Test
+        fun `단순 괄호(2개 이상 이율) — null 반환`() {
+            assertNull(ValueCleaner.parseGuaranteedRate("1.90(0.3)"))
+        }
+
+        @Test
+        fun `기간별 괄호(3개 이상 이율) — null 반환`() {
+            assertNull(
+                ValueCleaner.parseGuaranteedRate("1.95(5년이하 1.25, 5년초과 15년이하 : 1.0, 15년초과 : 0.3)"),
             )
         }
 
         @Test
-        fun `괄호 없으면 null`() {
-            assertNull(ValueCleaner.parseGuaranteedRate("2.70"))
-        }
-
-        @Test
-        fun `복합 이율 텍스트 — 최저값 추출`() {
-            assertEquals(
-                0,
-                BigDecimal("0.5").compareTo(
-                    ValueCleaner.parseGuaranteedRate(
-                        "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%",
-                    ),
+        fun `복합 이율 텍스트(3개 이상) — null 반환`() {
+            assertNull(
+                ValueCleaner.parseGuaranteedRate(
+                    "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%",
                 ),
             )
         }
@@ -126,6 +125,66 @@ class ValueCleanerTest {
         fun `null 표현은 null 반환`() {
             assertNull(ValueCleaner.parseGuaranteedRate("-"))
             assertNull(ValueCleaner.parseGuaranteedRate(null))
+        }
+    }
+
+    @Nested
+    inner class IsCompoundRate {
+        @Test
+        fun `단일 이율 — false`() {
+            assertFalse(ValueCleaner.isCompoundRate("0.5%"))
+            assertFalse(ValueCleaner.isCompoundRate("2.70"))
+        }
+
+        @Test
+        fun `단순 괄호(2개 이율) — true`() {
+            assertTrue(ValueCleaner.isCompoundRate("1.90(0.3)"))
+        }
+
+        @Test
+        fun `기간별 괄호(3개 이상 이율) — true`() {
+            assertTrue(ValueCleaner.isCompoundRate("1.95(5년이하 1.25, 5년초과 15년이하 : 1.0, 15년초과 : 0.3)"))
+        }
+
+        @Test
+        fun `복합 텍스트(3개 이상) — true`() {
+            assertTrue(
+                ValueCleaner.isCompoundRate(
+                    "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%",
+                ),
+            )
+        }
+
+        @Test
+        fun `null 표현 — false`() {
+            assertFalse(ValueCleaner.isCompoundRate(null))
+            assertFalse(ValueCleaner.isCompoundRate("-"))
+        }
+    }
+
+    @Nested
+    inner class FormatGuaranteedRateText {
+        @Test
+        fun `단순 괄호 — 공시이율, 최저보증이율 형식`() {
+            assertEquals("공시이율 1.90%, 최저보증이율 0.3%", ValueCleaner.formatGuaranteedRateText("1.90(0.3)"))
+        }
+
+        @Test
+        fun `기간별 복합 텍스트 — 원본 그대로`() {
+            val original = "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%"
+            assertEquals(original, ValueCleaner.formatGuaranteedRateText(original))
+        }
+
+        @Test
+        fun `기간별 괄호 — 원본 그대로`() {
+            val original = "1.95(5년이하 1.25, 5년초과 15년이하 : 1.0, 15년초과 : 0.3)"
+            assertEquals(original, ValueCleaner.formatGuaranteedRateText(original))
+        }
+
+        @Test
+        fun `null 표현 — null 반환`() {
+            assertNull(ValueCleaner.formatGuaranteedRateText(null))
+            assertNull(ValueCleaner.formatGuaranteedRateText("-"))
         }
     }
 
@@ -193,6 +252,38 @@ class ValueCleanerTest {
             assertEquals("1588-1001", ValueCleaner.cleanPhone("1588-1001"))
             assertEquals("02-1588-1001", ValueCleaner.cleanPhone("02-1588-1001"))
             assertNull(ValueCleaner.cleanPhone("-"))
+        }
+    }
+
+    @Nested
+    inner class CleanPeriod {
+        @Test
+        fun `유효 기간 값 — 그대로 반환`() {
+            assertEquals("종신", ValueCleaner.cleanPeriod("종신"))
+            assertEquals("20년납", ValueCleaner.cleanPeriod("20년납"))
+            assertEquals("100세만기", ValueCleaner.cleanPeriod("100세만기"))
+            assertEquals("전기납", ValueCleaner.cleanPeriod("전기납"))
+            assertEquals("일시납", ValueCleaner.cleanPeriod("일시납"))
+            assertEquals("10년만기", ValueCleaner.cleanPeriod("10년만기"))
+            assertEquals("10년", ValueCleaner.cleanPeriod("10년"))
+            assertEquals("6개월", ValueCleaner.cleanPeriod("6개월"))
+        }
+
+        @Test
+        fun `비정상 값 — null 반환`() {
+            assertNull(ValueCleaner.cleanPeriod("별"))
+            assertNull(ValueCleaner.cleanPeriod("별로"))
+            assertNull(ValueCleaner.cleanPeriod("및"))
+            assertNull(ValueCleaner.cleanPeriod(","))
+            assertNull(ValueCleaner.cleanPeriod("중"))
+            assertNull(ValueCleaner.cleanPeriod("[순수보장형]"))
+            assertNull(ValueCleaner.cleanPeriod("에"))
+        }
+
+        @Test
+        fun `null 입력 — null 반환`() {
+            assertNull(ValueCleaner.cleanPeriod(null))
+            assertNull(ValueCleaner.cleanPeriod("-"))
         }
     }
 

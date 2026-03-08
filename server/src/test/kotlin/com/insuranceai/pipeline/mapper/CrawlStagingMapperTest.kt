@@ -85,7 +85,7 @@ class CrawlStagingMapperTest {
                 ),
             premiumExamples =
                 listOf(
-                    PremiumData("남", 40, "80세만기", "20년납", 30000000, 85000),
+                    PremiumData("남", 40, "80세만기", "20년납", 30000000, premium = 85000),
                 ),
             indices =
                 listOf(
