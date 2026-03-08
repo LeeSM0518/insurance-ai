@@ -1,5 +1,6 @@
 package com.insuranceai.common.config
 
+import io.r2dbc.postgresql.codec.Vector
 import io.r2dbc.spi.ConnectionFactory
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -23,18 +24,28 @@ class R2dbcConfig(
         R2dbcCustomConversions.of(
             PostgresDialect.INSTANCE,
             listOf(
-                VectorReadConverter(),
+                VectorObjectReadConverter(),
+                VectorStringReadConverter(),
                 VectorWriteConverter(),
             ),
         )
 }
 
 /**
- * DB vector 타입 → FloatArray 변환
- * r2dbc-postgresql은 pgvector를 문자열 "[0.1,0.2,...]" 형태로 반환
+ * DB vector 타입(Vector 객체) → FloatArray 변환
+ * r2dbc-postgresql 1.0.9+는 pgvector를 Vector 객체로 반환
  */
 @ReadingConverter
-class VectorReadConverter : Converter<String, FloatArray> {
+class VectorObjectReadConverter : Converter<Vector, FloatArray> {
+    override fun convert(source: Vector): FloatArray = source.vector
+}
+
+/**
+ * DB vector 타입(문자열) → FloatArray 변환 (fallback)
+ * 일부 드라이버 버전에서 문자열 "[0.1,0.2,...]" 형태로 반환하는 경우
+ */
+@ReadingConverter
+class VectorStringReadConverter : Converter<String, FloatArray> {
     override fun convert(source: String): FloatArray {
         val trimmed = source.trim().removePrefix("[").removeSuffix("]")
         if (trimmed.isEmpty()) return floatArrayOf()

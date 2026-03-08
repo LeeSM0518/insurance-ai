@@ -42,9 +42,15 @@ class PipelineRunner(
                 return@runBlocking
             }
 
-            // batchId 필수 검증: CRAWL 없이 다른 단계만 실행 시 batchId 필요
+            // batchId 필수 검증: CRAWL 없이 다른 단계만 실행 시 batchId 필요 (EMBED 단독은 전체 모드 허용)
             val stepsWithoutPdfOnly = config.steps - pdfOnlySteps
-            if (stepsWithoutPdfOnly.isNotEmpty() && PipelineStep.CRAWL !in stepsWithoutPdfOnly && config.batchId == null) {
+            val isEmbedOnly = stepsWithoutPdfOnly.toSet() == setOf(PipelineStep.EMBED)
+            if (
+                stepsWithoutPdfOnly.isNotEmpty() &&
+                PipelineStep.CRAWL !in stepsWithoutPdfOnly &&
+                config.batchId == null &&
+                !isEmbedOnly
+            ) {
                 logger.error("CRAWL 단계 없이 실행하려면 --app.pipeline.batch-id 옵션이 필요합니다.")
                 return@runBlocking
             }

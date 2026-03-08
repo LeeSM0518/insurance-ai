@@ -378,46 +378,32 @@ class RunPipelineUseCase(
             if (PipelineStep.EMBED in activeSteps) {
                 // 검증 통과 목록이 없으면 스테이징에서 PASSED 레코드 복원
                 if (validatedProducts.isEmpty()) {
-                    val passedRecords = crawlStagingRepository.findByBatchIdAndValidationStatus(batchId, "PASSED").toList()
+                    val passedRecords =
+                        crawlStagingRepository.findByBatchIdAndValidationStatus(batchId, "PASSED").toList()
                     validatedProducts = passedRecords.map { crawlStagingMapper.fromStagingEntity(it) }
                 }
 
-                val companyMap = buildCompanyMap()
-                for (product in validatedProducts) {
-                    try {
-                        val companyId = companyMap[product.companyName] ?: continue
-                        val matchedProduct =
-                            productRepository
-                                .findByInsuranceCompanyIdAndIsActiveTrue(companyId)
-                                .toList()
-                                .find { it.name == product.productName }
-                                ?: continue
-
-                        val articles =
-                            policyArticleRepository
-                                .findByProductId(matchedProduct.id!!)
-                                .toList()
-                                .filter { it.isActive }
-
-                        if (articles.isNotEmpty()) {
-                            embeddedCount += embeddingService.embedArticles(articles)
-                        }
-                    } catch (e: Exception) {
-                        errors.add("임베딩 실패: ${product.productName}: ${e.message}")
-                        logger.error("임베딩 실패: ${product.productName}", e)
-                    }
+                if (validatedProducts.isNotEmpty()) {
+                    // batchId 기반 임베딩: 해당 배치의 상품만 처리
+                    embeddedCount = embedByValidatedProducts(validatedProducts, errors)
+                } else {
+                    // batchId 없이 EMBED 단독 실행: 전체 active products 대상
+                    logger.info("배치 기반 상품 없음 → 전체 active products 대상 임베딩 실행 (type=$insuranceType)")
+                    embeddedCount = embedAllActiveProducts(insuranceType, errors)
                 }
                 logger.info("EMBED 완료: batchId=$batchId, ${embeddedCount}건")
             }
 
-            // 배치 완료 기록
+            // 배치 완료 기록 (기존 batchId가 있을 때만)
             val validatedCount = validatedProducts.size
-            pipelineService.completeBatch(
-                batchId = batchId,
-                productCount = crawledCount,
-                successCount = validatedCount,
-                failureCount = crawledCount - validatedCount,
-            )
+            if (existingBatchId != null || PipelineStep.CRAWL in activeSteps) {
+                pipelineService.completeBatch(
+                    batchId = batchId,
+                    productCount = crawledCount,
+                    successCount = validatedCount,
+                    failureCount = crawledCount - validatedCount,
+                )
+            }
 
             return TypePipelineResult(
                 crawled = crawledCount,
@@ -439,7 +425,87 @@ class RunPipelineUseCase(
         }
     }
 
-    /** 보험사명 → ID 매핑 구성 (aliases 포함) */
+    /** batchId 기반: 검증 통과 상품 목록에서 임베딩 */
+    private suspend fun embedByValidatedProducts(
+        validatedProducts: List<ProductRawData>,
+        errors: MutableList<String>,
+    ): Int {
+        var count = 0
+        val companyMap = buildCompanyMap()
+        for (product in validatedProducts) {
+            try {
+                val companyId = companyMap[product.companyName] ?: continue
+                val matchedProduct =
+                    productRepository
+                        .findByInsuranceCompanyIdAndIsActiveTrue(companyId)
+                        .toList()
+                        .find { it.name == product.productName }
+                        ?: continue
+
+                val articles =
+                    policyArticleRepository
+                        .findByProductId(matchedProduct.id!!)
+                        .toList()
+                        .filter { it.isActive }
+
+                if (articles.isNotEmpty()) {
+                    count += embeddingService.embedArticles(articles)
+                }
+            } catch (e: Exception) {
+                errors.add("임베딩 실패: ${product.productName}: ${e.message}")
+                logger.error("임베딩 실패: ${product.productName}", e)
+            }
+        }
+        return count
+    }
+
+    /** 전체 active products 대상 임베딩 (batchId 없이 EMBED 단독 실행 시) */
+    private suspend fun embedAllActiveProducts(
+        insuranceType: InsuranceType,
+        errors: MutableList<String>,
+    ): Int {
+        val typePrefix =
+            when (insuranceType) {
+                InsuranceType.LIFE -> "LIFE"
+                InsuranceType.NON_LIFE -> "NON_LIFE"
+            }
+        // 보험 유형에 해당하는 보험사 ID 목록
+        val companyIds =
+            insuranceCompanyRepository
+                .findByIsActiveTrue()
+                .toList()
+                .filter { it.type == typePrefix }
+                .mapNotNull { it.id }
+                .toSet()
+
+        val allProducts =
+            productRepository
+                .findByIsActiveTrue()
+                .toList()
+                .filter { it.insuranceCompanyId in companyIds }
+
+        logger.info("전체 임베딩 대상: ${allProducts.size}개 상품 (type=$insuranceType)")
+
+        var count = 0
+        for (product in allProducts) {
+            try {
+                val articles =
+                    policyArticleRepository
+                        .findByProductId(product.id!!)
+                        .toList()
+                        .filter { it.isActive }
+
+                if (articles.isNotEmpty()) {
+                    count += embeddingService.embedArticles(articles)
+                }
+            } catch (e: Exception) {
+                errors.add("임베딩 실패: ${product.name}: ${e.message}")
+                logger.error("임베딩 실패: ${product.name}", e)
+            }
+        }
+        return count
+    }
+
     private suspend fun buildCompanyMap(): Map<String, UUID> {
         val companies = insuranceCompanyRepository.findByIsActiveTrue().toList()
         val map = mutableMapOf<String, UUID>()

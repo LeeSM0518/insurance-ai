@@ -83,7 +83,7 @@ class EmbeddingService(
             policyEmbeddingRepository.deleteById(existing.id!!)
         }
 
-        return policyEmbeddingRepository.save(
+        return policyEmbeddingRepository.saveWithVector(
             PolicyEmbeddingEntity(
                 policyArticleId = policyArticleId,
                 embedding = vector,
@@ -106,7 +106,7 @@ class EmbeddingService(
             if (existing != null) {
                 policyEmbeddingRepository.deleteById(existing.id!!)
             }
-            policyEmbeddingRepository.save(
+            policyEmbeddingRepository.saveWithVector(
                 PolicyEmbeddingEntity(
                     policyArticleId = articleId,
                     embedding = vector,
