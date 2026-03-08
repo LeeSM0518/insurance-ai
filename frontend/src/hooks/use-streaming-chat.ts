@@ -1,11 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { axiosInstance } from '@/lib/api';
+import { streamChatMessage, streamReply } from '@/lib/chat-sse';
 import type { ChatMessage, Source } from '@/types/chat';
-import {
-  MOCK_SOURCES,
-  MOCK_STREAMING_RESPONSE,
-  MOCK_STREAMING_SUGGESTED,
-  MOCK_MESSAGES,
-} from '@/mocks/chat-data';
+import type { DataSource } from '@/types/policy';
 
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
@@ -25,7 +22,7 @@ export interface UseStreamingChatReturn {
   messages: ChatMessage[];
   streamingState: StreamingState;
   isStreaming: boolean;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string, isInitialMessage?: boolean) => void;
   cancelStreaming: () => void;
   retryStreaming: () => void;
 }
@@ -40,31 +37,66 @@ const INITIAL_STATE: StreamingState = {
   isReconnecting: false,
 };
 
-function delay(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal.addEventListener('abort', () => {
-      clearTimeout(timer);
-      reject(new DOMException('Aborted', 'AbortError'));
-    });
-  });
+// 백엔드 메시지 응답 → ChatMessage 변환
+function toMessage(raw: Record<string, unknown>): ChatMessage {
+  const sources = (raw.sources as Record<string, unknown>[]) ?? [];
+  return {
+    id: String(raw.id),
+    role: raw.role as 'USER' | 'ASSISTANT',
+    content: String(raw.content),
+    sources: sources.length > 0 ? sources.map((s) => ({
+      articleId: String(s.articleId ?? ''),
+      insuranceCompany: String(s.insuranceCompany ?? ''),
+      productId: String(s.productId ?? ''),
+      productName: String(s.productName ?? ''),
+      articleNumber: String(s.articleNumber ?? ''),
+      articleTitle: String(s.articleTitle ?? ''),
+      relevanceScore: Number(s.relevanceScore ?? 0),
+      dataSource: (s.dataSource as DataSource) ?? 'ASSOCIATION',
+      dataSourceId: s.dataSourceId ? String(s.dataSourceId) : undefined,
+    })) : undefined,
+    suggestedQuestions: Array.isArray(raw.suggestedQuestions) && (raw.suggestedQuestions as string[]).length > 0
+      ? (raw.suggestedQuestions as string[])
+      : undefined,
+    createdAt: String(raw.createdAt),
+  };
 }
 
 export function useStreamingChat(sessionId: string | null): UseStreamingChatReturn {
-  // 세션의 기존 메시지를 초기값으로 설정
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    sessionId ? MOCK_MESSAGES[sessionId] || [] : [],
-  );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingState, setStreamingState] = useState<StreamingState>(INITIAL_STATE);
   const abortRef = useRef<AbortController | null>(null);
   const lastMessageRef = useRef<string | null>(null);
+  const lastIsInitialRef = useRef(false);
 
-  // 세션 변경 시 메시지 초기화
+  // 세션 변경 시 메시지 이력 API 호출
   useEffect(() => {
-    setMessages(sessionId ? MOCK_MESSAGES[sessionId] || [] : []);
-    // 스트리밍 중이면 취소
     abortRef.current?.abort();
     setStreamingState(INITIAL_STATE);
+
+    if (!sessionId) {
+      setMessages([]);
+      return;
+    }
+
+    let cancelled = false;
+    axiosInstance
+      .get<{
+        success: boolean;
+        data: { sessionId: string; messages: Record<string, unknown>[] };
+      }>(`/api/v1/chat/sessions/${sessionId}/messages`)
+      .then((res) => {
+        if (!cancelled) {
+          setMessages(res.data.data.messages.map(toMessage));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMessages([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId]);
 
   // 언마운트 시 cleanup
@@ -74,66 +106,81 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
     };
   }, []);
 
-  const runStreamingRef = useRef<(content: string) => void>();
+  const runStreamingRef = useRef<(content: string, isInitial: boolean) => void>();
 
   const runStreaming = useCallback(
-    async (content: string) => {
+    async (content: string, isInitialMessage: boolean) => {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      try {
-        // 1. searching (800ms)
-        setStreamingState((prev) => ({
-          ...prev,
-          phase: 'searching',
-          isReconnecting: false,
-        }));
-        await delay(800, controller.signal);
-
-        // 2. sources_found
-        setStreamingState((prev) => ({
-          ...prev,
-          phase: 'sources_found',
-          sources: MOCK_SOURCES,
-        }));
-        await delay(500, controller.signal);
-
-        // 3. generating (600ms)
-        setStreamingState((prev) => ({
-          ...prev,
-          phase: 'generating',
-        }));
-        await delay(600, controller.signal);
-
-        // 4. streaming (문자 단위로 20ms 간격)
-        setStreamingState((prev) => ({
-          ...prev,
-          phase: 'streaming',
-          streamingContent: '',
-        }));
-        for (const char of MOCK_STREAMING_RESPONSE) {
-          if (controller.signal.aborted) return;
+      // 콜백 정의
+      const callbacks = {
+        onSearching: () => {
           setStreamingState((prev) => ({
             ...prev,
-            streamingContent: prev.streamingContent + char,
+            phase: 'searching',
+            isReconnecting: false,
           }));
-          await delay(20, controller.signal);
-        }
+        },
+        onSourcesFound: (sources: Source[]) => {
+          setStreamingState((prev) => ({
+            ...prev,
+            phase: 'sources_found',
+            sources,
+          }));
+        },
+        onGenerating: () => {
+          setStreamingState((prev) => ({
+            ...prev,
+            phase: 'generating',
+          }));
+        },
+        onToken: (token: string) => {
+          setStreamingState((prev) => ({
+            ...prev,
+            phase: 'streaming',
+            streamingContent: prev.streamingContent + token,
+          }));
+        },
+        onDone: ({ messageId, suggestedQuestions }: { messageId: string; suggestedQuestions: string[] }) => {
+          // 스트리밍 완료 → 최종 메시지로 추가
+          setStreamingState((prev) => {
+            const aiMessage: ChatMessage = {
+              id: messageId,
+              role: 'ASSISTANT',
+              content: prev.streamingContent,
+              sources: prev.sources.length > 0 ? prev.sources : undefined,
+              suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : undefined,
+              createdAt: new Date().toISOString(),
+            };
+            setMessages((msgs) => [...msgs, aiMessage]);
+            return INITIAL_STATE;
+          });
+          lastMessageRef.current = null;
+          lastIsInitialRef.current = false;
+        },
+        onError: (errorMessage: string) => {
+          setStreamingState((prev) => ({
+            ...prev,
+            phase: 'error',
+            errorMessage,
+            streamingContent: '',
+          }));
+        },
+        signal: controller.signal,
+      };
 
-        // 5. done
-        const aiMessage: ChatMessage = {
-          id: `msg-${Date.now()}`,
-          role: 'ASSISTANT',
-          content: MOCK_STREAMING_RESPONSE,
-          sources: MOCK_SOURCES,
-          suggestedQuestions: MOCK_STREAMING_SUGGESTED,
-          createdAt: new Date().toISOString(),
-        };
-        setMessages((prev) => [...prev, aiMessage]);
-        setStreamingState(INITIAL_STATE);
-        lastMessageRef.current = null;
+      try {
+        if (isInitialMessage) {
+          // 세션 생성 직후: /reply 엔드포인트 (USER 메시지 중복 저장 방지)
+          await streamReply(sessionId!, callbacks);
+        } else {
+          // 기존 세션: /messages 엔드포인트 (USER 메시지 저장 + AI 응답)
+          await streamChatMessage({ ...callbacks, sessionId: sessionId!, content });
+        }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return;
+
         // 에러 발생 시 재연결 시도
         setStreamingState((prev) => {
           const newRetryCount = prev.retryCount + 1;
@@ -150,7 +197,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
 
           const retryDelay = BASE_DELAY_MS * Math.pow(2, newRetryCount - 1);
           setTimeout(() => {
-            runStreamingRef.current?.(content);
+            runStreamingRef.current?.(content, isInitialMessage);
           }, retryDelay);
 
           return {
@@ -164,25 +211,29 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
         abortRef.current = null;
       }
     },
-    [],
+    [sessionId],
   );
 
   // ref를 통해 최신 runStreaming 참조 유지 (순환 의존성 방지)
   runStreamingRef.current = runStreaming;
 
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, isInitialMessage = false) => {
       if (streamingState.phase !== 'idle') return;
 
-      // 사용자 메시지 추가
-      const userMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        role: 'USER',
-        content,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, userMessage]);
+      if (!isInitialMessage) {
+        // 사용자 메시지를 UI에 즉시 추가 (낙관적 업데이트)
+        const userMessage: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          role: 'USER',
+          content,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, userMessage]);
+      }
+
       lastMessageRef.current = content;
+      lastIsInitialRef.current = isInitialMessage;
 
       // 스트리밍 상태 초기화
       setStreamingState({
@@ -190,7 +241,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
         phase: 'searching',
       });
 
-      runStreaming(content);
+      runStreaming(content, isInitialMessage);
     },
     [streamingState.phase, runStreaming],
   );
@@ -221,7 +272,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
       phase: 'searching',
     });
 
-    runStreaming(lastMessage);
+    runStreaming(lastMessage, lastIsInitialRef.current);
   }, [runStreaming]);
 
   return {

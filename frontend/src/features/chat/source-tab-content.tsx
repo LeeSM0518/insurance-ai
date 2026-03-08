@@ -1,15 +1,11 @@
 import { useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 import { PolicyMeta } from '@/features/policy/policy-meta';
 import { PolicyContent } from '@/features/policy/policy-content';
 import { PdfViewer } from '@/features/policy/pdf-viewer';
 import { SupplementarySection } from '@/features/policy/supplementary-section';
-import {
-  MOCK_POLICY_ARTICLES_MAP,
-  MOCK_SURRENDER_VALUES,
-  MOCK_PREMIUM_EXAMPLES,
-  MOCK_PRICE_INDICES,
-} from '@/mocks/policy-data';
+import { usePolicyDetail } from '@/hooks/use-policy-detail';
+import { useSupplementaryData } from '@/hooks/use-supplementary-data';
 
 type TabType = 'content' | 'pdf';
 
@@ -18,8 +14,17 @@ interface SourceTabContentProps {
 }
 
 export function SourceTabContent({ articleId }: SourceTabContentProps) {
-  const article = MOCK_POLICY_ARTICLES_MAP[articleId];
+  const { article, isLoading } = usePolicyDetail(articleId);
+  const { surrenderValues, premiumExamples, priceIndices } = useSupplementaryData(article?.productId ?? null);
   const [activeTab, setActiveTab] = useState<TabType>('content');
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (!article) {
     return (
@@ -28,9 +33,6 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
       </div>
     );
   }
-
-  // art-001에만 보충 데이터 표시 (Mock)
-  const isFirstArticle = articleId === 'art-001';
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -76,9 +78,9 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
             content={article.content}
           />
           <SupplementarySection
-            surrenderValues={isFirstArticle ? MOCK_SURRENDER_VALUES : undefined}
-            premiumExamples={isFirstArticle ? MOCK_PREMIUM_EXAMPLES : undefined}
-            priceIndices={isFirstArticle ? MOCK_PRICE_INDICES : undefined}
+            surrenderValues={surrenderValues ?? undefined}
+            premiumExamples={premiumExamples ?? undefined}
+            priceIndices={priceIndices ?? undefined}
           />
         </>
       ) : (

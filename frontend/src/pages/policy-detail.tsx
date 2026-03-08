@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { ArrowLeft, FileText, MessageSquare } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router';
+import { ArrowLeft, FileText, Loader2, MessageSquare, SearchX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
 import { PolicyMeta } from '@/features/policy/policy-meta';
 import { PolicyContent } from '@/features/policy/policy-content';
 import { PdfViewer } from '@/features/policy/pdf-viewer';
@@ -9,20 +10,42 @@ import { SupplementarySection } from '@/features/policy/supplementary-section';
 import { RelatedArticles } from '@/features/policy/related-articles';
 import { CopyShareButtons } from '@/features/chat/copy-share-buttons';
 import { useMediaQuery } from '@/hooks/use-media-query';
-import {
-  MOCK_POLICY_ARTICLE,
-  MOCK_SURRENDER_VALUES,
-  MOCK_PREMIUM_EXAMPLES,
-  MOCK_PRICE_INDICES,
-} from '@/mocks/policy-data';
+import { usePolicyDetail } from '@/hooks/use-policy-detail';
+import { useSupplementaryData } from '@/hooks/use-supplementary-data';
 
 type TabType = 'content' | 'pdf';
 
 export default function PolicyDetailPage() {
+  const { articleId } = useParams<{ articleId: string }>();
   const navigate = useNavigate();
   const isDesktop = useMediaQuery('(min-width: 1025px)');
-  const article = MOCK_POLICY_ARTICLE;
+  const { article, isLoading, error } = usePolicyDetail(articleId);
+  const { surrenderValues, premiumExamples, priceIndices } = useSupplementaryData(article?.productId ?? null);
   const [activeTab, setActiveTab] = useState<TabType>('content');
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !article) {
+    return (
+      <div className="flex-1 flex flex-col">
+        <header className="sticky top-0 z-10 flex items-center gap-2 border-b bg-background px-2 py-2">
+          <Button variant="ghost" size="icon-sm" onClick={() => navigate(-1)} aria-label="뒤로가기">
+            <ArrowLeft className="size-4" />
+          </Button>
+          <h1 className="text-sm font-semibold">약관 상세</h1>
+        </header>
+        <div className="flex-1 flex items-center justify-center">
+          <EmptyState icon={SearchX} title={error ?? '약관을 찾을 수 없습니다'} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col">
@@ -102,9 +125,9 @@ export default function PolicyDetailPage() {
         {isDesktop && (
           <aside className="w-[360px] shrink-0">
             <SupplementarySection
-              surrenderValues={MOCK_SURRENDER_VALUES}
-              premiumExamples={MOCK_PREMIUM_EXAMPLES}
-              priceIndices={MOCK_PRICE_INDICES}
+              surrenderValues={surrenderValues ?? undefined}
+              premiumExamples={premiumExamples ?? undefined}
+              priceIndices={priceIndices ?? undefined}
             />
           </aside>
         )}
@@ -112,9 +135,9 @@ export default function PolicyDetailPage() {
         {/* 모바일에서 보충 정보 */}
         {!isDesktop && (
           <SupplementarySection
-            surrenderValues={MOCK_SURRENDER_VALUES}
-            premiumExamples={MOCK_PREMIUM_EXAMPLES}
-            priceIndices={MOCK_PRICE_INDICES}
+            surrenderValues={surrenderValues ?? undefined}
+            premiumExamples={premiumExamples ?? undefined}
+            priceIndices={priceIndices ?? undefined}
           />
         )}
       </div>

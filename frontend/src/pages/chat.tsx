@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { useBlocker } from 'react-router';
+import { useBlocker, useSearchParams } from 'react-router';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { ChatHeader } from '@/features/chat/chat-header';
 import { ChatSidebar } from '@/features/chat/chat-sidebar';
@@ -21,9 +21,9 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useResizeHandle } from '@/hooks/use-resize-handle';
 import { useStreamingChat } from '@/hooks/use-streaming-chat';
 import { useAutoScroll } from '@/hooks/use-auto-scroll';
-import { MOCK_SESSIONS } from '@/mocks/chat-data';
+import { useChatSessions } from '@/hooks/use-chat-sessions';
 import { toast } from 'sonner';
-import type { ChatSession, Source } from '@/types/chat';
+import type { Source } from '@/types/chat';
 
 const SOURCE_PANEL_MIN = 280;
 const SOURCE_PANEL_MAX = 700;
@@ -34,13 +34,15 @@ const MAX_RETRIES = 3;
 
 export default function ChatPage() {
   const isDesktop = useMediaQuery('(min-width: 1025px)');
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeSessionId, setActiveSessionId] = useLocalStorage<string | null>('chat-active-session', null);
-  const [sessions, setSessions] = useState<ChatSession[]>(MOCK_SESSIONS);
+  const { sessions, createSession, deleteSession } = useChatSessions();
   const [sidebarOpen, setSidebarOpen] = useLocalStorage('chat-sidebar-open', isDesktop);
   const [openTabs, setOpenTabs] = useState<SourceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [sourcePanelWidth, setSourcePanelWidth] = useLocalStorage('chat-source-panel-width', SOURCE_PANEL_DEFAULT);
   const [mobileSourceSheet, setMobileSourceSheet] = useState<Source | null>(null);
+  const initialQueryProcessed = useRef(false);
 
   // 스트리밍 채팅 Hook
   const { messages, streamingState, isStreaming, sendMessage, retryStreaming } =
@@ -85,23 +87,54 @@ export default function ChatPage() {
     setActiveTabId(null);
   };
 
-  const handleDelete = (id: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
-    if (activeSessionId === id) {
-      setActiveSessionId(null);
-      setOpenTabs([]);
-      setActiveTabId(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteSession(id);
+      if (activeSessionId === id) {
+        setActiveSessionId(null);
+        setOpenTabs([]);
+        setActiveTabId(null);
+      }
+      toast.success('대화가 삭제되었습니다');
+    } catch {
+      toast.error('대화 삭제에 실패했습니다');
     }
-    toast.success('대화가 삭제되었습니다');
   };
 
-  const handleSend = (message: string) => {
-    sendMessage(message);
+  const handleSend = async (message: string) => {
+    if (!activeSessionId) {
+      // 새 세션 생성 (initialMessage가 USER 메시지로 저장됨)
+      try {
+        const newSessionId = await createSession(message);
+        setActiveSessionId(newSessionId);
+        // /reply 엔드포인트로 AI 응답 트리거 (USER 메시지 중복 저장 방지)
+        // sendMessage의 isInitialMessage=true로 호출
+        sendMessage(message, true);
+      } catch {
+        toast.error('대화를 시작할 수 없습니다');
+      }
+    } else {
+      // 기존 세션: /messages 엔드포인트 (USER 메시지 저장 + AI 응답)
+      sendMessage(message);
+    }
   };
 
   const handleSuggestedQuestion = (question: string) => {
-    sendMessage(question);
+    if (activeSessionId) {
+      sendMessage(question);
+    }
   };
+
+  // URL 쿼리 파라미터 처리 (/chat?q=검색어)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q && !initialQueryProcessed.current && !isStreaming) {
+      initialQueryProcessed.current = true;
+      // URL에서 q 파라미터 제거
+      setSearchParams({}, { replace: true });
+      handleSend(q);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOpenSource = (source: Source, index: number) => {
     // 이미 열린 탭이면 활성화만
