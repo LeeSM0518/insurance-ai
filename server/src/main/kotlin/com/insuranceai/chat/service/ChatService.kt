@@ -178,6 +178,13 @@ class ChatService(
         chatSessionRepository.save(session.copy(title = title, updatedAt = Instant.now()))
     }
 
+    /** 세션의 마지막 USER 메시지 조회 */
+    suspend fun getLastUserMessage(sessionId: UUID): ChatMessageEntity {
+        val messages = chatMessageRepository.findByChatSessionIdOrderByCreatedAt(sessionId).toList()
+        return messages.lastOrNull { it.role == MessageRole.USER.name }
+            ?: throw ChatError.UserMessageNotFound
+    }
+
     /** 최근 대화 이력 조회 (RAG 컨텍스트용) */
     suspend fun getRecentMessages(
         sessionId: UUID,

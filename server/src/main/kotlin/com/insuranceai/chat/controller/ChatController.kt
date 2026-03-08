@@ -6,6 +6,7 @@ import com.insuranceai.chat.dto.ChatStreamEvent
 import com.insuranceai.chat.dto.CreateSessionRequest
 import com.insuranceai.chat.dto.SessionMessagesResponse
 import com.insuranceai.chat.service.ChatService
+import com.insuranceai.chat.usecase.ReplyToSessionUseCase
 import com.insuranceai.chat.usecase.SendChatMessageUseCase
 import com.insuranceai.common.dto.ServiceResponse
 import com.insuranceai.common.security.UserPrincipal
@@ -35,6 +36,7 @@ import java.util.UUID
 class ChatController(
     private val chatService: ChatService,
     private val sendChatMessageUseCase: SendChatMessageUseCase,
+    private val replyToSessionUseCase: ReplyToSessionUseCase,
 ) {
     @PostMapping("/sessions")
     @Operation(summary = "채팅 세션 생성")
@@ -84,5 +86,15 @@ class ChatController(
     ): Flux<ServerSentEvent<ChatStreamEvent>> =
         sendChatMessageUseCase
             .execute(sessionId, request.content, principal.userId)
+            .map { event -> ServerSentEvent.builder(event).build() }
+
+    @PostMapping("/sessions/{sessionId}/reply", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+    @Operation(summary = "채팅 세션 초기 메시지에 대한 AI 응답 (SSE 스트리밍)")
+    fun replyToSession(
+        @PathVariable sessionId: UUID,
+        @AuthenticationPrincipal principal: UserPrincipal,
+    ): Flux<ServerSentEvent<ChatStreamEvent>> =
+        replyToSessionUseCase
+            .execute(sessionId, principal.userId)
             .map { event -> ServerSentEvent.builder(event).build() }
 }

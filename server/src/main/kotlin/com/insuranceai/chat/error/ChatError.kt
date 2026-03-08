@@ -23,4 +23,8 @@ sealed class ChatError(
     data object LlmResponseFailed : ChatError("AI 답변 생성에 실패했습니다") {
         override val status = HttpStatus.BAD_GATEWAY
     }
+
+    data object UserMessageNotFound : ChatError("세션에 사용자 메시지가 없습니다") {
+        override val status = HttpStatus.NOT_FOUND
+    }
 }
