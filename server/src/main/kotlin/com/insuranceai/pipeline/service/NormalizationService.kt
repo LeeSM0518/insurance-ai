@@ -42,6 +42,7 @@ class NormalizationService {
             appliedInterestRate = raw.appliedInterestRate,
             declaredInterestRate = raw.declaredInterestRate,
             guaranteedInterestRate = raw.guaranteedInterestRate,
+            guaranteedInterestRateText = raw.guaranteedInterestRateText,
             expenseRatio = raw.expenseRatio,
             surrenderType = raw.surrenderType,
             productType = raw.productType,

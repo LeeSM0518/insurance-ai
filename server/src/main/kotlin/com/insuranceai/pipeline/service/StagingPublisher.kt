@@ -127,6 +127,7 @@ class StagingPublisher(
                             appliedInterestRate = updated.appliedInterestRate,
                             declaredInterestRate = updated.declaredInterestRate,
                             guaranteedInterestRate = updated.guaranteedInterestRate,
+                            guaranteedInterestRateText = updated.guaranteedInterestRateText,
                             expenseRatio = updated.expenseRatio,
                             surrenderType = updated.surrenderType,
                             productType = updated.productType,
@@ -233,10 +234,16 @@ class StagingPublisher(
         )
     }
 
-    /** 보험사명 → ID 매핑 구성 */
+    /** 보험사명 → ID 매핑 구성 (aliases 포함) */
     private suspend fun buildCompanyMap(): Map<String, UUID> {
         val companies = insuranceCompanyRepository.findByIsActiveTrue().toList()
-        return companies.associate { it.name to it.id!! }
+        val map = mutableMapOf<String, UUID>()
+        for (company in companies) {
+            val companyId = company.id ?: continue
+            map[company.name] = companyId
+            company.aliases.forEach { alias -> map[alias] = companyId }
+        }
+        return map
     }
 
     /** 보험료 예시 재발행 */
@@ -262,6 +269,7 @@ class StagingPublisher(
                     insurancePeriod = premium.insurancePeriod,
                     paymentPeriod = premium.paymentPeriod,
                     insuranceAmount = premium.insuranceAmount,
+                    insuranceAmountText = premium.insuranceAmountText,
                     premium = premium.premium,
                 ),
             )

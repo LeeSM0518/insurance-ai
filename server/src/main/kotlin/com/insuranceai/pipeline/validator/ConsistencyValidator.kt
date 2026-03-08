@@ -66,6 +66,21 @@ class ConsistencyValidator {
                     )
                 }
             }
+
+            // 중복 지수 검증: 동일 지수타입+성별 중복 감지
+            val indexKeys = mutableSetOf<String>()
+            for (index in product.indices) {
+                val key = "${index.indexType}|${index.gender}"
+                if (!indexKeys.add(key)) {
+                    issues.add(
+                        ValidationIssue(
+                            "L3",
+                            "중복 지수 감지: ${product.companyName} - ${product.productName} (${index.indexType}, ${index.gender})",
+                            IssueType.WARNING,
+                        ),
+                    )
+                }
+            }
         }
 
         if (issues.isNotEmpty()) {

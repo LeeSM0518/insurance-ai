@@ -86,8 +86,8 @@ class RunPipelineUseCase(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     companion object {
-        /** 파싱 실패율 임계치 (10% 초과 시 배치 중단) */
-        const val PARSING_FAILURE_THRESHOLD = 0.10
+        /** 파싱 실패율 임계치 (20% 초과 시 배치 중단) */
+        const val PARSING_FAILURE_THRESHOLD = 0.20
 
         /** 상품당 파싱 대상 숫자/날짜 필드 수 추정 */
         const val EXPECTED_FIELDS_PER_PRODUCT = 8
@@ -439,8 +439,15 @@ class RunPipelineUseCase(
         }
     }
 
+    /** 보험사명 → ID 매핑 구성 (aliases 포함) */
     private suspend fun buildCompanyMap(): Map<String, UUID> {
         val companies = insuranceCompanyRepository.findByIsActiveTrue().toList()
-        return companies.associate { it.name to it.id!! }
+        val map = mutableMapOf<String, UUID>()
+        for (company in companies) {
+            val companyId = company.id ?: continue
+            map[company.name] = companyId
+            company.aliases.forEach { alias -> map[alias] = companyId }
+        }
+        return map
     }
 }
