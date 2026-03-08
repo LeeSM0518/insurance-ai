@@ -45,11 +45,11 @@ class SchemaValidator(
             }
         }
 
-        // 참조 무결성: companyName이 DB에 존재하는지
+        // 참조 무결성: companyName이 DB에 존재하는지 (aliases 포함)
         if (product.companyName.isNotBlank()) {
             val companies = insuranceCompanyRepository.findByIsActiveTrue().toList()
-            val companyNames = companies.map { it.name }.toSet()
-            if (product.companyName !in companyNames) {
+            val allNames = companies.flatMap { listOf(it.name) + it.aliases }.toSet()
+            if (product.companyName !in allNames) {
                 issues.add(
                     ValidationIssue("L1", "보험사 '${product.companyName}'이(가) DB에 존재하지 않습니다", IssueType.ERROR),
                 )
@@ -57,7 +57,13 @@ class SchemaValidator(
         }
 
         if (issues.isNotEmpty()) {
-            log.warn("L1 검증 실패: {} - {} ({} 건)", product.companyName, product.productName, issues.size)
+            log.warn(
+                "L1 검증 실패: {} - {} ({} 건): {}",
+                product.companyName,
+                product.productName,
+                issues.size,
+                issues.joinToString("; ") { it.message },
+            )
         }
 
         return issues
