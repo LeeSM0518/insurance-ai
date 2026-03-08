@@ -26,6 +26,7 @@ export interface Source {
   articleTitle: string;
   relevanceScore: number;
   dataSource: DataSource;
+  dataSourceId?: string;
 }
 
 // 채팅 세션

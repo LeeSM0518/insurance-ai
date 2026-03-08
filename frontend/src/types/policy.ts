@@ -18,6 +18,8 @@ export interface PolicyArticle {
   sectionType: string;
   effectiveDate: string;
   dataSource: DataSource;
+  dataSourceId?: string;
+  hasPdfSource: boolean;
   relatedArticles: {
     id: string;
     articleNumber: string;

@@ -25,10 +25,16 @@ import com.insuranceai.policy.repository.ProductRepository
 import com.insuranceai.policy.repository.ProductYieldScenarioRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import com.insuranceai.search.dto.CompanyInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.withContext
+import org.springframework.core.io.PathResource
+import org.springframework.core.io.Resource
 import org.springframework.stereotype.Service
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.UUID
 
 @Service
@@ -79,8 +85,39 @@ class PolicyService(
             sectionType = article.sectionType,
             effectiveDate = article.effectiveDate,
             dataSource = dataSource?.sourceType,
+            dataSourceId = dataSource?.id,
+            hasPdfSource = dataSource?.filePath != null,
             relatedArticles = relatedArticles,
         )
+    }
+
+    /** PDF 파일 리소스 조회 */
+    suspend fun getPdfResource(dataSourceId: UUID): Resource {
+        val dataSource =
+            dataSourceRepository.findById(dataSourceId)
+                ?: throw PolicyError.DataSourceNotFound
+
+        val filePath =
+            dataSource.filePath
+                ?: throw PolicyError.PdfFileNotFound
+
+        // Path Traversal 방지: 허용 디렉토리 내인지 검증
+        val allowedBase = Path.of("data").toAbsolutePath().normalize()
+        val resolvedPath = Path.of(filePath).toAbsolutePath().normalize()
+        if (!resolvedPath.startsWith(allowedBase)) {
+            throw PolicyError.InvalidFilePath
+        }
+
+        // non-blocking 파일 존재 확인
+        val exists =
+            withContext(Dispatchers.IO) {
+                Files.exists(resolvedPath)
+            }
+        if (!exists) {
+            throw PolicyError.PdfFileNotFound
+        }
+
+        return PathResource(resolvedPath)
     }
 
     /** 관련 조문 조회 (같은 상품의 다른 조문, 최대 10개) */

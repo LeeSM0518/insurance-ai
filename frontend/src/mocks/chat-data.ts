@@ -39,6 +39,7 @@ export const MOCK_SOURCES: Source[] = [
     articleTitle: '보장 제외',
     relevanceScore: 0.92,
     dataSource: 'ASSOCIATION',
+    dataSourceId: 'ds-001',
   },
   {
     articleId: 'art-002',
@@ -49,6 +50,7 @@ export const MOCK_SOURCES: Source[] = [
     articleTitle: '보장 내용',
     relevanceScore: 0.87,
     dataSource: 'ASSOCIATION',
+    dataSourceId: 'ds-002',
   },
   {
     articleId: 'art-003',
@@ -59,6 +61,7 @@ export const MOCK_SOURCES: Source[] = [
     articleTitle: '보험금을 지급하지 않는 사유',
     relevanceScore: 0.74,
     dataSource: 'PRODUCT_SUMMARY',
+    dataSourceId: 'ds-003',
   },
 ];
 

@@ -18,6 +18,8 @@ export const MOCK_POLICY_ARTICLE: PolicyArticle = {
   sectionType: '주계약',
   effectiveDate: '2024-01-01',
   dataSource: 'ASSOCIATION',
+  dataSourceId: 'ds-001',
+  hasPdfSource: true,
   relatedArticles: [
     { id: 'art-006', articleNumber: '제3조', articleTitle: '보장 내용' },
     { id: 'art-007', articleNumber: '제6조', articleTitle: '보험금 지급사유' },
@@ -46,6 +48,8 @@ export const MOCK_POLICY_ARTICLES_MAP: Record<string, PolicyArticle> = {
     sectionType: '주계약',
     effectiveDate: '2024-03-01',
     dataSource: 'ASSOCIATION',
+    dataSourceId: 'ds-002',
+    hasPdfSource: true,
     relatedArticles: [
       { id: 'art-009', articleNumber: '제5조', articleTitle: '보험금을 지급하지 않는 사유' },
       { id: 'art-010', articleNumber: '제8조', articleTitle: '보험료 납입면제' },
@@ -69,6 +73,8 @@ export const MOCK_POLICY_ARTICLES_MAP: Record<string, PolicyArticle> = {
     sectionType: '주계약',
     effectiveDate: '2024-06-01',
     dataSource: 'PRODUCT_SUMMARY',
+    dataSourceId: 'ds-003',
+    hasPdfSource: true,
     relatedArticles: [
       { id: 'art-011', articleNumber: '제3조', articleTitle: '보장 내용' },
       { id: 'art-012', articleNumber: '제10조', articleTitle: '해약환급금' },

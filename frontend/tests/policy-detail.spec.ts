@@ -49,4 +49,26 @@ test.describe('약관 상세 화면', () => {
     const aside = page.locator('aside');
     await expect(aside).toBeVisible();
   });
+
+  test('hasPdfSource=true일 때 "원본 PDF 보기" 탭이 표시된다', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.goto('/policies/art-001');
+    await expect(page.getByRole('tab', { name: '원본 PDF 보기' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '조문 내용' })).toBeVisible();
+  });
+
+  test('"원본 PDF 보기" 탭 클릭 시 PDF iframe이 표시된다', async ({ page }) => {
+    await page.setViewportSize({ width: 1200, height: 800 });
+    await page.goto('/policies/art-001');
+    await page.getByRole('tab', { name: '원본 PDF 보기' }).click();
+    const iframe = page.locator('iframe[title="원본 PDF"]');
+    await expect(iframe).toBeVisible();
+  });
+
+  test('모바일에서 PDF 탭 클릭 시 다운로드 버튼이 표시된다', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await page.goto('/policies/art-001');
+    await page.getByRole('tab', { name: '원본 PDF 보기' }).click();
+    await expect(page.getByText('원본 PDF 열기')).toBeVisible();
+  });
 });

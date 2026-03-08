@@ -19,4 +19,5 @@ data class MessageSourceResponse(
     val articleNumber: String?,
     val articleTitle: String?,
     val relevanceScore: Float,
+    val dataSourceId: UUID? = null,
 )

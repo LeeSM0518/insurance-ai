@@ -7,6 +7,9 @@ import com.insuranceai.policy.service.PolicyService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
+import org.springframework.core.io.Resource
+import org.springframework.http.HttpHeaders
+import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
@@ -30,5 +33,20 @@ class PolicyController(
     ): ResponseEntity<ServiceResponse<PolicyArticleResponse>> {
         val response = policyService.getArticleDetail(articleId)
         return ResponseEntity.ok(ServiceResponse.ok(response))
+    }
+
+    @GetMapping("/pdf/{dataSourceId}")
+    @Operation(summary = "약관 PDF 파일 조회")
+    suspend fun getPdf(
+        @PathVariable dataSourceId: UUID,
+        @AuthenticationPrincipal principal: UserPrincipal,
+    ): ResponseEntity<Resource> {
+        val resource = policyService.getPdfResource(dataSourceId)
+        return ResponseEntity
+            .ok()
+            .contentType(MediaType.APPLICATION_PDF)
+            .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+            .header("X-Frame-Options", "SAMEORIGIN")
+            .body(resource)
     }
 }

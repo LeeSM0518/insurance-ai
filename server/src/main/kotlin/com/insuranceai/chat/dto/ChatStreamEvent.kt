@@ -59,4 +59,5 @@ data class SourceInfo(
     val articleTitle: String?,
     val relevanceScore: Float,
     val dataSource: String,
+    val dataSourceId: UUID? = null,
 )

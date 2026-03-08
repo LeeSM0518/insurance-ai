@@ -18,6 +18,8 @@ data class PolicyArticleResponse(
     val sectionType: String?,
     val effectiveDate: LocalDate?,
     val dataSource: String?,
+    val dataSourceId: UUID?,
+    val hasPdfSource: Boolean,
     val relatedArticles: List<RelatedArticleResponse>,
 )
 
