@@ -8,5 +8,7 @@ import java.util.UUID
 interface ProductFeatureRepository : CoroutineCrudRepository<ProductFeatureEntity, UUID> {
     fun findByProductId(productId: UUID): Flow<ProductFeatureEntity>
 
+    fun findByProductIdIn(productIds: Collection<UUID>): Flow<ProductFeatureEntity>
+
     suspend fun deleteByProductId(productId: UUID)
 }

@@ -5,18 +5,24 @@ import com.insuranceai.chat.dto.SupplementaryNeeds
 import com.insuranceai.policy.dto.PolicyArticleResponse
 import com.insuranceai.policy.dto.PremiumExampleItem
 import com.insuranceai.policy.dto.PremiumExampleResponse
+import com.insuranceai.policy.dto.ProductFeatureItem
 import com.insuranceai.policy.dto.ProductIndexItem
 import com.insuranceai.policy.dto.ProductIndexResponse
+import com.insuranceai.policy.dto.ProductMetricItem
 import com.insuranceai.policy.dto.RelatedArticleResponse
 import com.insuranceai.policy.dto.SurrenderValueItem
 import com.insuranceai.policy.dto.SurrenderValueResponse
+import com.insuranceai.policy.dto.YieldScenarioItem
 import com.insuranceai.policy.error.PolicyError
 import com.insuranceai.policy.repository.DataSourceRepository
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PolicyArticleRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
+import com.insuranceai.policy.repository.ProductFeatureRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
+import com.insuranceai.policy.repository.ProductMetricRepository
 import com.insuranceai.policy.repository.ProductRepository
+import com.insuranceai.policy.repository.ProductYieldScenarioRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import com.insuranceai.search.dto.CompanyInfo
 import kotlinx.coroutines.async
@@ -34,6 +40,9 @@ class PolicyService(
     private val surrenderValueRepository: SurrenderValueRepository,
     private val premiumExampleRepository: PremiumExampleRepository,
     private val productIndexRepository: ProductIndexRepository,
+    private val productFeatureRepository: ProductFeatureRepository,
+    private val productYieldScenarioRepository: ProductYieldScenarioRepository,
+    private val productMetricRepository: ProductMetricRepository,
 ) {
     /** 약관 조문 상세 조회 */
     suspend fun getArticleDetail(articleId: UUID): PolicyArticleResponse {
@@ -211,10 +220,55 @@ class PolicyService(
                     }
                 }
 
+            val featureDeferred =
+                async {
+                    if (needs.productFeature) {
+                        productFeatureRepository.findByProductIdIn(productIds).toList().map {
+                            ProductFeatureItem(key = it.key, value = it.value)
+                        }
+                    } else {
+                        emptyList()
+                    }
+                }
+
+            val yieldDeferred =
+                async {
+                    if (needs.yieldScenario) {
+                        productYieldScenarioRepository.findByProductIdIn(productIds).toList().map {
+                            YieldScenarioItem(
+                                scenarioType = it.scenarioType,
+                                scenarioLabel = it.scenarioLabel,
+                                yieldRate = it.yieldRate,
+                                gender = it.gender,
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    }
+                }
+
+            val metricDeferred =
+                async {
+                    if (needs.productMetric) {
+                        productMetricRepository.findByProductIdIn(productIds).toList().map {
+                            ProductMetricItem(
+                                metricType = it.metricType,
+                                metricValue = it.metricValue,
+                                referenceDate = it.referenceDate,
+                            )
+                        }
+                    } else {
+                        emptyList()
+                    }
+                }
+
             SupplementaryData(
                 surrenderValues = surrenderDeferred.await(),
                 premiumExamples = premiumDeferred.await(),
                 priceIndices = indexDeferred.await(),
+                productFeatures = featureDeferred.await(),
+                yieldScenarios = yieldDeferred.await(),
+                productMetrics = metricDeferred.await(),
             )
         }
 }

@@ -32,4 +32,10 @@ data class SupplementaryNeeds(
     val premiumExample: Boolean = false,
     @JsonPropertyDescription("가격지수 필요 여부")
     val priceIndex: Boolean = false,
+    @JsonPropertyDescription("상품 특징 필요 여부")
+    val productFeature: Boolean = false,
+    @JsonPropertyDescription("수익률 시나리오 필요 여부")
+    val yieldScenario: Boolean = false,
+    @JsonPropertyDescription("상품 지표(손해율, 해약률 등) 필요 여부")
+    val productMetric: Boolean = false,
 )

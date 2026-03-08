@@ -3,9 +3,13 @@ package com.insuranceai.chat.service
 import com.insuranceai.chat.dto.QuestionAnalysis
 import com.insuranceai.chat.dto.SourceInfo
 import com.insuranceai.chat.entity.ChatMessageEntity
+import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
+import com.insuranceai.policy.repository.ProductFeatureRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
+import com.insuranceai.policy.repository.ProductMetricRepository
 import com.insuranceai.policy.repository.ProductRepository
+import com.insuranceai.policy.repository.ProductYieldScenarioRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import com.insuranceai.search.dto.FusedSearchResult
 import kotlinx.coroutines.flow.toList
@@ -24,13 +28,17 @@ class ContextBuilder(
     private val premiumExampleRepository: PremiumExampleRepository,
     private val productIndexRepository: ProductIndexRepository,
     private val productRepository: ProductRepository,
+    private val productFeatureRepository: ProductFeatureRepository,
+    private val productYieldScenarioRepository: ProductYieldScenarioRepository,
+    private val productMetricRepository: ProductMetricRepository,
+    private val insuranceCompanyRepository: InsuranceCompanyRepository,
 ) {
     companion object {
         const val MAX_ARTICLES = 10
         const val MAX_MESSAGES = 20
-        const val TOKEN_BUDGET = 16_500
+        const val TOKEN_BUDGET = 17_500
         const val ARTICLE_BUDGET = 5_000
-        const val SUPPLEMENTARY_BUDGET = 2_000
+        const val SUPPLEMENTARY_BUDGET = 3_000
         const val HISTORY_BUDGET = 5_000
     }
 
@@ -155,10 +163,27 @@ class ContextBuilder(
         analysis: QuestionAnalysis,
     ): String {
         if (productIds.isEmpty()) return ""
-        val needs = analysis.needsSupplementary
-        if (!needs.surrenderValue && !needs.premiumExample && !needs.priceIndex) return ""
 
+        val needs = analysis.needsSupplementary
         val sb = StringBuilder("## 보충 정형 데이터\n\n")
+
+        // 상품 기본 정보 (항상 포함)
+        for (productId in productIds) {
+            val product = productRepository.findById(productId) ?: continue
+            val company = insuranceCompanyRepository.findById(product.insuranceCompanyId)
+
+            sb.appendLine("### 상품 기본 정보: ${company?.name ?: ""} ${product.name}")
+            sb.appendLine("- 카테고리: ${product.category}")
+            product.subcategory?.let { sb.appendLine("- 소분류: $it") }
+            product.renewalType?.let { sb.appendLine("- 갱신유형: $it") }
+            product.salesChannel?.let { sb.appendLine("- 판매채널: $it") }
+            product.surrenderType?.let { sb.appendLine("- 해지유형: $it") }
+            product.productType?.let { sb.appendLine("- 상품유형: $it") }
+            if (product.isUniversal) sb.appendLine("- 유니버설: 예")
+            product.expenseRatio?.let { sb.appendLine("- 사업비율: $it%") }
+            product.notes?.let { sb.appendLine("- 특이사항: $it") }
+            sb.appendLine()
+        }
 
         if (needs.surrenderValue) {
             for (productId in productIds) {
@@ -225,6 +250,49 @@ class ContextBuilder(
                         sb.appendLine(
                             "| ${idx.indexType} | ${idx.gender ?: "-"} | ${idx.coverageName ?: "-"} | ${idx.indexValue} | ${idx.baseDate} |",
                         )
+                    }
+                    sb.appendLine()
+                }
+            }
+        }
+
+        if (needs.productFeature) {
+            for (productId in productIds) {
+                val features = productFeatureRepository.findByProductId(productId).toList()
+                if (features.isNotEmpty()) {
+                    sb.appendLine("### 상품 특징")
+                    features.forEach { f ->
+                        sb.appendLine("- ${f.key}: ${f.value}")
+                    }
+                    sb.appendLine()
+                }
+            }
+        }
+
+        if (needs.yieldScenario) {
+            for (productId in productIds) {
+                val scenarios = productYieldScenarioRepository.findByProductId(productId).toList()
+                if (scenarios.isNotEmpty()) {
+                    sb.appendLine("### 수익률 시나리오")
+                    sb.appendLine("| 시나리오 | 수익률 | 성별 |")
+                    sb.appendLine("|---------|-------|------|")
+                    scenarios.forEach { s ->
+                        sb.appendLine("| ${s.scenarioLabel} | ${s.yieldRate}% | ${s.gender ?: "-"} |")
+                    }
+                    sb.appendLine()
+                }
+            }
+        }
+
+        if (needs.productMetric) {
+            for (productId in productIds) {
+                val metrics = productMetricRepository.findByProductId(productId).toList()
+                if (metrics.isNotEmpty()) {
+                    sb.appendLine("### 상품 지표")
+                    sb.appendLine("| 지표유형 | 값 | 기준일 |")
+                    sb.appendLine("|---------|---|-------|")
+                    metrics.forEach { m ->
+                        sb.appendLine("| ${m.metricType} | ${m.metricValue} | ${m.referenceDate} |")
                     }
                     sb.appendLine()
                 }

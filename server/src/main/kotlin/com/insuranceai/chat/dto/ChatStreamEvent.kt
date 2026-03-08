@@ -1,8 +1,11 @@
 package com.insuranceai.chat.dto
 
 import com.insuranceai.policy.dto.PremiumExampleItem
+import com.insuranceai.policy.dto.ProductFeatureItem
 import com.insuranceai.policy.dto.ProductIndexItem
+import com.insuranceai.policy.dto.ProductMetricItem
 import com.insuranceai.policy.dto.SurrenderValueItem
+import com.insuranceai.policy.dto.YieldScenarioItem
 import java.util.UUID
 
 /** SSE 이벤트 래퍼 (02-search-chat.md 기반) */
@@ -37,6 +40,9 @@ data class SupplementaryData(
     val surrenderValues: List<SurrenderValueItem> = emptyList(),
     val premiumExamples: List<PremiumExampleItem> = emptyList(),
     val priceIndices: List<ProductIndexItem> = emptyList(),
+    val productFeatures: List<ProductFeatureItem> = emptyList(),
+    val yieldScenarios: List<YieldScenarioItem> = emptyList(),
+    val productMetrics: List<ProductMetricItem> = emptyList(),
 )
 
 data class ErrorEvent(

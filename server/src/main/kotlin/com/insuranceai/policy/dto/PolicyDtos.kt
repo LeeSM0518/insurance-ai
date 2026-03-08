@@ -70,3 +70,24 @@ data class ProductIndexItem(
     val indexValue: BigDecimal,
     val baseDate: LocalDate,
 )
+
+/** 상품 특징 아이템 */
+data class ProductFeatureItem(
+    val key: String,
+    val value: String,
+)
+
+/** 수익률 시나리오 아이템 */
+data class YieldScenarioItem(
+    val scenarioType: String,
+    val scenarioLabel: String,
+    val yieldRate: BigDecimal,
+    val gender: String?,
+)
+
+/** 상품 지표 아이템 */
+data class ProductMetricItem(
+    val metricType: String,
+    val metricValue: BigDecimal,
+    val referenceDate: LocalDate,
+)

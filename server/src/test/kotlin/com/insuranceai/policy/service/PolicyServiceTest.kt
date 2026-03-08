@@ -6,15 +6,21 @@ import com.insuranceai.policy.entity.InsuranceCompanyEntity
 import com.insuranceai.policy.entity.PolicyArticleEntity
 import com.insuranceai.policy.entity.PremiumExampleEntity
 import com.insuranceai.policy.entity.ProductEntity
+import com.insuranceai.policy.entity.ProductFeatureEntity
 import com.insuranceai.policy.entity.ProductIndexEntity
+import com.insuranceai.policy.entity.ProductMetricEntity
+import com.insuranceai.policy.entity.ProductYieldScenarioEntity
 import com.insuranceai.policy.entity.SurrenderValueEntity
 import com.insuranceai.policy.error.PolicyError
 import com.insuranceai.policy.repository.DataSourceRepository
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PolicyArticleRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
+import com.insuranceai.policy.repository.ProductFeatureRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
+import com.insuranceai.policy.repository.ProductMetricRepository
 import com.insuranceai.policy.repository.ProductRepository
+import com.insuranceai.policy.repository.ProductYieldScenarioRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import io.mockk.coEvery
 import io.mockk.every
@@ -39,6 +45,9 @@ class PolicyServiceTest {
     private val surrenderValueRepository = mockk<SurrenderValueRepository>()
     private val premiumExampleRepository = mockk<PremiumExampleRepository>()
     private val productIndexRepository = mockk<ProductIndexRepository>()
+    private val productFeatureRepository = mockk<ProductFeatureRepository>()
+    private val productYieldScenarioRepository = mockk<ProductYieldScenarioRepository>()
+    private val productMetricRepository = mockk<ProductMetricRepository>()
 
     private val service =
         PolicyService(
@@ -49,6 +58,9 @@ class PolicyServiceTest {
             surrenderValueRepository,
             premiumExampleRepository,
             productIndexRepository,
+            productFeatureRepository,
+            productYieldScenarioRepository,
+            productMetricRepository,
         )
 
     private val companyId = UUID.randomUUID()
@@ -219,6 +231,9 @@ class PolicyServiceTest {
                 )
             every { premiumExampleRepository.findByProductIdIn(ids) } returns emptyFlow()
             every { productIndexRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productFeatureRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productYieldScenarioRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productMetricRepository.findByProductIdIn(ids) } returns emptyFlow()
 
             val result =
                 service.getSupplementaryData(
@@ -229,6 +244,9 @@ class PolicyServiceTest {
             assertEquals(1, result.surrenderValues.size)
             assertTrue(result.premiumExamples.isEmpty())
             assertTrue(result.priceIndices.isEmpty())
+            assertTrue(result.productFeatures.isEmpty())
+            assertTrue(result.yieldScenarios.isEmpty())
+            assertTrue(result.productMetrics.isEmpty())
         }
 
     @Test
@@ -265,5 +283,76 @@ class PolicyServiceTest {
                 )
 
             assertTrue(result.surrenderValues.isEmpty())
+        }
+
+    @Test
+    fun `getSupplementaryData - 새 데이터 병렬 조회`() =
+        runTest {
+            val ids = listOf(productId)
+            every { surrenderValueRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { premiumExampleRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productIndexRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productFeatureRepository.findByProductIdIn(ids) } returns
+                flowOf(
+                    ProductFeatureEntity(
+                        productId = productId,
+                        key = "납입면제",
+                        value = "3대 질병 진단 시",
+                    ),
+                )
+            every { productYieldScenarioRepository.findByProductIdIn(ids) } returns
+                flowOf(
+                    ProductYieldScenarioEntity(
+                        productId = productId,
+                        scenarioType = "STANDARD",
+                        scenarioLabel = "표준",
+                        yieldRate = BigDecimal("3.5"),
+                        gender = "M",
+                    ),
+                )
+            every { productMetricRepository.findByProductIdIn(ids) } returns
+                flowOf(
+                    ProductMetricEntity(
+                        productId = productId,
+                        metricType = "LOSS_RATIO",
+                        metricValue = BigDecimal("75.3"),
+                        referenceDate = LocalDate.of(2026, 1, 1),
+                    ),
+                )
+
+            val result =
+                service.getSupplementaryData(
+                    ids,
+                    SupplementaryNeeds(productFeature = true, yieldScenario = true, productMetric = true),
+                )
+
+            assertEquals(1, result.productFeatures.size)
+            assertEquals("납입면제", result.productFeatures[0].key)
+            assertEquals(1, result.yieldScenarios.size)
+            assertEquals("표준", result.yieldScenarios[0].scenarioLabel)
+            assertEquals(1, result.productMetrics.size)
+            assertEquals("LOSS_RATIO", result.productMetrics[0].metricType)
+        }
+
+    @Test
+    fun `getSupplementaryData - 새 플래그가 false이면 빈 리스트 반환`() =
+        runTest {
+            val ids = listOf(productId)
+            every { surrenderValueRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { premiumExampleRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productIndexRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productFeatureRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productYieldScenarioRepository.findByProductIdIn(ids) } returns emptyFlow()
+            every { productMetricRepository.findByProductIdIn(ids) } returns emptyFlow()
+
+            val result =
+                service.getSupplementaryData(
+                    ids,
+                    SupplementaryNeeds(), // 모두 false
+                )
+
+            assertTrue(result.productFeatures.isEmpty())
+            assertTrue(result.yieldScenarios.isEmpty())
+            assertTrue(result.productMetrics.isEmpty())
         }
 }

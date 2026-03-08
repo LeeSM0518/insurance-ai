@@ -7,4 +7,6 @@ import java.util.UUID
 
 interface ProductMetricRepository : CoroutineCrudRepository<ProductMetricEntity, UUID> {
     fun findByProductId(productId: UUID): Flow<ProductMetricEntity>
+
+    fun findByProductIdIn(productIds: Collection<UUID>): Flow<ProductMetricEntity>
 }
