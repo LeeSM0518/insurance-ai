@@ -15,8 +15,8 @@ class SchemaValidator(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 유효한 renewalType 값 목록 */
-    private val validRenewalTypes = setOf("RENEWAL", "NON_RENEWAL", null)
+    /** 유효한 renewalType 값 목록 (생보: RENEWAL/NON_RENEWAL, 손보: Y/N) */
+    private val validRenewalTypes = setOf("RENEWAL", "NON_RENEWAL", "Y", "N", null)
 
     suspend fun validate(product: ProductRawData): List<ValidationIssue> {
         val issues = mutableListOf<ValidationIssue>()
