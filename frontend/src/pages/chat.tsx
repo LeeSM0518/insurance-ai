@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useBlocker } from 'react-router';
 import { ChatHeader } from '@/features/chat/chat-header';
 import { ChatSidebar } from '@/features/chat/chat-sidebar';
 import { ChatMessage } from '@/features/chat/chat-message';
@@ -8,11 +9,15 @@ import { ChatInput } from '@/features/chat/chat-input';
 import { DisclaimerBanner } from '@/features/chat/disclaimer-banner';
 import { SourceTabPanel } from '@/features/chat/source-tab-panel';
 import type { SourceTab } from '@/features/chat/source-tab-panel';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { StreamingIndicator } from '@/features/chat/streaming-indicator';
+import { StreamingMessage } from '@/features/chat/streaming-message';
+import { SourceTabContent } from '@/features/chat/source-tab-content';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useResizeHandle } from '@/hooks/use-resize-handle';
-import { MOCK_SESSIONS, MOCK_MESSAGES } from '@/mocks/chat-data';
+import { useStreamingChat } from '@/hooks/use-streaming-chat';
+import { MOCK_SESSIONS } from '@/mocks/chat-data';
 import { toast } from 'sonner';
 import type { ChatSession, Source } from '@/types/chat';
 
@@ -30,10 +35,15 @@ export default function ChatPage() {
   const [openTabs, setOpenTabs] = useState<SourceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [sourcePanelWidth, setSourcePanelWidth] = useLocalStorage('chat-source-panel-width', SOURCE_PANEL_DEFAULT);
+  const [mobileSourceSheet, setMobileSourceSheet] = useState<Source | null>(null);
+
+  // 스트리밍 채팅 Hook
+  const { messages, streamingState, isStreaming, sendMessage } =
+    useStreamingChat(activeSessionId);
 
   const handleSourceResize = useCallback((width: number) => {
     setSourcePanelWidth(width);
-  }, []);
+  }, [setSourcePanelWidth]);
 
   const { handleMouseDown: handleResizeMouseDown } = useResizeHandle({
     minWidth: SOURCE_PANEL_MIN,
@@ -45,10 +55,6 @@ export default function ChatPage() {
   const session = useMemo(
     () => sessions.find((s) => s.id === activeSessionId),
     [sessions, activeSessionId],
-  );
-  const messages = useMemo(
-    () => (activeSessionId ? MOCK_MESSAGES[activeSessionId] || [] : []),
-    [activeSessionId],
   );
 
   const handleSelectSession = (id: string) => {
@@ -76,11 +82,11 @@ export default function ChatPage() {
   };
 
   const handleSend = (message: string) => {
-    toast.info(`메시지 전송: "${message}" (Mock — 실제 전송 없음)`);
+    sendMessage(message);
   };
 
   const handleSuggestedQuestion = (question: string) => {
-    toast.info(`추천 질문 선택: "${question}" (Mock — 실제 전송 없음)`);
+    sendMessage(question);
   };
 
   const handleOpenSource = (source: Source, index: number) => {
@@ -122,6 +128,34 @@ export default function ChatPage() {
       }
     }
   };
+
+  // 모바일 인라인 출처 탭 핸들러
+  const handleMobileSourceTap = useCallback((source: Source) => {
+    setMobileSourceSheet(source);
+  }, []);
+
+  // 스트리밍 중 에러 toast 표시
+  useEffect(() => {
+    if (streamingState.phase === 'error' && streamingState.errorMessage) {
+      toast.error(streamingState.errorMessage);
+    }
+  }, [streamingState.phase, streamingState.errorMessage]);
+
+  // 스트리밍 중 beforeunload 방지
+  useEffect(() => {
+    if (!isStreaming) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isStreaming]);
+
+  // 스트리밍 중 라우트 이동 방지
+  useBlocker(({ currentLocation, nextLocation }) => {
+    if (!isStreaming) return false;
+    return currentLocation.pathname !== nextLocation.pathname;
+  });
 
   const title = session?.title || '새 대화';
 
@@ -183,6 +217,7 @@ export default function ChatPage() {
                       }
                     : undefined
                 }
+                onMobileSourceTap={!isDesktop ? handleMobileSourceTap : undefined}
                 activeSourceIndex={
                   isDesktop && activeTabId && message.sources
                     ? message.sources.findIndex((s) => s.articleId === activeTabId) + 1 || null
@@ -197,11 +232,43 @@ export default function ChatPage() {
               )}
             </div>
           ))}
+
+          {/* 스트리밍 중인 AI 응답 */}
+          {isStreaming && (
+            <div>
+              {/* searching/generating 단계 인디케이터 */}
+              <StreamingIndicator phase={streamingState.phase} />
+
+              {/* sources_found 이후: 출처 카드 표시 */}
+              {streamingState.sources.length > 0 && (
+                <SourceCards
+                  sources={streamingState.sources}
+                  onSourceClick={isDesktop ? handleOpenSource : undefined}
+                  activeArticleId={isDesktop ? activeTabId : undefined}
+                />
+              )}
+
+              {/* streaming 단계: 실시간 텍스트 */}
+              {streamingState.phase === 'streaming' && streamingState.streamingContent && (
+                <StreamingMessage
+                  content={streamingState.streamingContent}
+                  onSourceClick={
+                    isDesktop
+                      ? (index) => {
+                          const source = streamingState.sources[index - 1];
+                          if (source) handleOpenSource(source, index - 1);
+                        }
+                      : undefined
+                  }
+                />
+              )}
+            </div>
+          )}
         </div>
 
         {/* 면책 고지 + 입력 영역 */}
         <DisclaimerBanner />
-        <ChatInput onSend={handleSend} />
+        <ChatInput onSend={handleSend} disabled={isStreaming} />
       </div>
 
       {/* 데스크톱 출처 사이드패널 (리사이즈 가능) */}
@@ -220,6 +287,20 @@ export default function ChatPage() {
           />
         </aside>
       )}
+
+      {/* 모바일 출처 바텀시트 */}
+      <Sheet open={!!mobileSourceSheet} onOpenChange={() => setMobileSourceSheet(null)}>
+        <SheetContent side="bottom" className="h-[70vh]">
+          <SheetHeader>
+            <SheetTitle>
+              {mobileSourceSheet?.insuranceCompany} — {mobileSourceSheet?.articleTitle}
+            </SheetTitle>
+          </SheetHeader>
+          {mobileSourceSheet && (
+            <SourceTabContent articleId={mobileSourceSheet.articleId} />
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
