@@ -18,6 +18,7 @@ data class InsuranceCompanyEntity(
     val type: String,
     val associationCode: String? = null,
     val phone: String? = null,
+    val aliases: List<String> = emptyList(),
     val isActive: Boolean = true,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = createdAt,

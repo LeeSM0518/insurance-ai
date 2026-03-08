@@ -25,6 +25,7 @@ data class ProductEntity(
     val appliedInterestRate: BigDecimal? = null,
     val declaredInterestRate: BigDecimal? = null,
     val guaranteedInterestRate: BigDecimal? = null,
+    val guaranteedInterestRateText: String? = null,
     val checksum: String? = null,
     val surrenderType: String? = null,
     val productType: String? = null,
