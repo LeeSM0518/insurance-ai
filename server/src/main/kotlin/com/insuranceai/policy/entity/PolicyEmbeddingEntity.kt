@@ -15,7 +15,7 @@ data class PolicyEmbeddingEntity(
     val id: UUID? = null,
     val policyArticleId: UUID,
     val embedding: FloatArray,
-    val embeddingModel: String = "text-embedding-3-small",
+    val embeddingModel: String = "text-embedding-3-large",
     val createdAt: Instant = Instant.now(),
 ) : Persistable<UUID> {
     override fun getId(): UUID? = id

@@ -21,7 +21,7 @@ class EmbeddingService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     companion object {
-        const val MODEL_NAME = "text-embedding-3-small"
+        const val MODEL_NAME = "text-embedding-3-large"
         const val BATCH_SIZE = 100
         const val MAX_RETRIES = 3
         const val INITIAL_DELAY_MS = 1000L

@@ -9,7 +9,7 @@ spring:
       api-key: test-api-key
       embedding:
         options:
-          model: text-embedding-3-small
+          model: text-embedding-3-large
 
 logging:
   level:
