@@ -67,7 +67,10 @@ object HtmlExcelParser {
         // 데이터 행을 문자열 리스트로 변환 (rowspan/colspan 해결)
         val resolvedData = resolveSpans(dataRows, flatHeaders.size)
 
-        return ParsedTable(flatHeaders, resolvedData)
+        // 헤더-데이터 컬럼 수 불일치 보정 (PB14 등)
+        val (alignedHeaders, alignedData) = alignHeadersWithData(flatHeaders, resolvedData)
+
+        return ParsedTable(alignedHeaders, alignedData)
     }
 
     /**
@@ -249,6 +252,65 @@ object HtmlExcelParser {
         }
 
         return result
+    }
+
+    /**
+     * 헤더-데이터 컬럼 수 불일치 보정
+     *
+     * PB14(상해) 등에서 헤더 수 < 데이터 컬럼 수인 경우,
+     * 데이터 행의 초과 컬럼(빈 값인 컬럼)을 제거하여 정렬합니다.
+     */
+    private fun alignHeadersWithData(
+        headers: List<String>,
+        dataRows: List<List<String>>,
+    ): Pair<List<String>, List<List<String>>> {
+        if (dataRows.isEmpty()) return headers to dataRows
+
+        // 데이터 행의 실제 컬럼 수 확인 (대부분의 행에서 공통적인 수)
+        val dataColCount = dataRows.first().size
+        val headerColCount = headers.size
+
+        if (dataColCount <= headerColCount) return headers to dataRows
+
+        val diff = dataColCount - headerColCount
+        logger.warn("헤더-데이터 컬럼 수 불일치 감지: 헤더=$headerColCount, 데이터=$dataColCount (차이=$diff) — 초과 컬럼 제거 시도")
+
+        // 초과 컬럼 위치 찾기: 대다수 행에서 빈 값인 컬럼을 후보로 선정
+        val emptyCounts = IntArray(dataColCount)
+        for (row in dataRows) {
+            for (i in row.indices) {
+                if (row[i].isBlank()) emptyCounts[i]++
+            }
+        }
+
+        // 빈 비율이 가장 높은 컬럼부터 diff개 선택 (헤더에 매핑되지 않는 초과 컬럼)
+        val threshold = dataRows.size * 0.5
+        val candidateIndices =
+            emptyCounts
+                .withIndex()
+                .filter { it.value >= threshold }
+                .sortedByDescending { it.value }
+                .take(diff)
+                .map { it.index }
+                .toSet()
+
+        if (candidateIndices.size < diff) {
+            // 빈 컬럼으로 충분히 제거 불가 시, 헤더를 확장
+            logger.warn("빈 컬럼이 부족하여 헤더 확장으로 보정: ${diff - candidateIndices.size}개 빈 헤더 추가")
+            val extendedHeaders = headers.toMutableList()
+            repeat(diff - candidateIndices.size) { extendedHeaders.add("") }
+            val filteredData =
+                if (candidateIndices.isNotEmpty()) {
+                    dataRows.map { row -> row.filterIndexed { idx, _ -> idx !in candidateIndices } }
+                } else {
+                    dataRows
+                }
+            return extendedHeaders to filteredData
+        }
+
+        // 초과 컬럼 제거
+        val alignedData = dataRows.map { row -> row.filterIndexed { idx, _ -> idx !in candidateIndices } }
+        return headers to alignedData
     }
 
     /**

@@ -180,6 +180,10 @@ class LifeSummaryPdfCrawler(
                             errors.add("PDF 검증 실패: ${firstInfo.companyName}_${firstInfo.productName} (fileNo=${firstInfo.fileNo})")
                         }
                     }
+                } else if (!force && Files.exists(summaryPath) && Files.size(summaryPath) > 0) {
+                    // 복수 PDF 그룹이지만 이미 분류 완료 → 스킵
+                    skipped += group.size
+                    downloadedFiles[key] = summaryPath
                 } else {
                     // 복수 PDF → 각각 임시 파일로 다운로드 후 페이지 수로 분류
                     val tmpFiles = mutableListOf<Pair<SummaryPdfInfo, Path>>()

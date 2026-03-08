@@ -115,7 +115,7 @@ object NonLifeJsonParser {
                     context = context,
                 )
             if (maleBill != null && maleBill > 0) {
-                premiums.add(PremiumData("남", 40, "", "", 0L, maleBill))
+                premiums.add(PremiumData("남", 40, "", "", 0L, premium = maleBill))
             }
             val femaleBill =
                 collector.collectOrNull(
@@ -124,7 +124,7 @@ object NonLifeJsonParser {
                     context = context,
                 )
             if (femaleBill != null && femaleBill > 0) {
-                premiums.add(PremiumData("여", 40, "", "", 0L, femaleBill))
+                premiums.add(PremiumData("여", 40, "", "", 0L, premium = femaleBill))
             }
 
             // 지수 추출

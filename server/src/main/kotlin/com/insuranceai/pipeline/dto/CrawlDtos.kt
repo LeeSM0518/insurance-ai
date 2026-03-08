@@ -45,6 +45,7 @@ data class ProductRawData(
     val appliedInterestRate: BigDecimal? = null,
     val declaredInterestRate: BigDecimal? = null,
     val guaranteedInterestRate: BigDecimal? = null,
+    val guaranteedInterestRateText: String? = null,
     val disclosureUrl: String? = null,
     val expenseRatio: BigDecimal? = null,
 )
@@ -61,7 +62,8 @@ data class PremiumData(
     val age: Int?,
     val insurancePeriod: String,
     val paymentPeriod: String,
-    val insuranceAmount: Long,
+    val insuranceAmount: Long?,
+    val insuranceAmountText: String? = null,
     val premium: Long,
 )
 

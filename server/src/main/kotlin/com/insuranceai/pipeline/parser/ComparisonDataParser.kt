@@ -7,6 +7,7 @@ import com.insuranceai.pipeline.dto.IndexData
 import com.insuranceai.pipeline.dto.PremiumData
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.dto.SurrenderData
+import com.insuranceai.pipeline.service.NotesExtractionService
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
 import java.nio.file.Path
@@ -21,6 +22,7 @@ import java.time.LocalDate
 @Component
 class ComparisonDataParser(
     private val crawlerCommon: CrawlerCommon,
+    private val notesExtractionService: NotesExtractionService? = null,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -157,13 +159,8 @@ class ComparisonDataParser(
         // 담보(보장내용) 추출
         val coverages = rows.mapNotNull { row -> extractCoverage(row, headers) }
 
-        // 공통 필드 — 갱신여부: "갱신여부" 우선 → "갱신주기" → "갱신" fallback
-        val renewalType =
-            ValueCleaner.cleanRenewalType(
-                findValue(firstRow, headers, "갱신여부")
-                    ?: findValue(firstRow, headers, "갱신주기")
-                    ?: findValue(firstRow, headers, "갱신"),
-            )
+        // 공통 필드 — 갱신여부 추출 (오매칭 방지 + 종신보험 기본값)
+        val renewalType = extractRenewalType(firstRow, headers, mapping.subcategory)
         // 채널: "판매채널" → "채널" fallback
         val salesChannel =
             findValue(firstRow, headers, "판매채널")
@@ -216,17 +213,16 @@ class ComparisonDataParser(
             } else {
                 null
             }
-        val guaranteedRate =
-            if (hasInterestRate) {
-                ValueCleaner.parseGuaranteedRate(findValue(firstRow, headers, "최저보증이율"))
-                    ?: collector.collectOrNull(
-                        ValueCleaner.parseDecimal(findValue(firstRow, headers, "최저보증이율")),
-                        field = "guaranteedInterestRate",
-                        context = context,
-                    )
-            } else {
-                null
-            }
+        val guaranteedRateRaw = if (hasInterestRate) findValue(firstRow, headers, "최저보증이율") else null
+        val guaranteedRate: java.math.BigDecimal?
+        val guaranteedRateText: String?
+        if (guaranteedRateRaw != null && ValueCleaner.isCompoundRate(guaranteedRateRaw)) {
+            guaranteedRate = null
+            guaranteedRateText = ValueCleaner.formatGuaranteedRateText(guaranteedRateRaw)
+        } else {
+            guaranteedRate = if (hasInterestRate) ValueCleaner.parseGuaranteedRate(guaranteedRateRaw) else null
+            guaranteedRateText = null
+        }
 
         // 선택적 컬럼: 경도치매 (PB16)
         val features = mutableListOf<FeatureData>()
@@ -267,6 +263,7 @@ class ComparisonDataParser(
             appliedInterestRate = appliedRate,
             declaredInterestRate = declaredRate,
             guaranteedInterestRate = guaranteedRate,
+            guaranteedInterestRateText = guaranteedRateText,
             sourceUrl = sourceUrl,
         )
     }
@@ -328,15 +325,22 @@ class ComparisonDataParser(
             HtmlExcelParser.findColumnIndex(headers, "여자")
                 ?: HtmlExcelParser.findColumnIndex(headers, "여")
 
+        val insuranceAmountRaw = amountIdx?.let { row.getOrElse(it) { "" } }
         val insuranceAmount =
             amountIdx?.let {
-                val raw = row.getOrElse(it) { "" }
                 collector.collectOrNull(
-                    ValueCleaner.parseAmount(raw),
+                    ValueCleaner.parseAmount(insuranceAmountRaw),
                     field = "insuranceAmount",
                     context = context,
-                ) ?: 0L
-            } ?: 0L
+                )
+            }
+        // 숫자 파싱 불가 시 원본 텍스트 보존
+        val insuranceAmountText =
+            if (insuranceAmount == null && insuranceAmountRaw != null && !ValueCleaner.isNull(insuranceAmountRaw)) {
+                insuranceAmountRaw.trim()
+            } else {
+                null
+            }
 
         // 특이사항에서 보험료 비교 기준 조건 추출
         val conditions =
@@ -357,6 +361,7 @@ class ComparisonDataParser(
                         insurancePeriod = conditions.insurancePeriod,
                         paymentPeriod = conditions.paymentPeriod,
                         insuranceAmount = insuranceAmount,
+                        insuranceAmountText = insuranceAmountText,
                         premium = malePremium,
                     ),
                 )
@@ -373,6 +378,7 @@ class ComparisonDataParser(
                         insurancePeriod = conditions.insurancePeriod,
                         paymentPeriod = conditions.paymentPeriod,
                         insuranceAmount = insuranceAmount,
+                        insuranceAmountText = insuranceAmountText,
                         premium = femalePremium,
                     ),
                 )
@@ -403,11 +409,14 @@ class ComparisonDataParser(
         // 계약체결비용지수
         extractGenderIndex(row, headers, "계약체결비용지수", "CONTRACT_COST", today, collector, context)?.let { indices.addAll(it) }
 
-        // 보장범위지수 (암보험 — PB22는 다중 행에 걸쳐 있을 수 있음)
+        // 보장범위지수 (암보험 — PB22는 다중 행에 걸쳐 있을 수 있음, 성별 기준 중복 제거)
         if (subcategory in ExcelParserConfig.ProtectionOptionalColumns.HAS_COVERAGE_INDEX) {
+            val coverageIndices = mutableListOf<IndexData>()
             for (r in allRows) {
-                extractGenderIndex(r, headers, "보장범위지수", "COVERAGE", today, collector, context)?.let { indices.addAll(it) }
+                extractGenderIndex(r, headers, "보장범위지수", "COVERAGE", today, collector, context)?.let { coverageIndices.addAll(it) }
             }
+            // 상품당 남/여 각 1건만 유지
+            indices.addAll(coverageIndices.distinctBy { it.gender })
         }
 
         return indices
@@ -505,13 +514,16 @@ class ComparisonDataParser(
                 field = "declaredInterestRate",
                 context = context,
             )
-        val guaranteedRate =
-            ValueCleaner.parseGuaranteedRate(findValue(firstRow, headers, "최저보증이율"))
-                ?: collector.collectOrNull(
-                    ValueCleaner.parseDecimal(findValue(firstRow, headers, "최저보증이율")),
-                    field = "guaranteedInterestRate",
-                    context = context,
-                )
+        val guaranteedRateRaw = findValue(firstRow, headers, "최저보증이율")
+        val guaranteedRate: java.math.BigDecimal?
+        val guaranteedRateText: String?
+        if (guaranteedRateRaw != null && ValueCleaner.isCompoundRate(guaranteedRateRaw)) {
+            guaranteedRate = null
+            guaranteedRateText = ValueCleaner.formatGuaranteedRateText(guaranteedRateRaw)
+        } else {
+            guaranteedRate = ValueCleaner.parseGuaranteedRate(guaranteedRateRaw)
+            guaranteedRateText = null
+        }
         val expenseRatio =
             collector.collectOrNull(
                 ValueCleaner.parseDecimal(findValue(firstRow, headers, "사업비")),
@@ -527,12 +539,7 @@ class ComparisonDataParser(
             productName = productName,
             category = mapping.category,
             subcategory = mapping.subcategory,
-            renewalType =
-                ValueCleaner.cleanRenewalType(
-                    findValue(firstRow, headers, "갱신여부")
-                        ?: findValue(firstRow, headers, "갱신주기")
-                        ?: findValue(firstRow, headers, "갱신"),
-                ),
+            renewalType = extractRenewalType(firstRow, headers, mapping.subcategory),
             salesChannel =
                 findValue(firstRow, headers, "판매채널")
                     ?: findValue(firstRow, headers, "채널"),
@@ -550,6 +557,7 @@ class ComparisonDataParser(
             phone = ValueCleaner.cleanPhone(findValue(firstRow, headers, "대표번호")),
             declaredInterestRate = declaredRate,
             guaranteedInterestRate = guaranteedRate,
+            guaranteedInterestRateText = guaranteedRateText,
             expenseRatio = expenseRatio,
             sourceUrl = sourceUrl,
         )
@@ -781,12 +789,7 @@ class ComparisonDataParser(
             productName = productName,
             category = mapping.category,
             subcategory = mapping.subcategory,
-            renewalType =
-                ValueCleaner.cleanRenewalType(
-                    findValue(firstRow, headers, "갱신여부")
-                        ?: findValue(firstRow, headers, "갱신주기")
-                        ?: findValue(firstRow, headers, "갱신"),
-                ),
+            renewalType = extractRenewalType(firstRow, headers, mapping.subcategory),
             salesChannel =
                 findValue(firstRow, headers, "판매채널")
                     ?: findValue(firstRow, headers, "채널"),
@@ -822,13 +825,8 @@ class ComparisonDataParser(
     /**
      * 특이사항에서 보험료 비교 기준 조건을 추출.
      *
-     * 생보 패턴: "보험료 기준: 40세, 보험기간: 종신, 납입기간: 20년납"
-     * 손보 패턴:
-     *   A: "40세, 상해1급, 100세만기, 20년납 기준"
-     *   B: "아파트, 건물1급, 100㎡, 10년만기 전기납 기준"
-     *   C: "60세, 상해1급, 1년만기 1년납"
-     *   D: "5세, 1급, 100세만기, 20년납"
-     *   E: "보험기간 10년, 납입기간 10년"
+     * 1차: LLM 추출 (NotesExtractionService)
+     * 2차: regex 추출 (extractPremiumConditionsRegex) — LLM 실패 시 fallback
      *
      * @param subcategory 카테고리 코드 (PB11/PB12는 나이 없어도 됨)
      */
@@ -840,6 +838,43 @@ class ComparisonDataParser(
             throw ParsingException("특이사항 누락: 보험료 기준 조건을 확인할 수 없음")
         }
 
+        // 1차: LLM 추출
+        if (notesExtractionService != null) {
+            try {
+                val result = notesExtractionService.extractConditions(notes)
+                // LLM 결과 후속 검증
+                val cleanedInsurancePeriod = ValueCleaner.cleanPeriod(result.insurancePeriod)
+                val cleanedPaymentPeriod = ValueCleaner.cleanPeriod(result.paymentPeriod)
+                if (cleanedInsurancePeriod != null && cleanedPaymentPeriod != null) {
+                    return PremiumConditions(result.age, cleanedInsurancePeriod, cleanedPaymentPeriod)
+                }
+                logger.warn(
+                    "LLM 결과 검증 실패, regex fallback: insurancePeriod=${result.insurancePeriod}, paymentPeriod=${result.paymentPeriod}",
+                )
+            } catch (e: Exception) {
+                logger.warn("LLM 추출 실패, regex fallback: ${e.message}")
+            }
+        }
+
+        // 2차: regex fallback
+        return extractPremiumConditionsRegex(notes, subcategory)
+    }
+
+    /**
+     * 특이사항에서 보험료 비교 기준 조건을 정규식으로 추출 (fallback용).
+     *
+     * 생보 패턴: "보험료 기준: 40세, 보험기간: 종신, 납입기간: 20년납"
+     * 손보 패턴:
+     *   A: "40세, 상해1급, 100세만기, 20년납 기준"
+     *   B: "아파트, 건물1급, 100㎡, 10년만기 전기납 기준"
+     *   C: "60세, 상해1급, 1년만기 1년납"
+     *   D: "5세, 1급, 100세만기, 20년납"
+     *   E: "보험기간 10년, 납입기간 10년"
+     */
+    fun extractPremiumConditionsRegex(
+        notes: String,
+        subcategory: String? = null,
+    ): PremiumConditions {
         // targetLine 찾기: "보험료", "비교기준", "기준" 키워드
         val targetLine =
             notes.lines().firstOrNull {
@@ -910,6 +945,39 @@ class ComparisonDataParser(
         }
 
         return PremiumConditions(age, insurancePeriod, paymentPeriod)
+    }
+
+    /**
+     * 갱신여부 추출 헬퍼 — "갱신여부" → "갱신주기" → "갱신" fallback
+     * "예상갱신보험료" 오매칭 방지 + 종신보험 기본값 처리
+     */
+    private fun extractRenewalType(
+        row: List<String>,
+        headers: List<String>,
+        subcategory: String?,
+    ): String? {
+        val rawValue =
+            findValue(row, headers, "갱신여부")
+                ?: findValue(row, headers, "갱신주기")
+                ?: findValueExcluding(row, headers, "갱신", listOf("보험료", "예상"))
+        val cleaned = ValueCleaner.cleanRenewalType(rawValue)
+        // 종신보험은 비갱신형이 기본
+        return cleaned ?: if (subcategory == "WHOLE_LIFE") "NON_RENEWAL" else null
+    }
+
+    /** 헤더 키워드로 값 찾기 (특정 키워드 포함 헤더 제외) */
+    private fun findValueExcluding(
+        row: List<String>,
+        headers: List<String>,
+        keyword: String,
+        excludeKeywords: List<String>,
+    ): String? {
+        val idx =
+            headers
+                .indexOfFirst { header ->
+                    header.contains(keyword) && excludeKeywords.none { header.contains(it) }
+                }.takeIf { it >= 0 } ?: return null
+        return ValueCleaner.cleanString(row.getOrElse(idx) { "" })
     }
 
     /** 헤더 키워드로 값 찾기 */

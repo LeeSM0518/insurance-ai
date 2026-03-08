@@ -117,26 +117,68 @@ object ValueCleaner {
     /** 이율/지수 클렌징: "2.70 %" → BigDecimal(2.70), "1.90(0.3)" → BigDecimal(1.90) */
     fun cleanDecimal(value: String?): BigDecimal? = parseDecimal(value).getOrNull()
 
-    /** 최저보증이율 추출: 괄호 안 또는 복합 이율 텍스트에서 최저값 반환 */
+    /** 이율 값 추출 정규식 */
+    private val RATE_REGEX = Regex("(\\d+\\.\\d+)")
+
+    /**
+     * 최저보증이율 추출: 단일 이율만 숫자 반환, 복합 이율(2개 이상)은 null 반환
+     *
+     * - 이율 값 1개 → 해당 값 반환
+     * - 이율 값 2개 이상 (괄호, 기간별, 복합) → null (원본 텍스트 보존은 호출자 책임)
+     */
     fun parseGuaranteedRate(value: String?): BigDecimal? {
         if (isNull(value)) return null
         val trimmed = value!!.trim()
 
-        // 패턴 1: 괄호가 있으면 괄호 안에서 추출
-        val parenContent = Regex("\\((.+)\\)").find(trimmed)?.groupValues?.get(1)
-        if (parenContent != null) {
-            val firstDecimal = Regex("(\\d+\\.\\d+)").find(parenContent)?.groupValues?.get(1)
-            if (firstDecimal != null) return firstDecimal.toBigDecimalOrNull()
-            val firstNum = Regex("(\\d+\\.?\\d*)").find(parenContent)?.groupValues?.get(1)
-            return firstNum?.toBigDecimalOrNull()
+        // 모든 소수점 숫자 추출
+        val allRates = RATE_REGEX.findAll(trimmed).map { it.groupValues[1].toBigDecimal() }.toList()
+
+        // 이율 값이 정확히 1개 → 숫자 저장
+        if (allRates.size == 1) return allRates[0]
+
+        // 이율 값이 2개 이상 → null (복합 이율)
+        return null
+    }
+
+    /** 복합 이율 여부 판정: 이율 값이 2개 이상이면 true */
+    fun isCompoundRate(value: String?): Boolean {
+        if (isNull(value)) return false
+        val trimmed = value!!.trim()
+        val rateCount = RATE_REGEX.findAll(trimmed).count()
+        return rateCount >= 2
+    }
+
+    /** 단순 괄호 패턴 정규식: "1.90(0.3)" */
+    private val SIMPLE_PAREN_REGEX = Regex("^(\\d+\\.\\d+)\\s*\\((\\d+\\.?\\d*)\\)$")
+
+    /**
+     * 최저보증이율 원본 텍스트 포맷: 복합 이율일 때만 호출
+     *
+     * - 단순 괄호 "1.90(0.3)" → "공시이율 1.90%, 최저보증이율 0.3%"
+     * - 나머지 (기간별, 복합 텍스트) → 원본 그대로 반환
+     */
+    fun formatGuaranteedRateText(value: String?): String? {
+        if (isNull(value)) return null
+        val trimmed = value!!.trim()
+
+        val simpleMatch = SIMPLE_PAREN_REGEX.find(trimmed)
+        if (simpleMatch != null) {
+            val declared = simpleMatch.groupValues[1]
+            val guaranteed = simpleMatch.groupValues[2]
+            return "공시이율 $declared%, 최저보증이율 $guaranteed%"
         }
 
-        // 패턴 2: 복합 이율 텍스트 (여러 이율이 나열된 경우) → 최저값 추출
-        // 예: "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%"
-        val allRates = Regex("(\\d+\\.\\d+)\\s*%").findAll(trimmed).map { it.groupValues[1].toBigDecimal() }.toList()
-        if (allRates.size >= 2) return allRates.min()
+        return trimmed
+    }
 
-        return null
+    /** 유효 기간 패턴 (LLM 결과 후속 검증용) */
+    private val VALID_PERIOD_PATTERN =
+        Regex("^(\\d+년납?|\\d+세만기?|종신|전기납|일시납|\\d+년만기|\\d+개월)$")
+
+    /** 기간 값 검증: 유효 패턴이면 반환, 아니면 null */
+    fun cleanPeriod(value: String?): String? {
+        val cleaned = cleanString(value) ?: return null
+        return if (VALID_PERIOD_PATTERN.matches(cleaned)) cleaned else null
     }
 
     /** 정수 파싱: ParseResult 반환 */
