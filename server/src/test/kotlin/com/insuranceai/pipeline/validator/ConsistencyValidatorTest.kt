@@ -2,6 +2,7 @@ package com.insuranceai.pipeline.validator
 
 import com.insuranceai.pipeline.dto.CoverageData
 import com.insuranceai.pipeline.dto.ProductRawData
+import com.insuranceai.pipeline.dto.SurrenderData
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -14,11 +15,13 @@ class ConsistencyValidatorTest {
         name: String = "테스트 보험",
         category: String = "종신보험",
         coverages: List<CoverageData> = listOf(CoverageData("사망", "사망 시", "1억원", "MAIN")),
+        surrenderValues: List<SurrenderData> = emptyList(),
     ) = ProductRawData(
         companyName = company,
         productName = name,
         category = category,
         coverages = coverages,
+        surrenderValues = surrenderValues,
         checksum = "abc123",
     )
 
@@ -56,7 +59,7 @@ class ConsistencyValidatorTest {
     }
 
     @Test
-    fun `보장내용이 없는 상품은 L3 에러`() {
+    fun `보장성 상품에서 보장내용이 없으면 L3 에러`() {
         val products = listOf(product(coverages = emptyList()))
         val issues = validator.validate(products)
         assertTrue(issues.any { it.level == "L3" && it.type == IssueType.ERROR && it.message.contains("보장내용") })
@@ -67,6 +70,28 @@ class ConsistencyValidatorTest {
         val products = listOf(product())
         val issues = validator.validate(products)
         assertTrue(issues.none { it.type == IssueType.ERROR })
+    }
+
+    @Test
+    fun `저축성 상품은 coverages 없어도 에러가 아니다`() {
+        val surrenderData = listOf(SurrenderData(elapsedMonths = 12, surrenderValue = 1_000_000L))
+        val products =
+            listOf(
+                product(category = "SAVINGS", coverages = emptyList(), surrenderValues = surrenderData),
+                product(category = "VARIABLE_SAVINGS", coverages = emptyList(), surrenderValues = surrenderData),
+                product(category = "PENSION", coverages = emptyList(), surrenderValues = surrenderData),
+                product(category = "NL_SAVINGS", coverages = emptyList(), surrenderValues = surrenderData),
+                product(category = "NL_PENSION", coverages = emptyList(), surrenderValues = surrenderData),
+            )
+        val issues = validator.validate(products)
+        assertTrue(issues.none { it.type == IssueType.ERROR })
+    }
+
+    @Test
+    fun `저축성 상품에서 해약환급금이 없으면 경고`() {
+        val products = listOf(product(category = "SAVINGS", coverages = emptyList()))
+        val issues = validator.validate(products)
+        assertTrue(issues.any { it.level == "L3" && it.type == IssueType.WARNING && it.message.contains("해약환급금") })
     }
 
     @Test

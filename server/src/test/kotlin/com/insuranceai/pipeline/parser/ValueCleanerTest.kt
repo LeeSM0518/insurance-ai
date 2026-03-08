@@ -111,6 +111,18 @@ class ValueCleanerTest {
         }
 
         @Test
+        fun `복합 이율 텍스트 — 최저값 추출`() {
+            assertEquals(
+                0,
+                BigDecimal("0.5").compareTo(
+                    ValueCleaner.parseGuaranteedRate(
+                        "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%",
+                    ),
+                ),
+            )
+        }
+
+        @Test
         fun `null 표현은 null 반환`() {
             assertNull(ValueCleaner.parseGuaranteedRate("-"))
             assertNull(ValueCleaner.parseGuaranteedRate(null))
@@ -219,6 +231,12 @@ class ValueCleanerTest {
             check(result is ParseResult.Failure)
             assertEquals("약 천만원", result.rawValue)
         }
+
+        @Test
+        fun `텍스트 금액(실손의료보험) — Empty 반환`() {
+            assertTrue(ValueCleaner.parseAmount("용어해설참조") is ParseResult.Empty)
+            assertTrue(ValueCleaner.parseAmount("용어해설 참조") is ParseResult.Empty)
+        }
     }
 
     @Nested
@@ -240,6 +258,15 @@ class ValueCleanerTest {
         fun `미지원 포맷 — Failure 반환`() {
             val result = ValueCleaner.parseDecimal("미공시")
             assertTrue(result is ParseResult.Failure)
+        }
+
+        @Test
+        fun `복합 이율 텍스트 — Empty 반환`() {
+            val result =
+                ValueCleaner.parseDecimal(
+                    "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%",
+                )
+            assertTrue(result is ParseResult.Empty)
         }
     }
 

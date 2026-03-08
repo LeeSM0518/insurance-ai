@@ -10,6 +10,9 @@ import java.time.format.DateTimeParseException
  */
 object ValueCleaner {
     private val NULL_EXPRESSIONS = setOf("-", "해당없음", "NaN", "nan", "N/A", "n/a", "", " ")
+
+    /** 금액 필드에서 참조 텍스트(실손의료보험 '용어해설참조' 등)를 Empty 처리하는 표현 */
+    private val REFERENCE_EXPRESSIONS = setOf("용어해설참조", "용어해설 참조", "별도참조", "별도 참조")
     private val COMMA_REGEX = Regex("[,\\s]")
     private val WON_SUFFIX_REGEX = Regex("\\s*원\\s*$")
     private val PERCENT_SUFFIX_REGEX = Regex("\\s*%\\s*$")
@@ -61,6 +64,9 @@ object ValueCleaner {
             return ParseResult.Success((num * BigDecimal(10_000)).toLong())
         }
 
+        // 참조 텍스트(실손의료보험 '용어해설참조' 등) → 데이터 없음
+        if (trimmed in REFERENCE_EXPRESSIONS) return ParseResult.Empty
+
         // 일반 금액 (콤마, 공백, '원' 제거)
         val cleaned =
             trimmed
@@ -79,11 +85,16 @@ object ValueCleaner {
     /** 괄호 앞 숫자 추출 정규식: "1.90(0.3)" → "1.90" */
     private val PARENTHESIS_PREFIX_REGEX = Regex("^(\\d+\\.?\\d*)\\s*\\(")
 
+    /** 복합 이율 텍스트 패턴: 여러 이율이 나열된 텍스트 → parseDecimal에서는 Empty 처리 */
+    private val COMPOUND_RATE_REGEX = Regex("\\d+\\.\\d+%.*\\d+\\.\\d+%")
+
     /** 소수 파싱: ParseResult 반환 */
     fun parseDecimal(value: String?): ParseResult<BigDecimal> {
         if (value == null) return ParseResult.Empty
         val trimmed = value.trim()
         if (trimmed in NULL_EXPRESSIONS) return ParseResult.Empty
+        // 복합 이율 텍스트는 단일 소수로 변환 불가 → Empty (parseGuaranteedRate에서 처리)
+        if (COMPOUND_RATE_REGEX.containsMatchIn(trimmed)) return ParseResult.Empty
 
         var cleaned =
             trimmed
@@ -106,17 +117,26 @@ object ValueCleaner {
     /** 이율/지수 클렌징: "2.70 %" → BigDecimal(2.70), "1.90(0.3)" → BigDecimal(1.90) */
     fun cleanDecimal(value: String?): BigDecimal? = parseDecimal(value).getOrNull()
 
-    /** 최저보증이율 추출: 괄호 안 첫 번째 소수점 숫자를 최저보증이율로 반환 */
+    /** 최저보증이율 추출: 괄호 안 또는 복합 이율 텍스트에서 최저값 반환 */
     fun parseGuaranteedRate(value: String?): BigDecimal? {
         if (isNull(value)) return null
         val trimmed = value!!.trim()
-        val parenContent = Regex("\\((.+)\\)").find(trimmed)?.groupValues?.get(1) ?: return null
-        // 괄호 안에서 첫 번째 소수점 포함 숫자 추출
-        val firstDecimal = Regex("(\\d+\\.\\d+)").find(parenContent)?.groupValues?.get(1)
-        if (firstDecimal != null) return firstDecimal.toBigDecimalOrNull()
-        // 소수점 없는 단일 숫자도 시도
-        val firstNum = Regex("(\\d+\\.?\\d*)").find(parenContent)?.groupValues?.get(1)
-        return firstNum?.toBigDecimalOrNull()
+
+        // 패턴 1: 괄호가 있으면 괄호 안에서 추출
+        val parenContent = Regex("\\((.+)\\)").find(trimmed)?.groupValues?.get(1)
+        if (parenContent != null) {
+            val firstDecimal = Regex("(\\d+\\.\\d+)").find(parenContent)?.groupValues?.get(1)
+            if (firstDecimal != null) return firstDecimal.toBigDecimalOrNull()
+            val firstNum = Regex("(\\d+\\.?\\d*)").find(parenContent)?.groupValues?.get(1)
+            return firstNum?.toBigDecimalOrNull()
+        }
+
+        // 패턴 2: 복합 이율 텍스트 (여러 이율이 나열된 경우) → 최저값 추출
+        // 예: "3년 이내 연복리 1.0%, 3년 초과 5년 이내 연복리 0.75%, 5년 초과 연복리 0.5%"
+        val allRates = Regex("(\\d+\\.\\d+)\\s*%").findAll(trimmed).map { it.groupValues[1].toBigDecimal() }.toList()
+        if (allRates.size >= 2) return allRates.min()
+
+        return null
     }
 
     /** 정수 파싱: ParseResult 반환 */
