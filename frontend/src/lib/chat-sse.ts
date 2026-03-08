@@ -1,4 +1,5 @@
 import { getAccessToken } from './token-storage';
+import { logSseStart, logSseEvent, logSseComplete, logSseError } from './api-logger';
 import type { Source } from '@/types/chat';
 import type { DataSource } from '@/types/policy';
 
@@ -74,6 +75,7 @@ function parseSseEvents(chunk: string, buffer: string): { events: ParsedSSEEvent
 /** SSE 스트림 처리 공통 로직 */
 async function processStream(
   response: Response,
+  url: string,
   options: Omit<ChatSSEOptions, 'sessionId' | 'content'>,
 ): Promise<void> {
   const reader = response.body?.getReader();
@@ -81,6 +83,7 @@ async function processStream(
 
   const decoder = new TextDecoder();
   let buffer = '';
+  const streamStart = performance.now();
 
   try {
     while (true) {
@@ -92,6 +95,7 @@ async function processStream(
       buffer = remaining;
 
       for (const event of events) {
+        logSseEvent(url, event.type, event.data);
         switch (event.type) {
           case 'searching': {
             const data = event.data as { message: string };
@@ -133,6 +137,7 @@ async function processStream(
       }
     }
   } finally {
+    logSseComplete(url, performance.now() - streamStart);
     reader.releaseLock();
   }
 }
@@ -140,24 +145,29 @@ async function processStream(
 /** 기존 세션에서 새 메시지 전송 (POST /messages) */
 export async function streamChatMessage(options: ChatSSEOptions): Promise<void> {
   const { sessionId, content, signal, ...callbacks } = options;
+  const url = `/api/v1/chat/sessions/${sessionId}/messages`;
+  const body = { content };
 
-  const response = await fetch(`/api/v1/chat/sessions/${sessionId}/messages`, {
+  logSseStart('POST', url, body);
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${getAccessToken()}`,
     },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(body),
     signal,
   });
 
   if (!response.ok) {
+    logSseError(url, response.status);
     if (response.status === 401) throw new Error('AUTH_EXPIRED');
     if (response.status === 429) throw new Error('잠시 후 다시 시도해주세요');
     throw new Error(`서버 오류가 발생했습니다 (${response.status})`);
   }
 
-  await processStream(response, callbacks);
+  await processStream(response, url, callbacks);
 }
 
 /** 세션 생성 직후 initial_message에 대한 AI 응답 트리거 (POST /reply) */
@@ -166,8 +176,11 @@ export async function streamReply(
   options: Omit<ChatSSEOptions, 'sessionId' | 'content'>,
 ): Promise<void> {
   const { signal, ...callbacks } = options;
+  const url = `/api/v1/chat/sessions/${sessionId}/reply`;
 
-  const response = await fetch(`/api/v1/chat/sessions/${sessionId}/reply`, {
+  logSseStart('POST', url);
+
+  const response = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${getAccessToken()}`,
@@ -176,10 +189,11 @@ export async function streamReply(
   });
 
   if (!response.ok) {
+    logSseError(url, response.status);
     if (response.status === 401) throw new Error('AUTH_EXPIRED');
     if (response.status === 429) throw new Error('잠시 후 다시 시도해주세요');
     throw new Error(`서버 오류가 발생했습니다 (${response.status})`);
   }
 
-  await processStream(response, callbacks);
+  await processStream(response, url, callbacks);
 }

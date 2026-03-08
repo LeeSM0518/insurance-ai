@@ -1,5 +1,6 @@
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { axiosInstance, getApi } from './api';
+import { logRequest, logResponse, logError, getRequestStartTime } from './api-logger';
 import {
   getAccessToken,
   getRefreshToken,
@@ -27,19 +28,28 @@ function processQueue(error: unknown, token: string | null) {
   failedQueue = [];
 }
 
-// Request 인터셉터: Authorization 헤더 추가
+// Request 인터셉터: Authorization 헤더 추가 + 로깅
 axiosInstance.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getAccessToken();
   if (token && !config.url?.includes('/auth/refresh')) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  logRequest(config);
   return config;
 });
 
-// Response 인터셉터: 401 시 토큰 자동 갱신
+// Response 인터셉터: 로깅 + 401 시 토큰 자동 갱신
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    logResponse(response);
+    return response;
+  },
   async (error: AxiosError) => {
+    const config = error.config;
+    if (config) {
+      const method = (config.method ?? 'GET').toUpperCase();
+      logError(method, config.url ?? '', error.response?.status, error.response?.data, getRequestStartTime(config));
+    }
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };

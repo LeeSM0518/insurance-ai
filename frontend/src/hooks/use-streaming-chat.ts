@@ -68,6 +68,11 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
   const abortRef = useRef<AbortController | null>(null);
   const lastMessageRef = useRef<string | null>(null);
   const lastIsInitialRef = useRef(false);
+  // Ref로 스트리밍 중 누적 데이터 추적 (updater 내 side-effect 방지)
+  const streamingDataRef = useRef<{ content: string; sources: Source[] }>({
+    content: '',
+    sources: [],
+  });
 
   // 세션 변경 시 메시지 이력 API 호출
   useEffect(() => {
@@ -113,6 +118,9 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // 스트리밍 데이터 초기화
+      streamingDataRef.current = { content: '', sources: [] };
+
       // 콜백 정의
       const callbacks = {
         onSearching: () => {
@@ -123,6 +131,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
           }));
         },
         onSourcesFound: (sources: Source[]) => {
+          streamingDataRef.current.sources = sources;
           setStreamingState((prev) => ({
             ...prev,
             phase: 'sources_found',
@@ -136,6 +145,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
           }));
         },
         onToken: (token: string) => {
+          streamingDataRef.current.content += token;
           setStreamingState((prev) => ({
             ...prev,
             phase: 'streaming',
@@ -143,19 +153,18 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
           }));
         },
         onDone: ({ messageId, suggestedQuestions }: { messageId: string; suggestedQuestions: string[] }) => {
-          // 스트리밍 완료 → 최종 메시지로 추가
-          setStreamingState((prev) => {
-            const aiMessage: ChatMessage = {
-              id: messageId,
-              role: 'ASSISTANT',
-              content: prev.streamingContent,
-              sources: prev.sources.length > 0 ? prev.sources : undefined,
-              suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : undefined,
-              createdAt: new Date().toISOString(),
-            };
-            setMessages((msgs) => [...msgs, aiMessage]);
-            return INITIAL_STATE;
-          });
+          // Ref에서 누적 데이터를 읽어 메시지 생성 (updater 내 side-effect 방지)
+          const { content: streamedContent, sources } = streamingDataRef.current;
+          const aiMessage: ChatMessage = {
+            id: messageId,
+            role: 'ASSISTANT',
+            content: streamedContent,
+            sources: sources.length > 0 ? sources : undefined,
+            suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : undefined,
+            createdAt: new Date().toISOString(),
+          };
+          setMessages((msgs) => [...msgs, aiMessage]);
+          setStreamingState(INITIAL_STATE);
           lastMessageRef.current = null;
           lastIsInitialRef.current = false;
         },
