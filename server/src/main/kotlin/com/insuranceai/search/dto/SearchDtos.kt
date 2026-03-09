@@ -26,6 +26,7 @@ data class KeywordSearchResult(
     val content: String,
     val dataSource: String?,
     val rank: Int,
+    val matchQuality: Float = 0f,
 )
 
 /** 벡터 검색 결과 */
@@ -44,7 +45,7 @@ data class VectorSearchResult(
     val similarity: Float,
 )
 
-/** RRF 통합 결과 */
+/** 하이브리드 검색 통합 결과 (Convex Combination) */
 data class FusedSearchResult(
     val articleId: UUID,
     val productId: UUID,
@@ -60,6 +61,8 @@ data class FusedSearchResult(
     val relevanceScore: Float,
     val keywordRank: Int?,
     val vectorRank: Int?,
+    val keywordNormalizedScore: Float? = null,
+    val vectorNormalizedScore: Float? = null,
 )
 
 /** 검색 API 요청 */

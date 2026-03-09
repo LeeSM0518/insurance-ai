@@ -52,6 +52,7 @@ class PolicyArticleJooqRepository(
     /**
      * pg_bigm LIKE 기반 키워드 검색.
      * V6 마이그레이션의 gin(content gin_bigm_ops) 인덱스를 활용합니다.
+     * match_quality: 제목 매칭(0.4) + 본문 기본(0.3) + 등장 빈도(최대 0.2) + 앞부분 보너스(0.1)
      */
     suspend fun searchByKeyword(
         query: String,
@@ -60,6 +61,33 @@ class PolicyArticleJooqRepository(
     ): List<KeywordSearchResult> =
         withContext(Dispatchers.IO) {
             val likePattern = "%$query%"
+            val queryLower = query.lowercase()
+
+            // match_quality 계산 필드
+            val matchQualityField =
+                DSL
+                    .field(
+                        """
+                        (
+                            CASE WHEN {0} ILIKE {1} THEN 0.4 ELSE 0.0 END
+                            + 0.3
+                            + LEAST(
+                                (LENGTH(LOWER({2})) - LENGTH(REPLACE(LOWER({2}), {3}, '')))::float
+                                / NULLIF(LENGTH({3}), 0) * 0.04,
+                                0.2
+                              )
+                            + CASE WHEN POSITION({4} IN {2}) > 0
+                                   AND POSITION({4} IN {2}) < LENGTH({2}) * 0.2
+                                   THEN 0.1 ELSE 0.0 END
+                        )
+                        """.trimIndent(),
+                        Float::class.java,
+                        paArticleTitle,
+                        DSL.inline(likePattern),
+                        paContent,
+                        DSL.inline(queryLower),
+                        DSL.inline(query),
+                    )
 
             var step =
                 dsl
@@ -75,6 +103,7 @@ class PolicyArticleJooqRepository(
                         paArticleTitle,
                         paContent,
                         dsSourceType,
+                        matchQualityField.`as`("match_quality"),
                     ).from(policyArticles)
                     .join(products)
                     .on(paProductId.eq(pId))
@@ -88,16 +117,11 @@ class PolicyArticleJooqRepository(
             // 동적 필터 적용
             step = applyFilters(step, filters)
 
-            // title 매칭 우선, 그 외 content 매칭
+            // match_quality 내림차순 정렬
             val result =
                 step
-                    .orderBy(
-                        DSL
-                            .`when`(
-                                paArticleTitle.likeIgnoreCase(likePattern),
-                                DSL.inline(0),
-                            ).otherwise(DSL.inline(1)),
-                    ).limit(limit)
+                    .orderBy(DSL.field("match_quality").desc())
+                    .limit(limit)
 
             Flux
                 .from(result)
@@ -117,6 +141,7 @@ class PolicyArticleJooqRepository(
                         content = record.get(paContent)!!,
                         dataSource = record.get(dsSourceType),
                         rank = index + 1,
+                        matchQuality = record.get("match_quality", Float::class.java) ?: 0.3f,
                     )
                 }
         }

@@ -8,65 +8,82 @@ import java.util.UUID
 
 @Service
 class RankFusionService {
-    /** RRF 통합 (k=60) */
+    companion object {
+        const val SINGLE_MATCH_SCALE = 0.8f // 한쪽 retriever만 매칭 시 최대 80%
+    }
+
+    /**
+     * Convex Combination 기반 하이브리드 검색 결합.
+     * 업계 표준 (Weaviate relativeScoreFusion, Elasticsearch linear retriever)과 동일한 방식.
+     *
+     * @param alpha 벡터 비중 (0=키워드만, 1=벡터만, 기본값 0.5)
+     */
     fun fuse(
         keywordResults: List<KeywordSearchResult>,
         vectorResults: List<VectorSearchResult>,
-        k: Int = 60,
+        alpha: Float = 0.5f,
     ): List<FusedSearchResult> {
-        // articleId → (키워드 RRF 점수, 벡터 RRF 점수, 키워드 rank, 벡터 rank)
+        if (keywordResults.isEmpty() && vectorResults.isEmpty()) return emptyList()
+
+        // 각 retriever 점수를 개별 Min-Max 정규화
+        val vectorNorm = MinMaxNormalizer(vectorResults.map { it.similarity })
+        val keywordNorm = MinMaxNormalizer(keywordResults.map { it.matchQuality })
+
+        // articleId → 정규화된 점수 및 메타데이터 수집
         data class ScoreEntry(
-            val keywordScore: Float = 0f,
-            val vectorScore: Float = 0f,
+            val keywordNormScore: Float? = null,
+            val vectorNormScore: Float? = null,
             val keywordRank: Int? = null,
             val vectorRank: Int? = null,
         )
 
         val scoreMap = mutableMapOf<UUID, ScoreEntry>()
 
-        // 키워드 결과 RRF 점수 계산
+        // 키워드 결과 정규화
         keywordResults.forEach { result ->
-            val rrfScore = 1f / (k + result.rank)
+            val normalizedScore = keywordNorm.normalize(result.matchQuality)
             scoreMap[result.articleId] =
                 ScoreEntry(
-                    keywordScore = rrfScore,
+                    keywordNormScore = normalizedScore,
                     keywordRank = result.rank,
                 )
         }
 
-        // 벡터 결과 RRF 점수 계산 (similarity 내림차순으로 이미 정렬된 상태)
+        // 벡터 결과 정규화 (similarity 내림차순 정렬 상태)
         vectorResults.forEachIndexed { index, result ->
-            val vectorRank = index + 1
-            val rrfScore = 1f / (k + vectorRank)
+            val normalizedScore = vectorNorm.normalize(result.similarity)
             val existing = scoreMap[result.articleId]
             scoreMap[result.articleId] =
                 ScoreEntry(
-                    keywordScore = existing?.keywordScore ?: 0f,
-                    vectorScore = rrfScore,
+                    keywordNormScore = existing?.keywordNormScore,
+                    vectorNormScore = normalizedScore,
                     keywordRank = existing?.keywordRank,
-                    vectorRank = vectorRank,
+                    vectorRank = index + 1,
                 )
         }
 
-        // 통합 점수 계산
-        val rawScores = scoreMap.mapValues { (_, entry) -> entry.keywordScore + entry.vectorScore }
-
-        // min-max 정규화
-        val minScore = rawScores.values.minOrNull() ?: 0f
-        val maxScore = rawScores.values.maxOrNull() ?: 0f
-        val scoreRange = maxScore - minScore
-
-        // 모든 결과 매핑을 위한 lookup 구성
+        // 메타데이터 lookup 구성
         val keywordMap = keywordResults.associateBy { it.articleId }
         val vectorMap = vectorResults.associateBy { it.articleId }
 
         return scoreMap
             .map { (articleId, entry) ->
-                val rawScore = rawScores[articleId]!!
-                val normalizedScore =
-                    if (scoreRange > 0f) (rawScore - minScore) / scoreRange else 1f
+                val finalScore =
+                    when {
+                        // 양쪽 매칭: 기존 Convex Combination
+                        entry.keywordNormScore != null && entry.vectorNormScore != null ->
+                            alpha * entry.vectorNormScore + (1f - alpha) * entry.keywordNormScore
 
-                // 키워드 결과 또는 벡터 결과에서 메타데이터 추출
+                        // 한쪽만 매칭: SINGLE_MATCH_SCALE 적용 (alpha 값과 무관)
+                        entry.keywordNormScore != null ->
+                            SINGLE_MATCH_SCALE * entry.keywordNormScore
+
+                        entry.vectorNormScore != null ->
+                            SINGLE_MATCH_SCALE * entry.vectorNormScore
+
+                        else -> 0f
+                    }
+
                 val keyword = keywordMap[articleId]
                 val vector = vectorMap[articleId]
 
@@ -82,11 +99,21 @@ class RankFusionService {
                     articleTitle = keyword?.articleTitle ?: vector?.articleTitle,
                     content = keyword?.content ?: vector!!.content,
                     dataSource = keyword?.dataSource ?: vector?.dataSource,
-                    relevanceScore = normalizedScore,
+                    relevanceScore = finalScore,
                     keywordRank = entry.keywordRank,
                     vectorRank = entry.vectorRank,
+                    keywordNormalizedScore = entry.keywordNormScore,
+                    vectorNormalizedScore = entry.vectorNormScore,
                 )
             }.sortedByDescending { it.relevanceScore }
+            .let { results -> renormalize(results) }
+    }
+
+    /** 최종 결과를 Min-Max 재정규화하여 최고 점수를 1.0으로 매핑 */
+    private fun renormalize(results: List<FusedSearchResult>): List<FusedSearchResult> {
+        if (results.isEmpty()) return results
+        val normalizer = MinMaxNormalizer(results.map { it.relevanceScore })
+        return results.map { it.copy(relevanceScore = normalizer.normalize(it.relevanceScore)) }
     }
 
     /** 다양성 보장: 보험사별 최대 maxPerCompany개 */
@@ -98,4 +125,15 @@ class RankFusionService {
             .groupBy { it.companyId }
             .flatMap { (_, group) -> group.take(maxPerCompany) }
             .sortedByDescending { it.relevanceScore }
+}
+
+/** 결과셋 내 Min-Max 정규화 유틸리티 */
+class MinMaxNormalizer(
+    scores: List<Float>,
+) {
+    private val min: Float = scores.minOrNull() ?: 0f
+    private val max: Float = scores.maxOrNull() ?: 0f
+    private val range: Float = max - min
+
+    fun normalize(value: Float): Float = if (range > 0f) (value - min) / range else 1f
 }
