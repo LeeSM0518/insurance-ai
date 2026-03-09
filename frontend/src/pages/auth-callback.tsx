@@ -29,16 +29,25 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    // React Strict Mode 이중 호출 방지
+    // sessionStorage로 code 중복 사용 방지 (새로고침, 뒤로가기 대응)
+    const processedKey = `oauth_code_processed_${code}`;
+    if (sessionStorage.getItem(processedKey)) {
+      setError('이미 처리된 인증 코드입니다. 다시 로그인해주세요.');
+      return;
+    }
+
+    // React StrictMode 이중 호출 방지
     if (isProcessing.current) return;
     isProcessing.current = true;
+    sessionStorage.setItem(processedKey, 'true');
 
     handleOAuthCallback(code);
   }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleOAuthCallback(code: string) {
+    // 1단계: API 호출
+    let loginData;
     try {
-      // authorization_code를 백엔드로 전송하여 토큰 교환 + 로그인 처리
       const loginResponse = await getApi().login({
         loginRequest: {
           code,
@@ -46,16 +55,30 @@ export default function AuthCallbackPage() {
         },
       });
 
-      const loginData = loginResponse.data.data;
+      loginData = loginResponse.data.data;
       if (!loginData) {
-        throw new Error('Login response data is empty');
+        console.error('[auth-callback] loginData가 비어있음:', loginResponse.data);
+        setError('서버 응답에 로그인 정보가 없습니다.');
+        return;
       }
-
-      login(loginData);
-      navigate('/', { replace: true });
-    } catch {
-      setError('로그인 처리 중 오류가 발생했습니다.');
+    } catch (err) {
+      console.error('[auth-callback] API 호출 실패:', err);
+      setError('로그인 서버와 통신 중 오류가 발생했습니다.');
+      return;
     }
+
+    // 2단계: 토큰 저장 및 상태 업데이트
+    try {
+      login(loginData);
+    } catch (err) {
+      console.error('[auth-callback] 토큰 저장 실패:', err);
+      setError('로그인 정보 저장 중 오류가 발생했습니다.');
+      return;
+    }
+
+    // 3단계: 페이지 이동 (성공 시 code 처리 기록 정리)
+    sessionStorage.removeItem(`oauth_code_processed_${code}`);
+    navigate('/', { replace: true });
   }
 
   if (error) {
