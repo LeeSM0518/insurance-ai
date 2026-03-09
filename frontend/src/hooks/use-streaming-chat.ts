@@ -78,6 +78,14 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
 
   // 세션 변경 시 메시지 이력 API 호출
   useEffect(() => {
+    // 현재 스트리밍 중인 세션과 동일한 세션이면 abort 하지 않음
+    // (새 세션 생성 직후 streamReply가 이미 시작된 경우)
+    // abortRef.current !== null 조건으로 스트리밍이 실제 진행 중일 때만 건너뜀
+    // (스트리밍 완료 후 세션 재전환 시 메시지 이력이 정상 로드되도록 보장)
+    if (lastSessionIdRef.current === sessionId && abortRef.current !== null) {
+      return;
+    }
+
     abortRef.current?.abort();
     setStreamingState(INITIAL_STATE);
 
@@ -247,14 +255,18 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
       const effectiveSessionId = overrideSessionId ?? sessionId;
       if (!effectiveSessionId) return;
 
-      if (!isInitialMessage) {
-        // 사용자 메시지를 UI에 즉시 추가 (낙관적 업데이트)
-        const userMessage: ChatMessage = {
-          id: `msg-${Date.now()}`,
-          role: 'USER',
-          content,
-          createdAt: new Date().toISOString(),
-        };
+      // 사용자 메시지를 UI에 즉시 추가 (낙관적 업데이트)
+      const userMessage: ChatMessage = {
+        id: `msg-${Date.now()}`,
+        role: 'USER',
+        content,
+        createdAt: new Date().toISOString(),
+      };
+      if (isInitialMessage) {
+        // 새 세션: useEffect 메시지 이력 로드를 건너뛰므로 낙관적 업데이트
+        setMessages([userMessage]);
+      } else {
+        // 기존 세션: 기존 메시지에 추가
         setMessages((prev) => [...prev, userMessage]);
       }
 
