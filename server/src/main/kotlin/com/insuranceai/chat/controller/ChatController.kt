@@ -16,7 +16,6 @@ import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
-import org.springframework.http.ResponseEntity
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -25,6 +24,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Flux
 import java.util.UUID
@@ -40,21 +40,22 @@ class ChatController(
 ) {
     @PostMapping("/sessions")
     @Operation(summary = "채팅 세션 생성")
+    @ResponseStatus(HttpStatus.CREATED)
     suspend fun createSession(
         @Valid @RequestBody request: CreateSessionRequest,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<ChatSessionResponse>> {
+    ): ServiceResponse<ChatSessionResponse> {
         val response = chatService.createSession(principal.userId, request.initialMessage)
-        return ResponseEntity.status(HttpStatus.CREATED).body(ServiceResponse.created(response))
+        return ServiceResponse.created(response)
     }
 
     @GetMapping("/sessions")
     @Operation(summary = "채팅 세션 목록 조회")
     suspend fun getSessions(
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<List<ChatSessionResponse>>> {
+    ): ServiceResponse<List<ChatSessionResponse>> {
         val response = chatService.getSessions(principal.userId)
-        return ResponseEntity.ok(ServiceResponse.ok(response))
+        return ServiceResponse.ok(response)
     }
 
     @GetMapping("/sessions/{sessionId}/messages")
@@ -62,19 +63,19 @@ class ChatController(
     suspend fun getMessages(
         @PathVariable sessionId: UUID,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<SessionMessagesResponse>> {
+    ): ServiceResponse<SessionMessagesResponse> {
         val response = chatService.getMessages(sessionId, principal.userId)
-        return ResponseEntity.ok(ServiceResponse.ok(response))
+        return ServiceResponse.ok(response)
     }
 
     @DeleteMapping("/sessions/{sessionId}")
     @Operation(summary = "채팅 세션 삭제")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
     suspend fun deleteSession(
         @PathVariable sessionId: UUID,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<Unit> {
+    ) {
         chatService.deleteSession(sessionId, principal.userId)
-        return ResponseEntity.noContent().build()
     }
 
     @PostMapping("/sessions/{sessionId}/messages", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])

@@ -8,7 +8,6 @@ import com.insuranceai.policy.service.PolicyService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.springframework.http.HttpStatus
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -32,9 +31,8 @@ class ProductControllerTest {
 
             val result = controller.getSurrenderValues(productId, principal)
 
-            assertEquals(HttpStatus.OK, result.statusCode)
-            assertTrue(result.body!!.success)
-            assertEquals(productId, result.body!!.data!!.productId)
+            assertTrue(result.success)
+            assertEquals(productId, result.data!!.productId)
         }
 
     @Test
@@ -49,9 +47,8 @@ class ProductControllerTest {
 
             val result = controller.getPremiumExamples(productId, principal)
 
-            assertEquals(HttpStatus.OK, result.statusCode)
-            assertTrue(result.body!!.success)
-            assertEquals(productId, result.body!!.data!!.productId)
+            assertTrue(result.success)
+            assertEquals(productId, result.data!!.productId)
         }
 
     @Test
@@ -66,9 +63,8 @@ class ProductControllerTest {
 
             val result = controller.getProductIndices(productId, principal)
 
-            assertEquals(HttpStatus.OK, result.statusCode)
-            assertTrue(result.body!!.success)
-            assertEquals(productId, result.body!!.data!!.productId)
+            assertTrue(result.success)
+            assertEquals(productId, result.data!!.productId)
         }
 
     @Test
@@ -84,12 +80,7 @@ class ProductControllerTest {
 
             val result = controller.getSurrenderValues(emptyProductId, principal)
 
-            assertEquals(HttpStatus.OK, result.statusCode)
-            assertTrue(
-                result.body!!
-                    .data!!
-                    .values
-                    .isEmpty(),
-            )
+            assertTrue(result.success)
+            assertTrue(result.data!!.values.isEmpty())
         }
 }

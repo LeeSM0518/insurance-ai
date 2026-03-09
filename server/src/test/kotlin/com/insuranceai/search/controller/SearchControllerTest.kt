@@ -8,7 +8,6 @@ import com.insuranceai.search.service.SearchService
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.springframework.http.HttpStatus
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,9 +37,8 @@ class SearchControllerTest {
             val request = SearchRequest(query = "암보험")
             val result = controller.search(request, principal)
 
-            assertEquals(HttpStatus.OK, result.statusCode)
-            assertTrue(result.body!!.success)
-            assertEquals("암보험", result.body!!.data!!.query)
+            assertTrue(result.success)
+            assertEquals("암보험", result.data!!.query)
         }
 
     @Test

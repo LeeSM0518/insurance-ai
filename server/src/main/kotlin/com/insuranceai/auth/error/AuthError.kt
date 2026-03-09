@@ -35,4 +35,8 @@ sealed class AuthError(
     data object InvalidRequest : AuthError("kakaoAccessToken 또는 code/redirectUri가 필요합니다") {
         override val status = HttpStatus.BAD_REQUEST
     }
+
+    data object DevLoginDisabled : AuthError("개발 로그인은 로컬 환경에서만 사용 가능합니다") {
+        override val status = HttpStatus.NOT_FOUND
+    }
 }

@@ -15,7 +15,6 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
-import org.springframework.http.HttpStatus
 import reactor.core.publisher.Flux
 import reactor.test.StepVerifier
 import java.time.Instant
@@ -50,9 +49,9 @@ class ChatControllerTest {
             val request = CreateSessionRequest(initialMessage = "암보험 알려주세요")
             val result = controller.createSession(request, principal)
 
-            assertEquals(HttpStatus.CREATED, result.statusCode)
-            assertTrue(result.body!!.success)
-            assertEquals(sessionId, result.body!!.data!!.id)
+            assertEquals(201, result.statusCode)
+            assertTrue(result.success)
+            assertEquals(sessionId, result.data!!.id)
         }
 
     @Test
@@ -62,9 +61,8 @@ class ChatControllerTest {
 
             val result = controller.getSessions(principal)
 
-            assertEquals(HttpStatus.OK, result.statusCode)
-            assertTrue(result.body!!.success)
-            assertEquals(1, result.body!!.data!!.size)
+            assertTrue(result.success)
+            assertEquals(1, result.data!!.size)
         }
 
     @Test
@@ -79,19 +77,17 @@ class ChatControllerTest {
 
             val result = controller.getMessages(sessionId, principal)
 
-            assertEquals(HttpStatus.OK, result.statusCode)
-            assertTrue(result.body!!.success)
-            assertEquals(sessionId, result.body!!.data!!.sessionId)
+            assertTrue(result.success)
+            assertEquals(sessionId, result.data!!.sessionId)
         }
 
     @Test
-    fun `세션 삭제 성공 시 204 No Content 반환`() =
+    fun `세션 삭제 성공`() =
         runTest {
             coEvery { chatService.deleteSession(any(), any()) } returns Unit
 
-            val result = controller.deleteSession(sessionId, principal)
+            controller.deleteSession(sessionId, principal)
 
-            assertEquals(HttpStatus.NO_CONTENT, result.statusCode)
             coVerify { chatService.deleteSession(sessionId, principal.userId) }
         }
 

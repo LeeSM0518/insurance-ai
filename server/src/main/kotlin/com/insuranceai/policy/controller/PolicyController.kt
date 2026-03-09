@@ -30,9 +30,9 @@ class PolicyController(
     suspend fun getArticleDetail(
         @PathVariable articleId: UUID,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<PolicyArticleResponse>> {
+    ): ServiceResponse<PolicyArticleResponse> {
         val response = policyService.getArticleDetail(articleId)
-        return ResponseEntity.ok(ServiceResponse.ok(response))
+        return ServiceResponse.ok(response)
     }
 
     @GetMapping("/pdf/{dataSourceId}")

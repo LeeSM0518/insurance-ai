@@ -59,6 +59,25 @@ class GlobalExceptionHandler {
             )
     }
 
+    /** WebFlux + Kotlin Coroutines 통합 이슈 방어 */
+    @ExceptionHandler(UnsupportedOperationException::class)
+    fun handleUnsupportedOperation(ex: UnsupportedOperationException): ResponseEntity<ServiceResponse<Nothing>>? {
+        if (ex.message == null) {
+            log.debug("UnsupportedOperationException with null message, likely response already committed - ignoring")
+            return null
+        }
+        log.error("Unexpected UnsupportedOperationException: ${ex.message}", ex)
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(
+                ServiceResponse.error(
+                    code = "COMMON:INTERNAL_ERROR",
+                    message = "서버 내부 오류가 발생했습니다",
+                    statusCode = 500,
+                ),
+            )
+    }
+
     /** 예상치 못한 오류 */
     @ExceptionHandler(Exception::class)
     fun handleUnexpected(ex: Exception): ResponseEntity<ServiceResponse<Nothing>> {

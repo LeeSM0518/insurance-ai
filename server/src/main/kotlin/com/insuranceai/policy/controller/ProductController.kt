@@ -9,7 +9,6 @@ import com.insuranceai.policy.service.PolicyService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -29,9 +28,9 @@ class ProductController(
     suspend fun getSurrenderValues(
         @PathVariable productId: UUID,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<SurrenderValueResponse>> {
+    ): ServiceResponse<SurrenderValueResponse> {
         val response = policyService.getSurrenderValues(productId)
-        return ResponseEntity.ok(ServiceResponse.ok(response))
+        return ServiceResponse.ok(response)
     }
 
     @GetMapping("/{productId}/premium-examples")
@@ -39,9 +38,9 @@ class ProductController(
     suspend fun getPremiumExamples(
         @PathVariable productId: UUID,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<PremiumExampleResponse>> {
+    ): ServiceResponse<PremiumExampleResponse> {
         val response = policyService.getPremiumExamples(productId)
-        return ResponseEntity.ok(ServiceResponse.ok(response))
+        return ServiceResponse.ok(response)
     }
 
     @GetMapping("/{productId}/indices")
@@ -49,8 +48,8 @@ class ProductController(
     suspend fun getProductIndices(
         @PathVariable productId: UUID,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<ProductIndexResponse>> {
+    ): ServiceResponse<ProductIndexResponse> {
         val response = policyService.getProductIndices(productId)
-        return ResponseEntity.ok(ServiceResponse.ok(response))
+        return ServiceResponse.ok(response)
     }
 }

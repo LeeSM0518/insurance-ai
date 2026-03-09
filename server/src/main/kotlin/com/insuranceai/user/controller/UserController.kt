@@ -7,7 +7,6 @@ import com.insuranceai.common.dto.ServiceResponse
 import com.insuranceai.common.security.UserPrincipal
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
-import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -23,8 +22,8 @@ class UserController(
     @GetMapping("/me")
     suspend fun getMe(
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<UserResponse>> {
+    ): ServiceResponse<UserResponse> {
         val user = userRepository.findById(principal.userId) ?: throw AuthError.TokenInvalid
-        return ResponseEntity.ok(ServiceResponse.ok(UserResponse.from(user)))
+        return ServiceResponse.ok(UserResponse.from(user))
     }
 }

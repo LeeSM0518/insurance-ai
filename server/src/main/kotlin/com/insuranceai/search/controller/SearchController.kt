@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
-import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -28,8 +27,8 @@ class SearchController(
     suspend fun search(
         @Valid @RequestBody request: SearchRequest,
         @AuthenticationPrincipal principal: UserPrincipal,
-    ): ResponseEntity<ServiceResponse<SearchResponse>> {
+    ): ServiceResponse<SearchResponse> {
         val response = searchService.search(request, principal.userId)
-        return ResponseEntity.ok(ServiceResponse.ok(response))
+        return ServiceResponse.ok(response)
     }
 }
