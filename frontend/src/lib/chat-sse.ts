@@ -1,5 +1,6 @@
 import { getAccessToken } from './token-storage';
 import { logSseStart, logSseEvent, logSseComplete, logSseError } from './api-logger';
+import { logError } from './error-logger';
 import type { Source } from '@/types/chat';
 import type { DataSource } from '@/types/policy';
 
@@ -65,7 +66,11 @@ function parseSseEvents(chunk: string, buffer: string): { events: ParsedSSEEvent
       const parsed = JSON.parse(jsonStr) as { type: string; data: unknown };
       events.push(parsed);
     } catch {
-      // JSON 파싱 실패 시 무시
+      logError({
+        source: 'sse',
+        message: 'SSE 이벤트 JSON 파싱 실패',
+        context: { rawData: jsonStr.substring(0, 200) },
+      });
     }
   }
 

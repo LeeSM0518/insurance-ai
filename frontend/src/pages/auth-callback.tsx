@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/hooks/use-auth';
 import { getApi } from '@/lib/api';
+import { logError } from '@/lib/error-logger';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -57,12 +58,21 @@ export default function AuthCallbackPage() {
 
       loginData = loginResponse.data.data;
       if (!loginData) {
-        console.error('[auth-callback] loginData가 비어있음:', loginResponse.data);
+        logError({
+          source: 'page',
+          message: '카카오 로그인 응답 데이터 없음',
+          context: { responseData: loginResponse.data },
+        });
         setError('서버 응답에 로그인 정보가 없습니다.');
         return;
       }
     } catch (err) {
-      console.error('[auth-callback] API 호출 실패:', err);
+      logError({
+        source: 'page',
+        message: '카카오 로그인 콜백 API 실패',
+        error: err,
+        context: { hasCode: !!code },
+      });
       setError('로그인 서버와 통신 중 오류가 발생했습니다.');
       return;
     }
@@ -71,7 +81,11 @@ export default function AuthCallbackPage() {
     try {
       login(loginData);
     } catch (err) {
-      console.error('[auth-callback] 토큰 저장 실패:', err);
+      logError({
+        source: 'page',
+        message: '로그인 토큰 저장 실패',
+        error: err,
+      });
       setError('로그인 정보 저장 중 오류가 발생했습니다.');
       return;
     }

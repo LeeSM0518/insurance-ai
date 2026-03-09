@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { axiosInstance } from '@/lib/api';
+import { logError } from '@/lib/error-logger';
 import type { SearchResultItem, SearchResponse } from '@/types/policy';
 import type { SearchFilters } from '@/types/search';
 import { toast } from 'sonner';
@@ -56,6 +57,12 @@ export function useSearch(): UseSearchReturn {
       setTotalCount(data.totalCount);
       setHasNext(data.hasNext);
     } catch (e) {
+      logError({
+        source: 'hook',
+        message: '검색 API 에러',
+        error: e,
+        context: { query },
+      });
       const err = e as { response?: { status: number } };
       if (err.response?.status === 429) {
         toast.error('잠시 후 다시 시도해주세요');
@@ -97,7 +104,13 @@ export function useSearch(): UseSearchReturn {
       setResults((prev) => [...prev, ...data.results]);
       setTotalCount(data.totalCount);
       setHasNext(data.hasNext);
-    } catch {
+    } catch (e) {
+      logError({
+        source: 'hook',
+        message: '검색 추가 결과 로드 실패',
+        error: e,
+        context: { query: queryRef.current, page: pageRef.current + 1 },
+      });
       toast.error('추가 결과를 불러오는데 실패했습니다');
     } finally {
       setIsLoading(false);

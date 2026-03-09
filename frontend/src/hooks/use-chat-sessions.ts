@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { axiosInstance } from '@/lib/api';
+import { logError } from '@/lib/error-logger';
 import type { ChatSession } from '@/types/chat';
 
 export interface UseChatSessionsReturn {
@@ -33,8 +34,12 @@ export function useChatSessions(): UseChatSessionsReturn {
         data: Record<string, unknown>[];
       }>('/api/v1/chat/sessions');
       setSessions(response.data.data.map(toSession));
-    } catch {
-      // 세션 목록 로드 실패는 무시 (빈 목록으로 표시)
+    } catch (e) {
+      logError({
+        source: 'hook',
+        message: '세션 목록 로드 실패',
+        error: e,
+      });
     } finally {
       setIsLoading(false);
     }

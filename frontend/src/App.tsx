@@ -1,11 +1,12 @@
 import { Suspense } from 'react';
 import { RouterProvider } from 'react-router';
 import { Toaster } from '@/components/ui/sonner';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { router } from '@/router';
 
 function App() {
   return (
-    <>
+    <ErrorBoundary>
       <Suspense
         fallback={
           <div className="min-h-dvh flex items-center justify-center">
@@ -16,7 +17,7 @@ function App() {
         <RouterProvider router={router} />
       </Suspense>
       <Toaster position="top-center" richColors />
-    </>
+    </ErrorBoundary>
   );
 }
 

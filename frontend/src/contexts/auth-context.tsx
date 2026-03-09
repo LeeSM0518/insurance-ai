@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router';
 import type { LoginResponse, UserResponse } from '@insurance-ai/api-client';
 import { getApi } from '@/lib/api';
 import '@/lib/api-interceptor';
+import { logError } from '@/lib/error-logger';
 import {
   getAccessToken,
   getRefreshToken,
@@ -45,7 +46,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((response) => {
         setUser(response.data.data ?? null);
       })
-      .catch(() => {
+      .catch((e) => {
+        logError({
+          source: 'auth',
+          message: '토큰 검증 실패',
+          error: e,
+        });
         clearTokens();
         setUser(null);
       })
@@ -75,8 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (refreshToken) {
       try {
         await getApi().logout({ logoutRequest: { refreshToken } });
-      } catch {
-        // 로그아웃 API 실패해도 로컬 토큰은 삭제
+      } catch (e) {
+        logError({
+          source: 'auth',
+          message: '로그아웃 API 실패 (로컬 토큰은 삭제됨)',
+          error: e,
+        });
       }
     }
     clearTokens();

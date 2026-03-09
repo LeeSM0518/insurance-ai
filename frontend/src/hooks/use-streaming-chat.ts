@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { axiosInstance } from '@/lib/api';
 import { streamChatMessage, streamReply } from '@/lib/chat-sse';
+import { logError } from '@/lib/error-logger';
 import type { ChatMessage, Source } from '@/types/chat';
 import type { DataSource } from '@/types/policy';
 
@@ -96,7 +97,13 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
           setMessages(res.data.data.messages.map(toMessage));
         }
       })
-      .catch(() => {
+      .catch((e) => {
+        logError({
+          source: 'hook',
+          message: '채팅 메시지 이력 로드 실패',
+          error: e,
+          context: { sessionId },
+        });
         if (!cancelled) setMessages([]);
       });
 
@@ -190,6 +197,12 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return;
+        logError({
+          source: 'hook',
+          message: '채팅 스트리밍 에러',
+          error: e,
+          context: { sessionId: targetSessionId },
+        });
 
         // 에러 발생 시 재연결 시도
         setStreamingState((prev) => {

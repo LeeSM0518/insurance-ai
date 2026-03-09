@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { axiosInstance } from '@/lib/api';
+import { logError } from '@/lib/error-logger';
 import type { PolicyArticle } from '@/types/policy';
 
 export interface UsePolicyDetailReturn {
@@ -64,6 +65,12 @@ export function usePolicyDetail(articleId: string | undefined): UsePolicyDetailR
         }
       })
       .catch((e) => {
+        logError({
+          source: 'hook',
+          message: '약관 조회 실패',
+          error: e,
+          context: { articleId },
+        });
         if (!cancelled) {
           const status = (e as { response?: { status: number } }).response?.status;
           setError(status === 404 ? '약관을 찾을 수 없습니다' : '약관 조회 중 오류가 발생했습니다');
