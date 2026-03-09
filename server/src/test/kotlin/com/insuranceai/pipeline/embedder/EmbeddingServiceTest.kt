@@ -79,14 +79,14 @@ class EmbeddingServiceTest {
                 every { embeddingModel.call(any<EmbeddingRequest>()) } returns
                     mockEmbeddingResponse(listOf(testVector))
                 coEvery { policyEmbeddingRepository.findByPolicyArticleId(articleId) } returns null
-                coEvery { policyEmbeddingRepository.save(any()) } answers {
+                coEvery { policyEmbeddingRepository.saveWithVector(any()) } answers {
                     firstArg<PolicyEmbeddingEntity>().copy(id = UUID.randomUUID())
                 }
 
                 val result = service.embedAndSave(articleId, "테스트 내용")
 
                 coVerify(exactly = 0) { policyEmbeddingRepository.deleteById(any()) }
-                coVerify(exactly = 1) { policyEmbeddingRepository.save(any()) }
+                coVerify(exactly = 1) { policyEmbeddingRepository.saveWithVector(any()) }
             }
 
         @Test
@@ -100,14 +100,14 @@ class EmbeddingServiceTest {
                     mockEmbeddingResponse(listOf(testVector))
                 coEvery { policyEmbeddingRepository.findByPolicyArticleId(articleId) } returns existing
                 coEvery { policyEmbeddingRepository.deleteById(existingId) } returns Unit
-                coEvery { policyEmbeddingRepository.save(any()) } answers {
+                coEvery { policyEmbeddingRepository.saveWithVector(any()) } answers {
                     firstArg<PolicyEmbeddingEntity>().copy(id = UUID.randomUUID())
                 }
 
                 service.embedAndSave(articleId, "테스트 내용")
 
                 coVerify(exactly = 1) { policyEmbeddingRepository.deleteById(existingId) }
-                coVerify(exactly = 1) { policyEmbeddingRepository.save(any()) }
+                coVerify(exactly = 1) { policyEmbeddingRepository.saveWithVector(any()) }
             }
     }
 
@@ -135,14 +135,14 @@ class EmbeddingServiceTest {
                 every { embeddingModel.call(any<EmbeddingRequest>()) } returns
                     mockEmbeddingResponse(vectors)
                 coEvery { policyEmbeddingRepository.findByPolicyArticleId(any()) } returns null
-                coEvery { policyEmbeddingRepository.save(any()) } answers {
+                coEvery { policyEmbeddingRepository.saveWithVector(any()) } answers {
                     firstArg<PolicyEmbeddingEntity>().copy(id = UUID.randomUUID())
                 }
 
                 val result = service.embedArticles(articles)
 
                 assertEquals(2, result)
-                coVerify(exactly = 2) { policyEmbeddingRepository.save(any()) }
+                coVerify(exactly = 2) { policyEmbeddingRepository.saveWithVector(any()) }
             }
     }
 }
