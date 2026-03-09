@@ -28,6 +28,7 @@ class ChatPromptBuilderTest {
                         insuranceCompany = "삼성생명",
                         productId = UUID.randomUUID(),
                         productName = "테스트 보험",
+                        contentType = "COVERAGE",
                         articleNumber = "제1조",
                         articleTitle = "보장내용",
                         relevanceScore = 0.8f,

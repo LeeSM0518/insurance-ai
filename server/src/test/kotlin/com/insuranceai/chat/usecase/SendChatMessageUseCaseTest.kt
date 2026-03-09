@@ -95,6 +95,7 @@ class SendChatMessageUseCaseTest {
                         insuranceCompany = "삼성생명",
                         productId = productId,
                         productName = "종신보험",
+                        contentType = "EXEMPTION",
                         articleNumber = "제5조",
                         articleTitle = "면책사항",
                         relevanceScore = 0.85f,

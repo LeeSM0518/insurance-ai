@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router';
 import { FileText } from 'lucide-react';
 import type { Source } from '@/types/chat';
+import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
 
 interface SourceCardProps {
   source: Source;
@@ -44,7 +45,9 @@ export function SourceCard({ source, index, isActive, onSourceClick }: SourceCar
       </div>
       <p className="mt-1 text-xs truncate">{source.productName}</p>
       <p className="mt-0.5 text-xs font-medium truncate">
-        {source.articleNumber} {source.articleTitle}
+        {[source.articleNumber, source.articleTitle].filter(Boolean).join(' ') ||
+          CONTENT_TYPE_LABELS[source.contentType as ContentType] ||
+          source.contentType}
       </p>
       <div className="mt-1 flex items-center justify-between">
         <p className={`text-[11px] font-medium ${relevanceColor(source.relevanceScore)}`}>

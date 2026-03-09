@@ -33,7 +33,9 @@ export function PolicyCard({ item }: PolicyCardProps) {
 
       {/* 조문 제목 */}
       <h3 className="mt-1 text-sm font-semibold">
-        {item.articleNumber} {item.articleTitle}
+        {[item.articleNumber, item.articleTitle].filter(Boolean).join(' ') ||
+          CONTENT_TYPE_LABELS[item.contentType as ContentType] ||
+          item.contentType}
       </h3>
 
       {/* 하이라이트 미리보기 */}

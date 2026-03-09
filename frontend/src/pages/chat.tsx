@@ -24,6 +24,7 @@ import { useAutoScroll } from '@/hooks/use-auto-scroll';
 import { useChatSessions } from '@/hooks/use-chat-sessions';
 import { toast } from 'sonner';
 import type { Source } from '@/types/chat';
+import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
 
 const SOURCE_PANEL_MIN = 280;
 const SOURCE_PANEL_MAX = 700;
@@ -405,7 +406,10 @@ export default function ChatPage() {
         <SheetContent side="bottom" className="h-[70vh]">
           <SheetHeader>
             <SheetTitle>
-              {mobileSourceSheet?.insuranceCompany} — {mobileSourceSheet?.articleTitle}
+              {mobileSourceSheet?.insuranceCompany} —{' '}
+              {mobileSourceSheet?.articleTitle ||
+                CONTENT_TYPE_LABELS[mobileSourceSheet?.contentType as ContentType] ||
+                mobileSourceSheet?.contentType}
             </SheetTitle>
           </SheetHeader>
           {mobileSourceSheet && (

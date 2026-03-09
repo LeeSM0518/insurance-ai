@@ -30,6 +30,7 @@ function toSource(raw: Record<string, unknown>): Source {
     insuranceCompany: String(raw.insuranceCompany ?? ''),
     productId: String(raw.productId ?? ''),
     productName: String(raw.productName ?? ''),
+    contentType: String(raw.contentType ?? ''),
     articleNumber: String(raw.articleNumber ?? ''),
     articleTitle: String(raw.articleTitle ?? ''),
     relevanceScore: Number(raw.relevanceScore ?? 0),

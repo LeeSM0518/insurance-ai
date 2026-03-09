@@ -63,6 +63,7 @@ class SendChatMessageUseCase(
                             insuranceCompany = result.companyName,
                             productId = result.productId,
                             productName = result.productName,
+                            contentType = result.contentType,
                             articleNumber = result.articleNumber,
                             articleTitle = result.articleTitle,
                             relevanceScore = result.relevanceScore,

@@ -206,12 +206,13 @@ class ChatService(
         val query =
             dsl
                 .select(
-                    DSL.field("$cms.policy_article_id"),
+                    DSL.field("$cms.policy_article_id").`as`("policy_article_id"),
                     DSL.field("$ic.name").`as`("company_name"),
                     DSL.field("$p.name").`as`("product_name"),
-                    DSL.field("$pa.article_number"),
-                    DSL.field("$pa.article_title"),
-                    DSL.field("$cms.relevance_score"),
+                    DSL.field("$pa.content_type").`as`("content_type"),
+                    DSL.field("$pa.article_number").`as`("article_number"),
+                    DSL.field("$pa.article_title").`as`("article_title"),
+                    DSL.field("$cms.relevance_score").`as`("relevance_score"),
                 ).from(cms)
                 .join(pa)
                 .on(DSL.field("$cms.policy_article_id").eq(DSL.field("$pa.id")))
@@ -230,6 +231,7 @@ class ChatService(
                     articleId = record.get("policy_article_id", UUID::class.java),
                     insuranceCompany = record.get("company_name", String::class.java),
                     productName = record.get("product_name", String::class.java),
+                    contentType = record.get("content_type", String::class.java) ?: "",
                     articleNumber = record.get("article_number", String::class.java),
                     articleTitle = record.get("article_title", String::class.java),
                     relevanceScore = record.get("relevance_score", Float::class.java),

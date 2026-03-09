@@ -35,6 +35,7 @@ class StreamingServiceTest {
                 insuranceCompany = "삼성생명",
                 productId = UUID.randomUUID(),
                 productName = "종신보험",
+                contentType = "COVERAGE",
                 articleNumber = "제1조",
                 articleTitle = "보장내용",
                 relevanceScore = 0.9f,

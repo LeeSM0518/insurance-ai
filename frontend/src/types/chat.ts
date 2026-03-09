@@ -22,6 +22,7 @@ export interface Source {
   insuranceCompany: string;
   productId: string;
   productName: string;
+  contentType: string;
   articleNumber: string;
   articleTitle: string;
   relevanceScore: number;

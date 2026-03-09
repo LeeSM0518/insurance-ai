@@ -1,14 +1,22 @@
 import { Link } from 'react-router';
 import { FileText } from 'lucide-react';
+import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
 
 interface RelatedArticle {
   id: string;
   articleNumber: string;
   articleTitle: string;
+  contentType: string;
 }
 
 interface RelatedArticlesProps {
   articles: RelatedArticle[];
+}
+
+function getDisplayLabel(article: RelatedArticle): string {
+  const parts = [article.articleNumber, article.articleTitle].filter(Boolean);
+  if (parts.length > 0) return parts.join(' ');
+  return CONTENT_TYPE_LABELS[article.contentType as ContentType] ?? article.contentType;
 }
 
 export function RelatedArticles({ articles }: RelatedArticlesProps) {
@@ -25,7 +33,7 @@ export function RelatedArticles({ articles }: RelatedArticlesProps) {
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-primary hover:bg-muted transition-colors"
             >
               <FileText className="size-3.5 shrink-0" />
-              {article.articleNumber} {article.articleTitle}
+              {getDisplayLabel(article)}
             </Link>
           </li>
         ))}

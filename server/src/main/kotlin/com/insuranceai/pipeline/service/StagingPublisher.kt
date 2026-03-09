@@ -354,6 +354,7 @@ class StagingPublisher(
                     content = "[${coverage.coverageName}] 지급사유: ${coverage.paymentReason}, 지급액: ${coverage.paymentAmount}",
                     contentType = ContentType.COVERAGE.name,
                     sectionType = sectionType,
+                    articleTitle = coverage.coverageName,
                 )
             }
 

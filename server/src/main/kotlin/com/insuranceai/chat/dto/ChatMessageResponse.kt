@@ -16,6 +16,7 @@ data class MessageSourceResponse(
     val articleId: UUID,
     val insuranceCompany: String,
     val productName: String,
+    val contentType: String,
     val articleNumber: String?,
     val articleTitle: String?,
     val relevanceScore: Float,

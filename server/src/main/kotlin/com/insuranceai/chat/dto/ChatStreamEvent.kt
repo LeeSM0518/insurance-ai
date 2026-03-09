@@ -55,6 +55,7 @@ data class SourceInfo(
     val insuranceCompany: String,
     val productId: UUID,
     val productName: String,
+    val contentType: String,
     val articleNumber: String?,
     val articleTitle: String?,
     val relevanceScore: Float,

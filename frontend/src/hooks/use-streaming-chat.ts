@@ -50,6 +50,7 @@ function toMessage(raw: Record<string, unknown>): ChatMessage {
       insuranceCompany: String(s.insuranceCompany ?? ''),
       productId: String(s.productId ?? ''),
       productName: String(s.productName ?? ''),
+      contentType: String(s.contentType ?? ''),
       articleNumber: String(s.articleNumber ?? ''),
       articleTitle: String(s.articleTitle ?? ''),
       relevanceScore: Number(s.relevanceScore ?? 0),

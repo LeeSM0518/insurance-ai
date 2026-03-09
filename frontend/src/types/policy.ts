@@ -24,6 +24,7 @@ export interface PolicyArticle {
     id: string;
     articleNumber: string;
     articleTitle: string;
+    contentType: string;
   }[];
 }
 
