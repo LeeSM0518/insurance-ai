@@ -34,8 +34,10 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
     );
   }
 
+  const isPdfTab = activeTab === 'pdf' && article.dataSourceId;
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className={isPdfTab ? 'flex-1 flex flex-col p-4 gap-4 min-h-0' : 'flex-1 overflow-y-auto p-4 space-y-4'}>
       <PolicyMeta article={article} />
 
       {/* PDF 탭 전환 */}
@@ -75,6 +77,7 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
           <PolicyContent
             articleNumber={article.articleNumber}
             articleTitle={article.articleTitle}
+            contentType={article.contentType}
             content={article.content}
           />
           <SupplementarySection
@@ -84,7 +87,11 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
           />
         </>
       ) : (
-        article.dataSourceId && <PdfViewer dataSourceId={article.dataSourceId} />
+        article.dataSourceId && (
+          <div className="flex-1 min-h-0">
+            <PdfViewer dataSourceId={article.dataSourceId} mode="panel" />
+          </div>
+        )
       )}
     </div>
   );

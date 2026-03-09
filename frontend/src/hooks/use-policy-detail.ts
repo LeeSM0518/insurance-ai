@@ -36,24 +36,20 @@ function toArticle(raw: Record<string, unknown>): PolicyArticle {
       id: String(a.id),
       articleNumber: String(a.articleNumber ?? ''),
       articleTitle: String(a.articleTitle ?? ''),
+      contentType: String(a.contentType ?? ''),
     })),
   };
 }
 
 export function usePolicyDetail(articleId: string | undefined): UsePolicyDetailReturn {
   const [article, setArticle] = useState<PolicyArticle | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!articleId);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!articleId) {
-      setArticle(null);
-      return;
-    }
+    if (!articleId) return;
 
     let cancelled = false;
-    setIsLoading(true);
-    setError(null);
 
     axiosInstance
       .get<{ success: boolean; data: Record<string, unknown> }>(
@@ -82,6 +78,9 @@ export function usePolicyDetail(articleId: string | undefined): UsePolicyDetailR
 
     return () => {
       cancelled = true;
+      setArticle(null);
+      setIsLoading(true);
+      setError(null);
     };
   }, [articleId]);
 

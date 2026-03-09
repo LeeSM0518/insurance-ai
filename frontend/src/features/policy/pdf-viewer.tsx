@@ -6,19 +6,18 @@ import { axiosInstance } from '@/lib/api';
 
 interface PdfViewerProps {
   dataSourceId: string;
+  mode?: 'standalone' | 'panel';
 }
 
-export function PdfViewer({ dataSourceId }: PdfViewerProps) {
+export function PdfViewer({ dataSourceId, mode = 'standalone' }: PdfViewerProps) {
   const isDesktop = useMediaQuery('(min-width: 1025px)');
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
   // Bearer 토큰 포함하여 PDF를 fetch → blob URL 생성
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
-    setError(false);
 
     axiosInstance
       .get(`/api/v1/policies/pdf/${dataSourceId}`, { responseType: 'blob' })
@@ -41,6 +40,8 @@ export function PdfViewer({ dataSourceId }: PdfViewerProps) {
         if (prev) URL.revokeObjectURL(prev);
         return null;
       });
+      setIsLoading(true);
+      setError(false);
     };
   }, [dataSourceId]);
 
@@ -65,9 +66,11 @@ export function PdfViewer({ dataSourceId }: PdfViewerProps) {
     );
   }
 
+  const heightClass = mode === 'panel' ? 'h-full' : 'h-[600px]';
+
   if (isLoading) {
     return (
-      <div className="w-full h-[600px] border rounded-lg flex items-center justify-center">
+      <div className={`w-full ${heightClass} border rounded-lg flex items-center justify-center`}>
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
@@ -75,7 +78,7 @@ export function PdfViewer({ dataSourceId }: PdfViewerProps) {
 
   if (error || !blobUrl) {
     return (
-      <div className="w-full h-[600px] border rounded-lg flex items-center justify-center">
+      <div className={`w-full ${heightClass} border rounded-lg flex items-center justify-center`}>
         <p className="text-sm text-muted-foreground">PDF를 불러올 수 없습니다</p>
       </div>
     );
@@ -84,7 +87,7 @@ export function PdfViewer({ dataSourceId }: PdfViewerProps) {
   return (
     <iframe
       src={blobUrl}
-      className="w-full h-[600px] border rounded-lg"
+      className={`w-full ${heightClass} border rounded-lg`}
       title="원본 PDF"
     />
   );

@@ -28,12 +28,7 @@ export function useResizeHandle({
     [direction, minWidth, maxWidth, onResize],
   );
 
-  const handleMouseUp = useCallback(() => {
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', handleMouseUp);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  }, [handleMouseMove]);
+  const handleMouseUpRef = useRef<(() => void) | null>(null);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent, currentWidth: number) => {
@@ -42,10 +37,19 @@ export function useResizeHandle({
       startWidthRef.current = currentWidth;
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
+
+      const onMouseUp = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+      handleMouseUpRef.current = onMouseUp;
+
       document.addEventListener('mousemove', handleMouseMove);
-      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('mouseup', onMouseUp);
     },
-    [handleMouseMove, handleMouseUp],
+    [handleMouseMove],
   );
 
   return { handleMouseDown };
