@@ -16,11 +16,11 @@ export function Header() {
           Insurance AI
         </NavLink>
 
-        <div className="flex items-center gap-1">
-          {/* 데스크톱 네비게이션 */}
-          {isDesktop && (
+        {/* 데스크톱 네비게이션 + 프로필 */}
+        {isDesktop && (
+          <div className="flex items-center gap-1">
             <nav className="flex items-center gap-1 mr-2">
-              {TAB_ITEMS.map((tab) => {
+              {TAB_ITEMS.filter((tab) => !tab.mobileOnly).map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <NavLink
@@ -39,11 +39,9 @@ export function Header() {
                 );
               })}
             </nav>
-          )}
-
-          {/* 프로필 드롭다운 */}
-          <ProfileDropdown />
-        </div>
+            <ProfileDropdown />
+          </div>
+        )}
       </div>
     </header>
   );
