@@ -204,3 +204,7 @@ db-test-worker-*
 
 server/data/
 ai-data/
+
+# PostgreSQL data (bind mount)
+.pgdata/
+.pgdata-backup.sql
