@@ -1,5 +1,6 @@
 import { cva } from 'class-variance-authority';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { MessageActions } from './message-actions';
 import { SourceTooltip } from './source-tooltip';
 import { processChildren } from './source-ref-utils';
@@ -78,9 +79,15 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
             }}
           >
             <Markdown
+              remarkPlugins={[remarkGfm]}
               components={{
                 p: ({ children }) => <p>{processChildren(children, sourceButtonOptions)}</p>,
                 li: ({ children }) => <li>{processChildren(children, sourceButtonOptions)}</li>,
+                table: ({ children }) => (
+                  <div className="overflow-x-auto my-2">
+                    <table>{children}</table>
+                  </div>
+                ),
               }}
             >
               {message.content}

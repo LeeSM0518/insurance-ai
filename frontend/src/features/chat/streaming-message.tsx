@@ -1,4 +1,5 @@
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { processChildren } from './source-ref-utils';
 
 interface StreamingMessageProps {
@@ -21,9 +22,15 @@ export function StreamingMessage({ content, onSourceClick }: StreamingMessagePro
         }}
       >
         <Markdown
+          remarkPlugins={[remarkGfm]}
           components={{
             p: ({ children }) => <p>{processChildren(children)}</p>,
             li: ({ children }) => <li>{processChildren(children)}</li>,
+            table: ({ children }) => (
+              <div className="overflow-x-auto my-2">
+                <table>{children}</table>
+              </div>
+            ),
           }}
         >
           {content}
