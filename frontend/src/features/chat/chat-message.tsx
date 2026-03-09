@@ -5,7 +5,7 @@ import { SourceTooltip } from './source-tooltip';
 import { processChildren } from './source-ref-utils';
 import type { ChatMessage as ChatMessageType, Source } from '@/types/chat';
 
-const chatMessageVariants = cva('rounded-lg px-4 py-3 max-w-[85%]', {
+const chatMessageVariants = cva('rounded-lg px-4 py-3 w-fit max-w-[85%]', {
   variants: {
     role: {
       user: 'bg-chat-user-bg ml-auto',

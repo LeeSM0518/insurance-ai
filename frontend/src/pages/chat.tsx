@@ -36,7 +36,8 @@ export default function ChatPage() {
   const isDesktop = useMediaQuery('(min-width: 1025px)');
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeSessionId, setActiveSessionId] = useLocalStorage<string | null>('chat-active-session', null);
-  const { sessions, createSession, deleteSession } = useChatSessions();
+  const [isNewChatMode, setIsNewChatMode] = useState(false);
+  const { sessions, createSession, deleteSession, refreshSessions } = useChatSessions();
   const [sidebarOpen, setSidebarOpen] = useLocalStorage('chat-sidebar-open', isDesktop);
   const [openTabs, setOpenTabs] = useState<SourceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -73,6 +74,7 @@ export default function ChatPage() {
 
   const handleSelectSession = (id: string) => {
     setActiveSessionId(id);
+    setIsNewChatMode(false);
     if (!isDesktop) setSidebarOpen(false);
     setOpenTabs([]);
     setActiveTabId(null);
@@ -82,10 +84,21 @@ export default function ChatPage() {
 
   const handleNewChat = () => {
     setActiveSessionId(null);
+    setIsNewChatMode(true);
     if (!isDesktop) setSidebarOpen(false);
     setOpenTabs([]);
     setActiveTabId(null);
   };
+
+  // 최신 세션 자동 선택 (새 대화 모드가 아닐 때만)
+  useEffect(() => {
+    if (isNewChatMode || sessions.length === 0) return;
+
+    const isValid = activeSessionId && sessions.some((s) => s.id === activeSessionId);
+    if (!isValid) {
+      setActiveSessionId(sessions[0].id);
+    }
+  }, [sessions, isNewChatMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDelete = async (id: string) => {
     try {
@@ -113,6 +126,7 @@ export default function ChatPage() {
         // 새 세션 생성 (initialMessage가 USER 메시지로 저장됨)
         const newSessionId = await createSession(message);
         setActiveSessionId(newSessionId);
+        setIsNewChatMode(false);
         // newSessionId를 직접 전달하여 React 상태 비동기 문제 회피
         sendMessage(message, true, newSessionId);
       } else {
@@ -187,6 +201,15 @@ export default function ChatPage() {
   const handleMobileSourceTap = useCallback((source: Source) => {
     setMobileSourceSheet(source);
   }, []);
+
+  // 스트리밍 완료 시 세션 목록 갱신 (백엔드에서 생성된 제목 반영)
+  const prevPhaseRef = useRef(streamingState.phase);
+  useEffect(() => {
+    if (prevPhaseRef.current !== 'idle' && streamingState.phase === 'idle') {
+      refreshSessions();
+    }
+    prevPhaseRef.current = streamingState.phase;
+  }, [streamingState.phase, refreshSessions]);
 
   // 스트리밍 중 에러 toast 표시
   useEffect(() => {

@@ -14,24 +14,28 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('세션 목록이 사이드바에 렌더링된다', async ({ page }) => {
-      await expect(page.getByText('삼성생명 암보험 면책기간')).toBeVisible();
-      await expect(page.getByText('실손보험 4세대 보장범위')).toBeVisible();
+      await expect(page.locator('aside h3', { hasText: '삼성생명 암보험 면책기간' })).toBeVisible();
+      await expect(page.locator('aside h3', { hasText: '실손보험 4세대 보장범위' })).toBeVisible();
     });
 
-    test('세션 클릭 시 채팅 영역에 메시지가 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
+    test('앱 진입 시 최신 세션이 자동 선택되어 메시지가 표시된다', async ({ page }) => {
+      // 자동 선택으로 최신 세션(삼성생명 암보험 면책기간)의 메시지가 바로 표시됨
       await expect(
         page.getByText('삼성생명 암보험의 면책기간이 어떻게 되나요?'),
       ).toBeVisible();
     });
 
-    test('채팅 헤더에 세션 제목이 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
+    test('다른 세션 클릭 시 채팅 영역이 전환된다', async ({ page }) => {
+      await page.getByText('실손보험 4세대 보장범위').click();
+      await expect(page.locator('header h1', { hasText: '실손보험 4세대 보장범위' })).toBeVisible();
+    });
+
+    test('채팅 헤더에 자동 선택된 세션 제목이 표시된다', async ({ page }) => {
       await expect(page.locator('header h1', { hasText: '삼성생명 암보험 면책기간' })).toBeVisible();
     });
 
     test('사용자/AI 메시지가 구분되어 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
+      // 자동 선택된 세션의 메시지가 바로 표시됨
       await expect(
         page.getByText('삼성생명 암보험의 면책기간이 어떻게 되나요?'),
       ).toBeVisible();
@@ -39,28 +43,32 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('AI 메시지에 마크다운이 렌더링된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       const heading = page.locator('[role="log"] h2, [role="log"] h3');
       await expect(heading.first()).toBeVisible();
     });
 
     test('출처 카드가 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await expect(page.getByText('참고 약관')).toBeVisible();
       const sourceCards = page.locator('button:has-text("삼성생명")');
       await expect(sourceCards.first()).toBeVisible();
     });
 
     test('추천 질문 칩이 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await expect(page.getByText('소액암과 일반암의 보장 차이는 뭔가요?')).toBeVisible();
       await expect(page.getByText('면책기간 중 암 진단 시 어떻게 되나요?')).toBeVisible();
     });
 
     test('복사/공유 버튼이 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await expect(page.getByRole('button', { name: '복사' }).first()).toBeVisible();
       await expect(page.getByRole('button', { name: '공유' }).first()).toBeVisible();
+    });
+
+    test('"새 대화" 클릭 시 빈 입력 화면으로 전환된다', async ({ page }) => {
+      await page.getByRole('button', { name: /새 대화/ }).click();
+      await expect(page.locator('header h1', { hasText: '새 대화' })).toBeVisible();
+      // 자동 선택으로 돌아가지 않는지 확인
+      await page.waitForTimeout(500);
+      await expect(page.locator('header h1', { hasText: '새 대화' })).toBeVisible();
     });
 
     test('면책 고지 문구가 표시된다', async ({ page }) => {
@@ -87,7 +95,7 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('출처 카드 클릭 시 우측 패널에 약관 상세가 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
+      // 자동 선택된 세션에서 출처 카드 클릭
       const sourceCard = page.locator('button:has-text("제5조 보장 제외")').first();
       await sourceCard.click();
       await expect(page.getByRole('tab', { name: /삼성생명·제5조/ })).toBeVisible();
@@ -95,7 +103,6 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('다른 출처 클릭 시 탭이 추가된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await page.locator('button:has-text("제5조 보장 제외")').first().click();
       await page.locator('button:has-text("제3조 보장 내용")').first().click();
       await expect(page.getByRole('tab', { name: /삼성생명·제5조/ })).toBeVisible();
@@ -103,7 +110,6 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('이미 열린 출처 클릭 시 해당 탭으로 전환된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await page.locator('button:has-text("제5조 보장 제외")').first().click();
       await page.locator('button:has-text("제3조 보장 내용")').first().click();
       await expect(page.getByRole('tab', { name: /한화생명·제3조/ })).toHaveAttribute('aria-selected', 'true');
@@ -112,7 +118,6 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('탭 닫기 버튼 클릭 시 해당 탭이 닫힌다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await page.locator('button:has-text("제5조 보장 제외")').first().click();
       await page.locator('button:has-text("제3조 보장 내용")').first().click();
       await page.getByLabel('제5조 탭 닫기').click();
@@ -121,7 +126,6 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('활성 탭 닫기 시 인접 탭으로 전환된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await page.locator('button:has-text("제5조 보장 제외")').first().click();
       await page.locator('button:has-text("제3조 보장 내용")').first().click();
       await page.getByLabel('제3조 탭 닫기').click();
@@ -129,21 +133,18 @@ test.describe('AI 상담 통합 화면', () => {
     });
 
     test('모든 탭 닫기 시 출처 패널이 사라진다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await page.locator('button:has-text("제5조 보장 제외")').first().click();
       await page.getByLabel('제5조 탭 닫기').click();
       await expect(page.getByRole('tablist', { name: '약관 상세 탭' })).not.toBeVisible();
     });
 
     test('활성 출처 카드에 하이라이트가 표시된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       const sourceCard = page.locator('button:has-text("제5조 보장 제외")').first();
       await sourceCard.click();
       await expect(sourceCard).toHaveClass(/border-primary/);
     });
 
     test('세션 변경 시 탭이 모두 초기화된다', async ({ page }) => {
-      await page.getByText('삼성생명 암보험 면책기간').click();
       await page.locator('button:has-text("제5조 보장 제외")').first().click();
       await expect(page.getByRole('tab', { name: /삼성생명·제5조/ })).toBeVisible();
       await page.getByText('실손보험 4세대 보장범위').click();
@@ -160,7 +161,7 @@ test.describe('AI 상담 통합 화면', () => {
 
     test('햄버거 클릭 시 사이드바(Sheet)가 열린다', async ({ page }) => {
       await page.getByRole('button', { name: '대화 목록' }).click();
-      await expect(page.getByText('삼성생명 암보험 면책기간')).toBeVisible();
+      await expect(page.getByRole('heading', { name: '삼성생명 암보험 면책기간', level: 3 })).toBeVisible();
     });
 
     test('모바일에서 우측 출처 패널이 표시되지 않는다', async ({ page }) => {

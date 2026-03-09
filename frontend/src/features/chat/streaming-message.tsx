@@ -8,7 +8,7 @@ interface StreamingMessageProps {
 
 export function StreamingMessage({ content, onSourceClick }: StreamingMessageProps) {
   return (
-    <div className="rounded-lg px-4 py-3 max-w-[85%] bg-chat-ai-bg mr-auto">
+    <div className="rounded-lg px-4 py-3 w-fit max-w-[85%] bg-chat-ai-bg mr-auto">
       <div
         className="prose prose-sm max-w-none [&_h2]:text-base [&_h3]:text-sm [&_p]:text-sm [&_li]:text-sm [&_blockquote]:text-sm"
         onClick={(e) => {
