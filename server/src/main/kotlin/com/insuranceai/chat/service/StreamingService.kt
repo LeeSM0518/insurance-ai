@@ -82,7 +82,7 @@ class StreamingService(
                             ),
                         )
                         sink.tryEmitComplete()
-                    }.subscribe()
+                    }.subscribe({}, { /* doOnError에서 처리 완료 */ })
             } catch (e: Exception) {
                 log.error("스트리밍 시작 에러", e)
                 sink.tryEmitNext(

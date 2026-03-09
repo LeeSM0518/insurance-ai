@@ -41,7 +41,7 @@ class JwtAuthenticationFilter(
             } else {
                 chain.filter(exchange)
             }
-        }.switchIfEmpty(chain.filter(exchange))
+        }
     }
 
     private fun extractToken(exchange: ServerWebExchange): String? {

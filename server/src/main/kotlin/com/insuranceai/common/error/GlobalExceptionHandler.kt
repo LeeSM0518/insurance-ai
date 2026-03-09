@@ -63,7 +63,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(UnsupportedOperationException::class)
     fun handleUnsupportedOperation(ex: UnsupportedOperationException): ResponseEntity<ServiceResponse<Nothing>>? {
         if (ex.message == null) {
-            log.debug("UnsupportedOperationException with null message, likely response already committed - ignoring")
+            log.warn("UnsupportedOperationException (ReadOnlyHttpHeaders 추정) - 스택 트레이스:", ex)
             return null
         }
         log.error("Unexpected UnsupportedOperationException: ${ex.message}", ex)

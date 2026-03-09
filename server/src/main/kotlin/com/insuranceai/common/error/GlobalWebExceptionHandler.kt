@@ -25,20 +25,21 @@ class GlobalWebExceptionHandler : ErrorWebExceptionHandler {
         val response = exchange.response
 
         if (response.isCommitted) {
-            log.info(
-                "Response already committed for {} {}, ignoring error: {}",
+            log.warn(
+                "Response already committed for {} {} - 스택 트레이스:",
                 exchange.request.method,
                 exchange.request.uri.path,
-                ex.message,
+                ex,
             )
             return Mono.empty()
         }
 
         if (ex is UnsupportedOperationException && ex.message == null) {
-            log.debug(
-                "UnsupportedOperationException with null message for {} {}, likely response already committed",
+            log.warn(
+                "UnsupportedOperationException (ReadOnlyHttpHeaders 추정) for {} {} - 스택 트레이스:",
                 exchange.request.method,
                 exchange.request.uri.path,
+                ex,
             )
             return Mono.empty()
         }

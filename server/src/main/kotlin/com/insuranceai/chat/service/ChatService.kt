@@ -13,10 +13,12 @@ import com.insuranceai.chat.repository.ChatMessageRepository
 import com.insuranceai.chat.repository.ChatMessageSourceRepository
 import com.insuranceai.chat.repository.ChatSessionRepository
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.reactive.awaitSingle
 import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
+import reactor.core.publisher.Flux
 import java.time.Instant
 import java.util.UUID
 
@@ -201,7 +203,7 @@ class ChatService(
         val p = DSL.table("products")
         val ic = DSL.table("insurance_companies")
 
-        val result =
+        val query =
             dsl
                 .select(
                     DSL.field("$cms.policy_article_id"),
@@ -218,18 +220,21 @@ class ChatService(
                 .join(ic)
                 .on(DSL.field("$p.insurance_company_id").eq(DSL.field("$ic.id")))
                 .where(DSL.field("$cms.chat_message_id").eq(messageId))
-                .fetch()
 
-        return result.map { record ->
-            MessageSourceResponse(
-                articleId = record.get("policy_article_id", UUID::class.java),
-                insuranceCompany = record.get("company_name", String::class.java),
-                productName = record.get("product_name", String::class.java),
-                articleNumber = record.get("article_number", String::class.java),
-                articleTitle = record.get("article_title", String::class.java),
-                relevanceScore = record.get("relevance_score", Float::class.java),
-            )
-        }
+        return Flux
+            .from(query)
+            .collectList()
+            .awaitSingle()
+            .map { record ->
+                MessageSourceResponse(
+                    articleId = record.get("policy_article_id", UUID::class.java),
+                    insuranceCompany = record.get("company_name", String::class.java),
+                    productName = record.get("product_name", String::class.java),
+                    articleNumber = record.get("article_number", String::class.java),
+                    articleTitle = record.get("article_title", String::class.java),
+                    relevanceScore = record.get("relevance_score", Float::class.java),
+                )
+            }
     }
 
     private fun toSessionResponse(
