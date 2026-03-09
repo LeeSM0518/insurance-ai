@@ -3,6 +3,8 @@ package com.insuranceai.common.security
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.insuranceai.auth.filter.JwtAuthenticationFilter
 import com.insuranceai.auth.property.SecurityProperties
+import com.insuranceai.auth.repository.UserRepository
+import com.insuranceai.auth.service.TokenService
 import com.insuranceai.common.dto.ServiceResponse
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -25,8 +27,11 @@ import reactor.core.publisher.Mono
 class SecurityConfig(
     private val securityProperties: SecurityProperties,
     private val objectMapper: ObjectMapper,
-    private val jwtAuthenticationFilter: JwtAuthenticationFilter,
+    private val tokenService: TokenService,
+    private val userRepository: UserRepository,
 ) {
+    private fun jwtAuthenticationFilter(): JwtAuthenticationFilter = JwtAuthenticationFilter(tokenService, userRepository)
+
     @Bean
     fun securityWebFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain =
         http
@@ -39,7 +44,7 @@ class SecurityConfig(
                     exchange.pathMatchers(path).permitAll()
                 }
                 exchange.anyExchange().authenticated()
-            }.addFilterBefore(jwtAuthenticationFilter, SecurityWebFiltersOrder.AUTHENTICATION)
+            }.addFilterBefore(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .exceptionHandling { it.authenticationEntryPoint(unauthorizedEntryPoint()) }
             .headers { headers ->
                 headers.frameOptions {
