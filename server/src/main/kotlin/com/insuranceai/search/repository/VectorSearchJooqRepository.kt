@@ -68,7 +68,7 @@ class VectorSearchJooqRepository(
             val vectorString = queryVector.joinToString(",", "[", "]")
             val similarityField =
                 DSL.field(
-                    "(1 - (policy_embeddings.embedding <=> '{0}'::vector))",
+                    "(1 - (policy_embeddings.embedding <=> {0}::vector))",
                     Float::class.java,
                     DSL.inline(vectorString),
                 )
@@ -100,7 +100,7 @@ class VectorSearchJooqRepository(
                     .where(paIsActive.eq(true))
                     .and(
                         DSL.condition(
-                            "(1 - (policy_embeddings.embedding <=> '{0}'::vector)) >= {1}",
+                            "(1 - (policy_embeddings.embedding <=> {0}::vector)) >= {1}",
                             DSL.inline(vectorString),
                             DSL.inline(minSimilarity),
                         ),
