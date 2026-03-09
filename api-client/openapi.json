@@ -22,11 +22,249 @@
       "description": "사용자 정보 API"
     },
     {
+      "name": "상품",
+      "description": "보험 상품 보충 데이터 API"
+    },
+    {
+      "name": "AI 채팅",
+      "description": "AI 질의응답 API"
+    },
+    {
+      "name": "약관",
+      "description": "약관 조문 조회 API"
+    },
+    {
+      "name": "검색",
+      "description": "약관 검색 API"
+    },
+    {
       "name": "인증",
       "description": "카카오 OAuth 로그인, 토큰 관리 API"
     }
   ],
   "paths": {
+    "/api/v1/search": {
+      "post": {
+        "tags": [
+          "검색"
+        ],
+        "summary": "하이브리드 검색",
+        "description": "키워드+벡터+RRF 기반 약관 검색",
+        "operationId": "search",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SearchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseSearchResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/chat/sessions": {
+      "get": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "채팅 세션 목록 조회",
+        "operationId": "getSessions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseListChatSessionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "채팅 세션 생성",
+        "operationId": "createSession",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseChatSessionResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/chat/sessions/{sessionId}/reply": {
+      "post": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "채팅 세션 초기 메시지에 대한 AI 응답 (SSE 스트리밍)",
+        "operationId": "replyToSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerSentEventChatStreamEvent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/chat/sessions/{sessionId}/messages": {
+      "get": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "채팅 메시지 이력 조회",
+        "operationId": "getMessages",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseSessionMessagesResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "채팅 메시지 전송 (SSE 스트리밍)",
+        "operationId": "sendMessage",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerSentEventChatStreamEvent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/auth/refresh": {
       "post": {
         "tags": [
@@ -170,10 +408,526 @@
           }
         ]
       }
+    },
+    "/api/v1/products/{productId}/surrender-values": {
+      "get": {
+        "tags": [
+          "상품"
+        ],
+        "summary": "해약환급금 조회",
+        "operationId": "getSurrenderValues",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseSurrenderValueResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/{productId}/premium-examples": {
+      "get": {
+        "tags": [
+          "상품"
+        ],
+        "summary": "보험료 예시 조회",
+        "operationId": "getPremiumExamples",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponsePremiumExampleResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/products/{productId}/indices": {
+      "get": {
+        "tags": [
+          "상품"
+        ],
+        "summary": "가격지수 조회",
+        "operationId": "getProductIndices",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseProductIndexResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/policies/{articleId}": {
+      "get": {
+        "tags": [
+          "약관"
+        ],
+        "summary": "약관 조문 상세 조회",
+        "operationId": "getArticleDetail",
+        "parameters": [
+          {
+            "name": "articleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponsePolicyArticleResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/policies/pdf/{dataSourceId}": {
+      "get": {
+        "tags": [
+          "약관"
+        ],
+        "summary": "약관 PDF 파일 조회",
+        "operationId": "getPdf",
+        "parameters": [
+          {
+            "name": "dataSourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/chat/sessions/{sessionId}": {
+      "delete": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "채팅 세션 삭제",
+        "operationId": "deleteSession",
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
+      "SearchFilters": {
+        "type": "object",
+        "properties": {
+          "companyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "insuranceType": {
+            "type": "string",
+            "enum": [
+              "LIFE",
+              "NON_LIFE"
+            ]
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "contentTypes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "COVERAGE",
+                "EXEMPTION",
+                "REDUCTION",
+                "QUALIFICATION",
+                "SPECIAL_TERMS",
+                "QNA",
+                "COVERAGE_DETAIL",
+                "CLAIM_DOCUMENTS",
+                "ARTICLE"
+              ]
+            }
+          }
+        }
+      },
+      "SearchRequest": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SearchFilters"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "filters",
+          "page",
+          "query",
+          "size"
+        ]
+      },
+      "CompanyInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      },
+      "SearchResponse": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "size": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasNext": {
+            "type": "boolean"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResultItem"
+            }
+          }
+        },
+        "required": [
+          "hasNext",
+          "page",
+          "query",
+          "results",
+          "size",
+          "totalCount"
+        ]
+      },
+      "SearchResultItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "insuranceCompany": {
+            "$ref": "#/components/schemas/CompanyInfo"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "articleNumber": {
+            "type": "string"
+          },
+          "articleTitle": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "highlight": {
+            "type": "string"
+          },
+          "relevanceScore": {
+            "type": "number",
+            "format": "float"
+          },
+          "dataSource": {
+            "type": "string"
+          },
+          "supplementary": {
+            "$ref": "#/components/schemas/SupplementaryInfo"
+          }
+        },
+        "required": [
+          "content",
+          "contentType",
+          "highlight",
+          "id",
+          "insuranceCompany",
+          "productId",
+          "productName",
+          "relevanceScore",
+          "supplementary"
+        ]
+      },
+      "ServiceResponseSearchResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SearchResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "SupplementaryInfo": {
+        "type": "object",
+        "properties": {
+          "hasSurrenderValues": {
+            "type": "boolean"
+          },
+          "hasPremiumExamples": {
+            "type": "boolean"
+          },
+          "hasPriceIndices": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "hasPremiumExamples",
+          "hasPriceIndices",
+          "hasSurrenderValues"
+        ]
+      },
+      "CreateSessionRequest": {
+        "type": "object",
+        "properties": {
+          "initialMessage": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "initialMessage"
+        ]
+      },
+      "ChatSessionResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "lastMessagePreview": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "id",
+          "updatedAt"
+        ]
+      },
+      "ServiceResponseChatSessionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ChatSessionResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ServerSentEventChatStreamEvent": {},
+      "ChatMessageRequest": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
       "TokenRefreshRequest": {
         "type": "object",
         "properties": {
@@ -404,6 +1158,473 @@
         "required": [
           "statusCode",
           "success"
+        ]
+      },
+      "ServiceResponseSurrenderValueResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SurrenderValueResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "SurrenderValueItem": {
+        "type": "object",
+        "properties": {
+          "elapsedMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "premiumPaid": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "surrenderValue": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "surrenderRate": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "elapsedMonths",
+          "surrenderValue"
+        ]
+      },
+      "SurrenderValueResponse": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SurrenderValueItem"
+            }
+          }
+        },
+        "required": [
+          "productId",
+          "values"
+        ]
+      },
+      "PremiumExampleItem": {
+        "type": "object",
+        "properties": {
+          "gender": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "insurancePeriod": {
+            "type": "string"
+          },
+          "paymentPeriod": {
+            "type": "string"
+          },
+          "insuranceAmount": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "insuranceAmountText": {
+            "type": "string"
+          },
+          "premium": {
+            "type": "integer",
+            "format": "int64"
+          }
+        },
+        "required": [
+          "gender",
+          "insurancePeriod",
+          "paymentPeriod",
+          "premium"
+        ]
+      },
+      "PremiumExampleResponse": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "examples": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PremiumExampleItem"
+            }
+          }
+        },
+        "required": [
+          "examples",
+          "productId"
+        ]
+      },
+      "ServiceResponsePremiumExampleResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PremiumExampleResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ProductIndexItem": {
+        "type": "object",
+        "properties": {
+          "indexType": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "coverageName": {
+            "type": "string"
+          },
+          "indexValue": {
+            "type": "number"
+          },
+          "baseDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "baseDate",
+          "indexType",
+          "indexValue"
+        ]
+      },
+      "ProductIndexResponse": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "indices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductIndexItem"
+            }
+          }
+        },
+        "required": [
+          "indices",
+          "productId"
+        ]
+      },
+      "ServiceResponseProductIndexResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ProductIndexResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "PolicyArticleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "insuranceCompany": {
+            "$ref": "#/components/schemas/CompanyInfo"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "articleNumber": {
+            "type": "string"
+          },
+          "articleTitle": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          },
+          "sectionType": {
+            "type": "string"
+          },
+          "effectiveDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "dataSource": {
+            "type": "string"
+          },
+          "dataSourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hasPdfSource": {
+            "type": "boolean"
+          },
+          "relatedArticles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RelatedArticleResponse"
+            }
+          }
+        },
+        "required": [
+          "content",
+          "contentType",
+          "hasPdfSource",
+          "id",
+          "insuranceCompany",
+          "productId",
+          "productName",
+          "relatedArticles"
+        ]
+      },
+      "RelatedArticleResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "articleNumber": {
+            "type": "string"
+          },
+          "articleTitle": {
+            "type": "string"
+          },
+          "contentType": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contentType",
+          "id"
+        ]
+      },
+      "ServiceResponsePolicyArticleResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/PolicyArticleResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ServiceResponseListChatSessionResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatSessionResponse"
+            }
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ChatMessageResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MessageSourceResponse"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "content",
+          "createdAt",
+          "id",
+          "role",
+          "sources"
+        ]
+      },
+      "MessageSourceResponse": {
+        "type": "object",
+        "properties": {
+          "articleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "insuranceCompany": {
+            "type": "string"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "articleNumber": {
+            "type": "string"
+          },
+          "articleTitle": {
+            "type": "string"
+          },
+          "relevanceScore": {
+            "type": "number",
+            "format": "float"
+          },
+          "dataSourceId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "articleId",
+          "insuranceCompany",
+          "productName",
+          "relevanceScore"
+        ]
+      },
+      "ServiceResponseSessionMessagesResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SessionMessagesResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "SessionMessagesResponse": {
+        "type": "object",
+        "properties": {
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatMessageResponse"
+            }
+          }
+        },
+        "required": [
+          "messages",
+          "sessionId"
         ]
       }
     },

@@ -28,9 +28,21 @@ import type { LoginRequest } from '../models';
 // @ts-ignore
 import type { LogoutRequest } from '../models';
 // @ts-ignore
+import type { SearchRequest } from '../models';
+// @ts-ignore
 import type { ServiceResponseLoginResponse } from '../models';
 // @ts-ignore
 import type { ServiceResponseObject } from '../models';
+// @ts-ignore
+import type { ServiceResponsePolicyArticleResponse } from '../models';
+// @ts-ignore
+import type { ServiceResponsePremiumExampleResponse } from '../models';
+// @ts-ignore
+import type { ServiceResponseProductIndexResponse } from '../models';
+// @ts-ignore
+import type { ServiceResponseSearchResponse } from '../models';
+// @ts-ignore
+import type { ServiceResponseSurrenderValueResponse } from '../models';
 // @ts-ignore
 import type { ServiceResponseTokenRefreshResponse } from '../models';
 // @ts-ignore
@@ -82,11 +94,201 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
+         * @summary 약관 조문 상세 조회
+         * @param {string} articleId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getArticleDetail: async (articleId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'articleId' is not null or undefined
+            assertParamExists('getArticleDetail', 'articleId', articleId)
+            const localVarPath = `/api/v1/policies/{articleId}`
+                .replace(`{${"articleId"}}`, encodeURIComponent(String(articleId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         getMe: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/users/me`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 약관 PDF 파일 조회
+         * @param {string} dataSourceId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getPdf: async (dataSourceId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'dataSourceId' is not null or undefined
+            assertParamExists('getPdf', 'dataSourceId', dataSourceId)
+            const localVarPath = `/api/v1/policies/pdf/{dataSourceId}`
+                .replace(`{${"dataSourceId"}}`, encodeURIComponent(String(dataSourceId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 보험료 예시 조회
+         * @param {string} productId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getPremiumExamples: async (productId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'productId' is not null or undefined
+            assertParamExists('getPremiumExamples', 'productId', productId)
+            const localVarPath = `/api/v1/products/{productId}/premium-examples`
+                .replace(`{${"productId"}}`, encodeURIComponent(String(productId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 가격지수 조회
+         * @param {string} productId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getProductIndices: async (productId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'productId' is not null or undefined
+            assertParamExists('getProductIndices', 'productId', productId)
+            const localVarPath = `/api/v1/products/{productId}/indices`
+                .replace(`{${"productId"}}`, encodeURIComponent(String(productId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 해약환급금 조회
+         * @param {string} productId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSurrenderValues: async (productId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'productId' is not null or undefined
+            assertParamExists('getSurrenderValues', 'productId', productId)
+            const localVarPath = `/api/v1/products/{productId}/surrender-values`
+                .replace(`{${"productId"}}`, encodeURIComponent(String(productId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -227,6 +429,45 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 키워드+벡터+RRF 기반 약관 검색
+         * @summary 하이브리드 검색
+         * @param {SearchRequest} searchRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        search: async (searchRequest: SearchRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'searchRequest' is not null or undefined
+            assertParamExists('search', 'searchRequest', searchRequest)
+            const localVarPath = `/api/v1/search`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(searchRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -250,6 +491,19 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary 약관 조문 상세 조회
+         * @param {string} articleId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getArticleDetail(articleId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponsePolicyArticleResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getArticleDetail(articleId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getArticleDetail']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -257,6 +511,58 @@ export const DefaultApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getMe(options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.getMe']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 약관 PDF 파일 조회
+         * @param {string} dataSourceId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getPdf(dataSourceId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<File>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getPdf(dataSourceId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getPdf']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 보험료 예시 조회
+         * @param {string} productId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getPremiumExamples(productId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponsePremiumExampleResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getPremiumExamples(productId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getPremiumExamples']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 가격지수 조회
+         * @param {string} productId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getProductIndices(productId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseProductIndexResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getProductIndices(productId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getProductIndices']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 해약환급금 조회
+         * @param {string} productId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getSurrenderValues(productId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseSurrenderValueResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getSurrenderValues(productId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getSurrenderValues']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -295,6 +601,19 @@ export const DefaultApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.refresh']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 키워드+벡터+RRF 기반 약관 검색
+         * @summary 하이브리드 검색
+         * @param {SearchRequest} searchRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async search(searchRequest: SearchRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseSearchResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.search(searchRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.search']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -315,11 +634,61 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary 약관 조문 상세 조회
+         * @param {DefaultApiGetArticleDetailRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getArticleDetail(requestParameters: DefaultApiGetArticleDetailRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponsePolicyArticleResponse> {
+            return localVarFp.getArticleDetail(requestParameters.articleId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
         getMe(options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseUserResponse> {
             return localVarFp.getMe(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 약관 PDF 파일 조회
+         * @param {DefaultApiGetPdfRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getPdf(requestParameters: DefaultApiGetPdfRequest, options?: RawAxiosRequestConfig): AxiosPromise<File> {
+            return localVarFp.getPdf(requestParameters.dataSourceId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 보험료 예시 조회
+         * @param {DefaultApiGetPremiumExamplesRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getPremiumExamples(requestParameters: DefaultApiGetPremiumExamplesRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponsePremiumExampleResponse> {
+            return localVarFp.getPremiumExamples(requestParameters.productId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 가격지수 조회
+         * @param {DefaultApiGetProductIndicesRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getProductIndices(requestParameters: DefaultApiGetProductIndicesRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseProductIndexResponse> {
+            return localVarFp.getProductIndices(requestParameters.productId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 해약환급금 조회
+         * @param {DefaultApiGetSurrenderValuesRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSurrenderValues(requestParameters: DefaultApiGetSurrenderValuesRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseSurrenderValueResponse> {
+            return localVarFp.getSurrenderValues(requestParameters.productId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -348,6 +717,16 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         refresh(requestParameters: DefaultApiRefreshRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseTokenRefreshResponse> {
             return localVarFp.refresh(requestParameters.tokenRefreshRequest, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 키워드+벡터+RRF 기반 약관 검색
+         * @summary 하이브리드 검색
+         * @param {DefaultApiSearchRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        search(requestParameters: DefaultApiSearchRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseSearchResponse> {
+            return localVarFp.search(requestParameters.searchRequest, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -356,6 +735,41 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
  */
 export interface DefaultApiDevLoginRequest {
     readonly devLoginRequest?: DevLoginRequest
+}
+
+/**
+ * Request parameters for getArticleDetail operation in DefaultApi.
+ */
+export interface DefaultApiGetArticleDetailRequest {
+    readonly articleId: string
+}
+
+/**
+ * Request parameters for getPdf operation in DefaultApi.
+ */
+export interface DefaultApiGetPdfRequest {
+    readonly dataSourceId: string
+}
+
+/**
+ * Request parameters for getPremiumExamples operation in DefaultApi.
+ */
+export interface DefaultApiGetPremiumExamplesRequest {
+    readonly productId: string
+}
+
+/**
+ * Request parameters for getProductIndices operation in DefaultApi.
+ */
+export interface DefaultApiGetProductIndicesRequest {
+    readonly productId: string
+}
+
+/**
+ * Request parameters for getSurrenderValues operation in DefaultApi.
+ */
+export interface DefaultApiGetSurrenderValuesRequest {
+    readonly productId: string
 }
 
 /**
@@ -380,6 +794,13 @@ export interface DefaultApiRefreshRequest {
 }
 
 /**
+ * Request parameters for search operation in DefaultApi.
+ */
+export interface DefaultApiSearchRequest {
+    readonly searchRequest: SearchRequest
+}
+
+/**
  * DefaultApi - object-oriented interface
  */
 export class DefaultApi extends BaseAPI {
@@ -395,11 +816,66 @@ export class DefaultApi extends BaseAPI {
 
     /**
      * 
+     * @summary 약관 조문 상세 조회
+     * @param {DefaultApiGetArticleDetailRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getArticleDetail(requestParameters: DefaultApiGetArticleDetailRequest, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getArticleDetail(requestParameters.articleId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public getMe(options?: RawAxiosRequestConfig) {
         return DefaultApiFp(this.configuration).getMe(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 약관 PDF 파일 조회
+     * @param {DefaultApiGetPdfRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getPdf(requestParameters: DefaultApiGetPdfRequest, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getPdf(requestParameters.dataSourceId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 보험료 예시 조회
+     * @param {DefaultApiGetPremiumExamplesRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getPremiumExamples(requestParameters: DefaultApiGetPremiumExamplesRequest, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getPremiumExamples(requestParameters.productId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 가격지수 조회
+     * @param {DefaultApiGetProductIndicesRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getProductIndices(requestParameters: DefaultApiGetProductIndicesRequest, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getProductIndices(requestParameters.productId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 해약환급금 조회
+     * @param {DefaultApiGetSurrenderValuesRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getSurrenderValues(requestParameters: DefaultApiGetSurrenderValuesRequest, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getSurrenderValues(requestParameters.productId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -430,6 +906,17 @@ export class DefaultApi extends BaseAPI {
      */
     public refresh(requestParameters: DefaultApiRefreshRequest, options?: RawAxiosRequestConfig) {
         return DefaultApiFp(this.configuration).refresh(requestParameters.tokenRefreshRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 키워드+벡터+RRF 기반 약관 검색
+     * @summary 하이브리드 검색
+     * @param {DefaultApiSearchRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public search(requestParameters: DefaultApiSearchRequest, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).search(requestParameters.searchRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
