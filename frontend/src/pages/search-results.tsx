@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router';
-import { Loader2, MessageSquare, SearchX } from 'lucide-react';
+import { useSearchParams } from 'react-router';
+import { Loader2, SearchX } from 'lucide-react';
 import { SearchBar } from '@/features/search/search-bar';
 import { ActiveFilters } from '@/features/search/active-filters';
 import { SearchResultCount } from '@/features/search/search-result-count';
@@ -14,7 +14,6 @@ import type { SearchFilters, ContentType } from '@/types/search';
 
 export default function SearchResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { query, filters: initialFilters } = useMemo(() => parseSearchParams(searchParams), [searchParams]);
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
   const { results, totalCount, hasNext, isLoading, error, search, loadMore } = useSearch();
@@ -108,22 +107,6 @@ export default function SearchResultsPage() {
         ) : null}
       </div>
 
-      {/* AI 질문 CTA 하단 고정 */}
-      <div className="sticky bottom-tab-bar desktop:bottom-0 px-4 py-3 border-t bg-background">
-        <Button
-          className="w-full gap-2"
-          onClick={() => {
-            if (query) {
-              navigate(`/chat?q=${encodeURIComponent(query)}`);
-            } else {
-              navigate('/chat');
-            }
-          }}
-        >
-          <MessageSquare className="size-4" />
-          AI에게 질문하기
-        </Button>
-      </div>
     </div>
   );
 }
