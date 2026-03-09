@@ -22,7 +22,7 @@ export interface UseStreamingChatReturn {
   messages: ChatMessage[];
   streamingState: StreamingState;
   isStreaming: boolean;
-  sendMessage: (content: string, isInitialMessage?: boolean) => void;
+  sendMessage: (content: string, isInitialMessage?: boolean, overrideSessionId?: string) => void;
   cancelStreaming: () => void;
   retryStreaming: () => void;
 }
@@ -68,6 +68,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
   const abortRef = useRef<AbortController | null>(null);
   const lastMessageRef = useRef<string | null>(null);
   const lastIsInitialRef = useRef(false);
+  const lastSessionIdRef = useRef<string | null>(null);
   // Ref로 스트리밍 중 누적 데이터 추적 (updater 내 side-effect 방지)
   const streamingDataRef = useRef<{ content: string; sources: Source[] }>({
     content: '',
@@ -111,10 +112,10 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
     };
   }, []);
 
-  const runStreamingRef = useRef<(content: string, isInitial: boolean) => void>();
+  const runStreamingRef = useRef<(content: string, isInitial: boolean, targetSessionId: string) => void>();
 
   const runStreaming = useCallback(
-    async (content: string, isInitialMessage: boolean) => {
+    async (content: string, isInitialMessage: boolean, targetSessionId: string) => {
       const controller = new AbortController();
       abortRef.current = controller;
 
@@ -182,10 +183,10 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
       try {
         if (isInitialMessage) {
           // 세션 생성 직후: /reply 엔드포인트 (USER 메시지 중복 저장 방지)
-          await streamReply(sessionId!, callbacks);
+          await streamReply(targetSessionId, callbacks);
         } else {
           // 기존 세션: /messages 엔드포인트 (USER 메시지 저장 + AI 응답)
-          await streamChatMessage({ ...callbacks, sessionId: sessionId!, content });
+          await streamChatMessage({ ...callbacks, sessionId: targetSessionId, content });
         }
       } catch (e) {
         if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -206,7 +207,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
 
           const retryDelay = BASE_DELAY_MS * Math.pow(2, newRetryCount - 1);
           setTimeout(() => {
-            runStreamingRef.current?.(content, isInitialMessage);
+            runStreamingRef.current?.(content, isInitialMessage, lastSessionIdRef.current!);
           }, retryDelay);
 
           return {
@@ -220,15 +221,18 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
         abortRef.current = null;
       }
     },
-    [sessionId],
+    [], // sessionId를 파라미터로 받으므로 의존성 제거
   );
 
   // ref를 통해 최신 runStreaming 참조 유지 (순환 의존성 방지)
   runStreamingRef.current = runStreaming;
 
   const sendMessage = useCallback(
-    (content: string, isInitialMessage = false) => {
+    (content: string, isInitialMessage = false, overrideSessionId?: string) => {
       if (streamingState.phase !== 'idle') return;
+
+      const effectiveSessionId = overrideSessionId ?? sessionId;
+      if (!effectiveSessionId) return;
 
       if (!isInitialMessage) {
         // 사용자 메시지를 UI에 즉시 추가 (낙관적 업데이트)
@@ -243,6 +247,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
 
       lastMessageRef.current = content;
       lastIsInitialRef.current = isInitialMessage;
+      lastSessionIdRef.current = effectiveSessionId;
 
       // 스트리밍 상태 초기화
       setStreamingState({
@@ -250,9 +255,9 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
         phase: 'searching',
       });
 
-      runStreaming(content, isInitialMessage);
+      runStreaming(content, isInitialMessage, effectiveSessionId);
     },
-    [streamingState.phase, runStreaming],
+    [streamingState.phase, sessionId, runStreaming],
   );
 
   const cancelStreaming = useCallback(() => {
@@ -264,7 +269,8 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
 
   const retryStreaming = useCallback(() => {
     const lastMessage = lastMessageRef.current;
-    if (!lastMessage) return;
+    const lastSessionId = lastSessionIdRef.current;
+    if (!lastMessage || !lastSessionId) return;
 
     // 부분 응답 삭제 (마지막 ASSISTANT 메시지가 있다면 제거)
     setMessages((prev) => {
@@ -281,7 +287,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
       phase: 'searching',
     });
 
-    runStreaming(lastMessage, lastIsInitialRef.current);
+    runStreaming(lastMessage, lastIsInitialRef.current, lastSessionId);
   }, [runStreaming]);
 
   return {

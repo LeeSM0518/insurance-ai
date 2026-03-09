@@ -101,23 +101,30 @@ export default function ChatPage() {
     }
   };
 
-  const handleSend = async (message: string) => {
-    if (!activeSessionId) {
-      // 새 세션 생성 (initialMessage가 USER 메시지로 저장됨)
-      try {
+  const sendingRef = useRef(false);
+
+  const handleSend = useCallback(async (message: string) => {
+    // 동시 호출 방지
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+
+    try {
+      if (!activeSessionId) {
+        // 새 세션 생성 (initialMessage가 USER 메시지로 저장됨)
         const newSessionId = await createSession(message);
         setActiveSessionId(newSessionId);
-        // /reply 엔드포인트로 AI 응답 트리거 (USER 메시지 중복 저장 방지)
-        // sendMessage의 isInitialMessage=true로 호출
-        sendMessage(message, true);
-      } catch {
-        toast.error('대화를 시작할 수 없습니다');
+        // newSessionId를 직접 전달하여 React 상태 비동기 문제 회피
+        sendMessage(message, true, newSessionId);
+      } else {
+        // 기존 세션: /messages 엔드포인트 (USER 메시지 저장 + AI 응답)
+        sendMessage(message);
       }
-    } else {
-      // 기존 세션: /messages 엔드포인트 (USER 메시지 저장 + AI 응답)
-      sendMessage(message);
+    } catch {
+      toast.error('대화를 시작할 수 없습니다');
+    } finally {
+      sendingRef.current = false;
     }
-  };
+  }, [activeSessionId, createSession, sendMessage, setActiveSessionId]);
 
   const handleSuggestedQuestion = (question: string) => {
     if (activeSessionId) {
