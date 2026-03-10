@@ -40,6 +40,7 @@ class PolicyArticleJooqRepository(
     private val pId = DSL.field("products.id", UUID::class.java)
     private val pName = DSL.field("products.name", String::class.java)
     private val pCategory = DSL.field("products.category", String::class.java)
+    private val pSubcategory = DSL.field("products.subcategory", String::class.java)
     private val pInsuranceCompanyId = DSL.field("products.insurance_company_id", UUID::class.java)
 
     private val icId = DSL.field("insurance_companies.id", UUID::class.java)
@@ -161,6 +162,9 @@ class PolicyArticleJooqRepository(
         }
         filters.categories?.let { cats ->
             result = result.and(pCategory.`in`(cats))
+        }
+        filters.subcategories?.let { subs ->
+            result = result.and(pSubcategory.`in`(subs))
         }
         filters.contentTypes?.let { types ->
             result = result.and(paContentType.`in`(types.map { it.name }))

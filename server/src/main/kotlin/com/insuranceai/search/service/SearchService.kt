@@ -138,6 +138,7 @@ class SearchService(
             SearchFilters(
                 companyIds = companyIds,
                 categories = analysis.categories.takeIf { it.isNotEmpty() },
+                subcategories = analysis.subcategories.takeIf { it.isNotEmpty() },
                 contentTypes = contentTypes,
             )
 

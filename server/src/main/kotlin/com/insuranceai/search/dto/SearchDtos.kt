@@ -9,6 +9,7 @@ data class SearchFilters(
     val companyIds: List<UUID>? = null,
     val insuranceType: InsuranceType? = null,
     val categories: List<String>? = null,
+    val subcategories: List<String>? = null,
     val contentTypes: List<ContentType>? = null,
 )
 

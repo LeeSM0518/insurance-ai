@@ -10,6 +10,8 @@ data class QuestionAnalysis(
     val companies: List<String> = emptyList(),
     @JsonPropertyDescription("카테고리 목록 (PROTECTION, SAVINGS, ANNUITY 등)")
     val categories: List<String> = emptyList(),
+    @JsonPropertyDescription("소분류 목록 (DISEASE, CANCER, PB14 등)")
+    val subcategories: List<String> = emptyList(),
     @JsonPropertyDescription("내용유형 목록 (COVERAGE, EXEMPTION, REDUCTION 등)")
     val contentTypes: List<String> = emptyList(),
     @JsonPropertyDescription("비교 질의 여부")

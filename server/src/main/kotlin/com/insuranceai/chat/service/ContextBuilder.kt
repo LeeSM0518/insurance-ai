@@ -87,8 +87,16 @@ class ContextBuilder(
         // 동적 예산 계산
         val historySection = buildHistorySection(conversationHistory)
         val historyTokens = estimateTokens(historySection)
-        val productIds = searchResults.take(MAX_ARTICLES).map { it.productId }.distinct()
-        val supplementarySection = buildSupplementarySection(productIds, analysis)
+        val topResults = searchResults.take(MAX_ARTICLES)
+        val productIds = topResults.map { it.productId }.distinct()
+
+        // productId → 첫 번째 출처 번호 매핑 (보충 데이터 출처 연결용)
+        val productSourceMap = mutableMapOf<UUID, Int>()
+        topResults.forEachIndexed { index, result ->
+            productSourceMap.putIfAbsent(result.productId, index + 1)
+        }
+
+        val supplementarySection = buildSupplementarySection(productIds, analysis, productSourceMap)
         val hasSupplementary = supplementarySection.isNotBlank()
         val budgets = calculateBudgets(historyTokens, hasSupplementary)
 
@@ -206,10 +214,20 @@ class ContextBuilder(
         return buildArticlesSection(results.take(1), sources)
     }
 
+    /** productId에 대응하는 출처 참조 문자열 생성 */
+    private fun sourceRef(
+        productSourceMap: Map<UUID, Int>,
+        productId: UUID,
+    ): String {
+        val sourceNum = productSourceMap[productId] ?: return ""
+        return " (관련 출처: [$sourceNum])"
+    }
+
     /** 보충 정형 데이터 섹션 구성 */
     private suspend fun buildSupplementarySection(
         productIds: List<UUID>,
         analysis: QuestionAnalysis,
+        productSourceMap: Map<UUID, Int>,
     ): String {
         if (productIds.isEmpty()) return ""
 
@@ -220,8 +238,9 @@ class ContextBuilder(
         for (productId in productIds) {
             val product = productRepository.findById(productId) ?: continue
             val company = insuranceCompanyRepository.findById(product.insuranceCompanyId)
+            val ref = sourceRef(productSourceMap, productId)
 
-            sb.appendLine("### 상품 기본 정보: ${company?.name ?: ""} ${product.name}")
+            sb.appendLine("### 상품 기본 정보: ${company?.name ?: ""} ${product.name}$ref")
             sb.appendLine("- 카테고리: ${product.category}")
             product.subcategory?.let { sb.appendLine("- 소분류: $it") }
             product.renewalType?.let { sb.appendLine("- 갱신유형: $it") }
@@ -234,11 +253,21 @@ class ContextBuilder(
             sb.appendLine()
         }
 
+        // productId → 상품 표시명 캐시 (하위 섹션 헤더용)
+        val productLabelMap = mutableMapOf<UUID, String>()
+        for (productId in productIds) {
+            val product = productRepository.findById(productId) ?: continue
+            val company = insuranceCompanyRepository.findById(product.insuranceCompanyId)
+            productLabelMap[productId] = "${company?.name ?: ""} ${product.name}"
+        }
+
         if (needs.surrenderValue) {
             for (productId in productIds) {
                 val values = surrenderValueRepository.findByProductId(productId).toList()
                 if (values.isNotEmpty()) {
-                    sb.appendLine("### 해약환급금")
+                    val label = productLabelMap[productId] ?: ""
+                    val ref = sourceRef(productSourceMap, productId)
+                    sb.appendLine("### 해약환급금: $label$ref")
                     sb.appendLine("| 경과월수 | 납입보험료 | 해약환급금 | 환급률 |")
                     sb.appendLine("|---------|----------|----------|-------|")
                     values.forEach { v ->
@@ -253,7 +282,9 @@ class ContextBuilder(
             for (productId in productIds) {
                 val examples = premiumExampleRepository.findByProductId(productId).toList()
                 if (examples.isNotEmpty()) {
-                    sb.appendLine("### 보험료 예시")
+                    val label = productLabelMap[productId] ?: ""
+                    val ref = sourceRef(productSourceMap, productId)
+                    sb.appendLine("### 보험료 예시: $label$ref")
                     sb.appendLine("| 성별 | 나이 | 보험기간 | 납입기간 | 보험가입금액 | 보험료 |")
                     sb.appendLine("|------|------|---------|---------|-----------|-------|")
                     examples.forEach { e ->
@@ -274,7 +305,9 @@ class ContextBuilder(
                             product.guaranteedInterestRateText != null ||
                             product.appliedInterestRate != null
                     if (hasRateInfo) {
-                        sb.appendLine("### 이율 정보")
+                        val label = productLabelMap[productId] ?: ""
+                        val ref = sourceRef(productSourceMap, productId)
+                        sb.appendLine("### 이율 정보: $label$ref")
                         product.appliedInterestRate?.let { sb.appendLine("- 적용이율: $it%") }
                         product.declaredInterestRate?.let { sb.appendLine("- 공시이율: $it%") }
                         if (product.guaranteedInterestRateText != null) {
@@ -292,7 +325,9 @@ class ContextBuilder(
             for (productId in productIds) {
                 val indices = productIndexRepository.findByProductId(productId).toList()
                 if (indices.isNotEmpty()) {
-                    sb.appendLine("### 가격지수")
+                    val label = productLabelMap[productId] ?: ""
+                    val ref = sourceRef(productSourceMap, productId)
+                    sb.appendLine("### 가격지수: $label$ref")
                     sb.appendLine("| 지수유형 | 성별 | 담보명 | 지수값 | 기준일 |")
                     sb.appendLine("|---------|------|-------|-------|-------|")
                     indices.forEach { idx ->
@@ -309,7 +344,9 @@ class ContextBuilder(
             for (productId in productIds) {
                 val features = productFeatureRepository.findByProductId(productId).toList()
                 if (features.isNotEmpty()) {
-                    sb.appendLine("### 상품 특징")
+                    val label = productLabelMap[productId] ?: ""
+                    val ref = sourceRef(productSourceMap, productId)
+                    sb.appendLine("### 상품 특징: $label$ref")
                     features.forEach { f ->
                         sb.appendLine("- ${f.key}: ${f.value}")
                     }
@@ -322,7 +359,9 @@ class ContextBuilder(
             for (productId in productIds) {
                 val scenarios = productYieldScenarioRepository.findByProductId(productId).toList()
                 if (scenarios.isNotEmpty()) {
-                    sb.appendLine("### 수익률 시나리오")
+                    val label = productLabelMap[productId] ?: ""
+                    val ref = sourceRef(productSourceMap, productId)
+                    sb.appendLine("### 수익률 시나리오: $label$ref")
                     sb.appendLine("| 시나리오 | 수익률 | 성별 |")
                     sb.appendLine("|---------|-------|------|")
                     scenarios.forEach { s ->
@@ -337,7 +376,9 @@ class ContextBuilder(
             for (productId in productIds) {
                 val metrics = productMetricRepository.findByProductId(productId).toList()
                 if (metrics.isNotEmpty()) {
-                    sb.appendLine("### 상품 지표")
+                    val label = productLabelMap[productId] ?: ""
+                    val ref = sourceRef(productSourceMap, productId)
+                    sb.appendLine("### 상품 지표: $label$ref")
                     sb.appendLine("| 지표유형 | 값 | 기준일 |")
                     sb.appendLine("|---------|---|-------|")
                     metrics.forEach { m ->
