@@ -1,5 +1,6 @@
 package com.insuranceai.auth.service
 
+import com.insuranceai.auth.entity.RefreshTokenEntity
 import com.insuranceai.auth.entity.UserEntity
 import com.insuranceai.auth.error.AuthError
 import com.insuranceai.auth.property.JwtProperties
@@ -11,6 +12,8 @@ import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -91,11 +94,21 @@ class AuthServiceTest {
     fun `토큰 갱신 성공`() =
         runTest {
             val userId = UUID.randomUUID()
+            val familyId = UUID.randomUUID()
+            val storedToken =
+                RefreshTokenEntity(
+                    id = UUID.randomUUID(),
+                    userId = userId,
+                    token = "old-refresh",
+                    familyId = familyId,
+                    revoked = false,
+                    expiresAt = Instant.now().plus(7, ChronoUnit.DAYS),
+                )
 
-            coEvery { tokenService.validateRefreshToken("old-refresh") } returns true
-            coEvery { tokenService.getUserIdFromRefreshToken("old-refresh") } returns userId
+            coEvery { tokenService.validateRefreshTokenSignature("old-refresh") } returns true
+            coEvery { tokenService.findRefreshToken("old-refresh") } returns storedToken
             coEvery { tokenService.createAccessToken(userId) } returns "new-access"
-            coEvery { tokenService.createRefreshToken(userId) } returns "new-refresh"
+            coEvery { tokenService.createRefreshToken(userId, familyId) } returns "new-refresh"
 
             val result = authService.refresh("old-refresh")
 
@@ -104,12 +117,68 @@ class AuthServiceTest {
         }
 
     @Test
-    fun `유효하지 않은 Refresh Token으로 갱신 시 에러`() =
+    fun `유효하지 않은 JWT 서명으로 갱신 시 에러`() =
         runTest {
-            coEvery { tokenService.validateRefreshToken("invalid-token") } returns false
+            coEvery { tokenService.validateRefreshTokenSignature("invalid-token") } returns false
 
             assertFailsWith<AuthError.InvalidRefreshToken> {
                 authService.refresh("invalid-token")
+            }
+        }
+
+    @Test
+    fun `DB에 없는 Refresh Token으로 갱신 시 에러`() =
+        runTest {
+            coEvery { tokenService.validateRefreshTokenSignature("unknown-token") } returns true
+            coEvery { tokenService.findRefreshToken("unknown-token") } returns null
+
+            assertFailsWith<AuthError.InvalidRefreshToken> {
+                authService.refresh("unknown-token")
+            }
+        }
+
+    @Test
+    fun `폐기된 Refresh Token 재사용 시 전체 Family 무효화`() =
+        runTest {
+            val familyId = UUID.randomUUID()
+            val revokedToken =
+                RefreshTokenEntity(
+                    id = UUID.randomUUID(),
+                    userId = UUID.randomUUID(),
+                    token = "revoked-token",
+                    familyId = familyId,
+                    revoked = true,
+                    expiresAt = Instant.now().plus(7, ChronoUnit.DAYS),
+                )
+
+            coEvery { tokenService.validateRefreshTokenSignature("revoked-token") } returns true
+            coEvery { tokenService.findRefreshToken("revoked-token") } returns revokedToken
+            coEvery { tokenService.revokeAllByFamily(familyId) } returns Unit
+
+            assertFailsWith<AuthError.RefreshTokenReused> {
+                authService.refresh("revoked-token")
+            }
+
+            coVerify { tokenService.revokeAllByFamily(familyId) }
+        }
+
+    @Test
+    fun `만료된 Refresh Token으로 갱신 시 에러`() =
+        runTest {
+            val expiredToken =
+                RefreshTokenEntity(
+                    id = UUID.randomUUID(),
+                    userId = UUID.randomUUID(),
+                    token = "expired-token",
+                    revoked = false,
+                    expiresAt = Instant.now().minus(1, ChronoUnit.HOURS),
+                )
+
+            coEvery { tokenService.validateRefreshTokenSignature("expired-token") } returns true
+            coEvery { tokenService.findRefreshToken("expired-token") } returns expiredToken
+
+            assertFailsWith<AuthError.InvalidRefreshToken> {
+                authService.refresh("expired-token")
             }
         }
 

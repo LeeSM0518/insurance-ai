@@ -4,8 +4,14 @@ import com.insuranceai.auth.entity.RefreshTokenEntity
 import com.insuranceai.auth.property.JwtProperties
 import com.insuranceai.auth.repository.RefreshTokenRepository
 import io.jsonwebtoken.Jwts
+import kotlinx.coroutines.reactive.awaitSingle
+import org.jooq.DSLContext
+import org.jooq.impl.DSL
 import org.springframework.stereotype.Service
+import reactor.core.publisher.Mono
 import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneOffset
 import java.util.Date
 import java.util.UUID
 import javax.crypto.SecretKey
@@ -14,6 +20,7 @@ import javax.crypto.SecretKey
 class TokenService(
     private val jwtProperties: JwtProperties,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val dsl: DSLContext,
 ) {
     fun createAccessToken(userId: UUID): String {
         val now = Instant.now()
@@ -27,7 +34,10 @@ class TokenService(
             .compact()
     }
 
-    suspend fun createRefreshToken(userId: UUID): String {
+    suspend fun createRefreshToken(
+        userId: UUID,
+        familyId: UUID? = null,
+    ): String {
         val now = Instant.now()
         val expiration = jwtProperties.addRefreshTokenExpiration(now)
         val token =
@@ -39,24 +49,47 @@ class TokenService(
                 .signWith(jwtProperties.refreshTokenSecretKey)
                 .compact()
 
-        // 기존 토큰 있으면 교체, 없으면 새로 생성
-        val existing = refreshTokenRepository.findByUserId(userId)
-        if (existing != null) {
-            refreshTokenRepository.save(
-                existing.copy(
-                    token = token,
-                    expiresAt = expiration,
-                    updatedAt = now,
-                ),
-            )
+        val resolvedFamilyId = familyId ?: UUID.randomUUID()
+
+        // 같은 family의 활성 토큰을 찾아 revoked 마킹
+        if (familyId != null) {
+            val existing = refreshTokenRepository.findByFamilyIdAndRevokedFalse(familyId)
+            if (existing != null) {
+                refreshTokenRepository.save(
+                    existing.copy(revoked = true, updatedAt = Instant.now()),
+                )
+            }
         } else {
+            // 신규 로그인: 기존 사용자의 토큰이 있으면 교체 (하위 호환)
+            val existing = refreshTokenRepository.findByUserId(userId)
+            if (existing != null) {
+                refreshTokenRepository.save(
+                    existing.copy(revoked = true, updatedAt = Instant.now()),
+                )
+            }
+        }
+
+        val saved =
             refreshTokenRepository.save(
                 RefreshTokenEntity(
                     userId = userId,
                     token = token,
+                    familyId = resolvedFamilyId,
                     expiresAt = expiration,
                 ),
             )
+
+        // 이전 토큰의 replacedBy를 새 토큰 ID로 업데이트
+        if (familyId != null) {
+            val previous =
+                refreshTokenRepository
+                    .findAllByFamilyId(resolvedFamilyId)
+                    .firstOrNull { it.id != saved.id && it.replacedBy == null && it.revoked }
+            if (previous != null) {
+                refreshTokenRepository.save(
+                    previous.copy(replacedBy = saved.id, updatedAt = Instant.now()),
+                )
+            }
         }
 
         return token
@@ -71,21 +104,33 @@ class TokenService(
                 .parseSignedClaims(token)
         }.isSuccess
 
-    suspend fun validateRefreshToken(token: String): Boolean {
-        val valid =
-            runCatching {
-                Jwts
-                    .parser()
-                    .verifyWith(jwtProperties.refreshTokenSecretKey)
-                    .build()
-                    .parseSignedClaims(token)
-            }.isSuccess
+    /**
+     * RT의 JWT 서명만 검증 (DB 조회 없이)
+     */
+    fun validateRefreshTokenSignature(token: String): Boolean =
+        runCatching {
+            Jwts
+                .parser()
+                .verifyWith(jwtProperties.refreshTokenSecretKey)
+                .build()
+                .parseSignedClaims(token)
+        }.isSuccess
 
-        if (!valid) return false
+    suspend fun findRefreshToken(token: String): RefreshTokenEntity? = refreshTokenRepository.findByToken(token)
 
-        val stored = refreshTokenRepository.findByToken(token) ?: return false
-        val userId = getUserIdFromToken(token, jwtProperties.refreshTokenSecretKey)
-        return stored.userId == userId && stored.expiresAt.isAfter(Instant.now())
+    /**
+     * Token Family 전체 무효화 (jOOQ 벌크 UPDATE)
+     */
+    suspend fun revokeAllByFamily(familyId: UUID) {
+        val refreshTokens = DSL.table("refresh_tokens")
+        Mono
+            .from(
+                dsl
+                    .update(refreshTokens)
+                    .set(DSL.field("revoked", Boolean::class.java), true)
+                    .set(DSL.field("updated_at", LocalDateTime::class.java), LocalDateTime.now(ZoneOffset.UTC))
+                    .where(DSL.field("family_id", UUID::class.java).eq(familyId)),
+            ).awaitSingle()
     }
 
     fun getUserIdFromAccessToken(token: String): UUID = getUserIdFromToken(token, jwtProperties.accessTokenSecretKey)

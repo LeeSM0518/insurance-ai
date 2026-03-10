@@ -28,6 +28,10 @@ sealed class AuthError(
         override val status = HttpStatus.UNAUTHORIZED
     }
 
+    data object RefreshTokenReused : AuthError("리프레시 토큰 재사용이 감지되었습니다") {
+        override val status = HttpStatus.FORBIDDEN
+    }
+
     data object KakaoAuthFailed : AuthError("카카오 인증에 실패했습니다") {
         override val status = HttpStatus.BAD_REQUEST
     }

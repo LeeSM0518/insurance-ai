@@ -9,6 +9,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.test.runTest
+import org.jooq.DSLContext
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -24,6 +25,7 @@ class TokenServiceTest {
     private lateinit var tokenService: TokenService
     private lateinit var refreshTokenRepository: RefreshTokenRepository
     private lateinit var jwtProperties: JwtProperties
+    private lateinit var dsl: DSLContext
 
     // 테스트용 시크릿 (32바이트 이상)
     private val accessSecret = "test-access-secret-key-for-hmac-sha256-minimum-32-bytes"
@@ -32,6 +34,7 @@ class TokenServiceTest {
     @BeforeEach
     fun setUp() {
         refreshTokenRepository = mockk()
+        dsl = mockk()
         jwtProperties =
             JwtProperties(
                 accessTokenSecret = accessSecret,
@@ -39,7 +42,7 @@ class TokenServiceTest {
                 refreshTokenSecret = refreshSecret,
                 refreshTokenExpiration = 1209600000, // 14일
             )
-        tokenService = TokenService(jwtProperties, refreshTokenRepository)
+        tokenService = TokenService(jwtProperties, refreshTokenRepository, dsl)
     }
 
     @Test
@@ -82,7 +85,7 @@ class TokenServiceTest {
     }
 
     @Test
-    fun `Refresh Token 생성 시 기존 토큰 교체`() =
+    fun `Refresh Token 생성 시 기존 토큰 revoke 후 새로 생성`() =
         runTest {
             val userId = UUID.randomUUID()
             val existingEntity =
@@ -94,14 +97,18 @@ class TokenServiceTest {
                 )
 
             coEvery { refreshTokenRepository.findByUserId(userId) } returns existingEntity
-            val savedSlot = slot<RefreshTokenEntity>()
-            coEvery { refreshTokenRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
+            val savedEntities = mutableListOf<RefreshTokenEntity>()
+            coEvery { refreshTokenRepository.save(capture(savedEntities)) } answers {
+                savedEntities.last().let { if (it.id == null) it.copy(id = UUID.randomUUID()) else it }
+            }
 
             val token = tokenService.createRefreshToken(userId)
 
             assertNotNull(token)
-            assertEquals(token, savedSlot.captured.token)
-            assertEquals(existingEntity.id, savedSlot.captured.id)
+            // 첫 번째 save: 기존 토큰 revoke
+            assertTrue(savedEntities[0].revoked)
+            // 두 번째 save: 새 토큰 생성
+            assertEquals(token, savedEntities[1].token)
         }
 
     @Test
@@ -111,7 +118,9 @@ class TokenServiceTest {
 
             coEvery { refreshTokenRepository.findByUserId(userId) } returns null
             val savedSlot = slot<RefreshTokenEntity>()
-            coEvery { refreshTokenRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
+            coEvery { refreshTokenRepository.save(capture(savedSlot)) } answers {
+                savedSlot.captured.copy(id = UUID.randomUUID())
+            }
 
             val token = tokenService.createRefreshToken(userId)
 
@@ -120,37 +129,47 @@ class TokenServiceTest {
         }
 
     @Test
-    fun `Refresh Token 검증 성공`() =
+    fun `Refresh Token 서명 검증 성공`() =
         runTest {
             val userId = UUID.randomUUID()
 
             coEvery { refreshTokenRepository.findByUserId(userId) } returns null
-            val savedSlot = slot<RefreshTokenEntity>()
-            coEvery { refreshTokenRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
-            coEvery { refreshTokenRepository.findByToken(any()) } answers {
-                savedSlot.captured
+            coEvery { refreshTokenRepository.save(any()) } answers {
+                firstArg<RefreshTokenEntity>().copy(id = UUID.randomUUID())
             }
 
             val token = tokenService.createRefreshToken(userId)
-            val valid = tokenService.validateRefreshToken(token)
+            val valid = tokenService.validateRefreshTokenSignature(token)
 
             assertTrue(valid)
         }
 
     @Test
-    fun `DB에 없는 Refresh Token 검증 실패`() =
+    fun `DB에서 Refresh Token 조회`() =
         runTest {
-            val userId = UUID.randomUUID()
+            val entity =
+                RefreshTokenEntity(
+                    id = UUID.randomUUID(),
+                    userId = UUID.randomUUID(),
+                    token = "some-token",
+                    expiresAt = Instant.now().plus(7, ChronoUnit.DAYS),
+                )
+            coEvery { refreshTokenRepository.findByToken("some-token") } returns entity
 
-            coEvery { refreshTokenRepository.findByUserId(userId) } returns null
-            val savedSlot = slot<RefreshTokenEntity>()
-            coEvery { refreshTokenRepository.save(capture(savedSlot)) } answers { savedSlot.captured }
-            coEvery { refreshTokenRepository.findByToken(any()) } returns null
+            val found = tokenService.findRefreshToken("some-token")
 
-            val token = tokenService.createRefreshToken(userId)
-            val valid = tokenService.validateRefreshToken(token)
+            assertNotNull(found)
+            assertEquals("some-token", found.token)
+        }
 
-            assertFalse(valid)
+    @Test
+    fun `DB에 없는 Refresh Token 조회 시 null 반환`() =
+        runTest {
+            coEvery { refreshTokenRepository.findByToken("unknown-token") } returns null
+
+            val found = tokenService.findRefreshToken("unknown-token")
+
+            assertEquals(null, found)
         }
 
     @Test
@@ -180,7 +199,9 @@ class TokenServiceTest {
             val userId = UUID.randomUUID()
 
             coEvery { refreshTokenRepository.findByUserId(userId) } returns null
-            coEvery { refreshTokenRepository.save(any()) } answers { firstArg() }
+            coEvery { refreshTokenRepository.save(any()) } answers {
+                firstArg<RefreshTokenEntity>().copy(id = UUID.randomUUID())
+            }
 
             val token = tokenService.createRefreshToken(userId)
             val extractedId = tokenService.getUserIdFromRefreshToken(token)

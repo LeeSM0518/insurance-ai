@@ -12,4 +12,8 @@ interface RefreshTokenRepository : CoroutineCrudRepository<RefreshTokenEntity, U
     suspend fun deleteByToken(token: String)
 
     suspend fun deleteByUserId(userId: UUID)
+
+    suspend fun findByFamilyIdAndRevokedFalse(familyId: UUID): RefreshTokenEntity?
+
+    suspend fun findAllByFamilyId(familyId: UUID): List<RefreshTokenEntity>
 }

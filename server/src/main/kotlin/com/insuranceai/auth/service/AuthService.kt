@@ -32,12 +32,32 @@ class AuthService(
     }
 
     suspend fun refresh(refreshToken: String): TokenRefreshResponse {
-        if (!tokenService.validateRefreshToken(refreshToken)) {
+        // 1. JWT 서명 검증
+        if (!tokenService.validateRefreshTokenSignature(refreshToken)) {
             throw AuthError.InvalidRefreshToken()
         }
-        val userId = tokenService.getUserIdFromRefreshToken(refreshToken)
+
+        // 2. DB에서 토큰 조회
+        val stored =
+            tokenService.findRefreshToken(refreshToken)
+                ?: throw AuthError.InvalidRefreshToken()
+
+        // 3. Reuse Detection: 이미 폐기된 토큰이 사용됨 → 탈취 의심 → 전체 Family 무효화
+        if (stored.revoked) {
+            tokenService.revokeAllByFamily(stored.familyId)
+            throw AuthError.RefreshTokenReused
+        }
+
+        // 4. 만료 확인
+        if (stored.expiresAt.isBefore(Instant.now())) {
+            throw AuthError.InvalidRefreshToken()
+        }
+
+        // 5. 새 토큰 발급 (같은 familyId 유지)
+        val userId = stored.userId
         val accessToken = tokenService.createAccessToken(userId)
-        val newRefreshToken = tokenService.createRefreshToken(userId)
+        val newRefreshToken = tokenService.createRefreshToken(userId, stored.familyId)
+
         return TokenRefreshResponse(
             accessToken = accessToken,
             refreshToken = newRefreshToken,
