@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { ChatHeader } from '@/features/chat/chat-header';
 import { ChatSidebar } from '@/features/chat/chat-sidebar';
 import { ChatMessage } from '@/features/chat/chat-message';
@@ -422,13 +422,16 @@ export default function ChatPage() {
 
       {/* 데스크톱 출처 사이드패널 (리사이즈 가능) */}
       {isDesktop && openTabs.length > 0 && (
-        <aside className="relative flex-shrink-0" style={{ width: sourcePanelWidth }}>
-          {/* 리사이즈 핸들 - 넓은 히트 영역 + 시각적 그립 표시 */}
+        <aside className="relative flex-shrink-0 border-l" style={{ width: sourcePanelWidth }}>
+          {/* 리사이즈 핸들 - 원형 버튼 + 좌우 쉐브론 */}
           <div
-            className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-10 group flex items-center justify-center"
+            className="absolute -left-3 top-0 bottom-0 w-6 cursor-col-resize z-10 group flex items-center justify-center"
             onMouseDown={(e) => handleResizeMouseDown(e, sourcePanelWidth)}
           >
-            <div className="w-1 h-8 rounded-full bg-border group-hover:bg-primary/40 group-active:bg-primary/60 transition-colors" />
+            <div className="flex items-center justify-center w-6 h-6 rounded-full border bg-background shadow-sm group-hover:bg-accent group-active:bg-accent group-hover:shadow transition-all">
+              <ChevronLeft className="w-3 h-3 text-muted-foreground -mr-0.5" />
+              <ChevronRight className="w-3 h-3 text-muted-foreground -ml-0.5" />
+            </div>
           </div>
           <SourceTabPanel
             tabs={openTabs}

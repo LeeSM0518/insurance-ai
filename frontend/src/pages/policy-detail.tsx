@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
-import { ArrowLeft, FileText, Loader2, MessageSquare, SearchX, X } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, FileText, Loader2, MessageSquare, SearchX, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -92,7 +92,7 @@ export default function PolicyDetailPage() {
         <h1 className="text-sm font-semibold">약관 상세</h1>
       </header>
 
-      <div className={`flex-1 min-h-0 ${isDesktop ? 'flex gap-6 px-6 py-4' : 'flex flex-col px-4 py-4'}`}>
+      <div className={`flex-1 min-h-0 ${isDesktop ? 'flex gap-8 px-6 py-4' : 'flex flex-col px-4 py-4'}`}>
         {/* 좌측 (또는 모바일 전체) */}
         <div className={`flex flex-col min-h-0 ${isDesktop ? 'flex-1 min-w-0 gap-4' : 'flex-1 gap-4'}`}>
           {/* 상단 고정 영역: 메타 + PDF 버튼 */}
@@ -158,15 +158,18 @@ export default function PolicyDetailPage() {
         {/* 우측 PDF 사이드바 (데스크톱, PDF 열렸을 때만) */}
         {isDesktop && pdfOpen && article.dataSourceId && (
           <aside
-            className="relative shrink-0 flex flex-col"
+            className="relative shrink-0 flex flex-col border-l pl-6"
             style={{ width: pdfPanelWidth }}
           >
-            {/* 리사이즈 핸들 - 넓은 히트 영역 + 시각적 그립 표시 */}
+            {/* 리사이즈 핸들 - 원형 버튼 + 좌우 쉐브론 */}
             <div
-              className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-10 group flex items-center justify-center"
+              className="absolute -left-3 top-0 bottom-0 w-6 cursor-col-resize z-10 group flex items-center justify-center"
               onMouseDown={(e) => handleResizeMouseDown(e, pdfPanelWidth)}
             >
-              <div className="w-1 h-8 rounded-full bg-border group-hover:bg-primary/40 group-active:bg-primary/60 transition-colors" />
+              <div className="flex items-center justify-center w-6 h-6 rounded-full border bg-background shadow-sm group-hover:bg-accent group-active:bg-accent group-hover:shadow transition-all">
+                <ChevronLeft className="w-3 h-3 text-muted-foreground -mr-0.5" />
+                <ChevronRight className="w-3 h-3 text-muted-foreground -ml-0.5" />
+              </div>
             </div>
             <div className="flex-1 flex flex-col">
               <div className="flex items-center justify-between p-3 border-b">
