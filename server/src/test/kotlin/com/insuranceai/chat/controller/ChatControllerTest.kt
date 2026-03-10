@@ -6,6 +6,7 @@ import com.insuranceai.chat.dto.ChatStreamEvent
 import com.insuranceai.chat.dto.CreateSessionRequest
 import com.insuranceai.chat.dto.SessionMessagesResponse
 import com.insuranceai.chat.error.ChatError
+import com.insuranceai.chat.service.ChatFeedbackService
 import com.insuranceai.chat.service.ChatService
 import com.insuranceai.chat.usecase.ReplyToSessionUseCase
 import com.insuranceai.chat.usecase.SendChatMessageUseCase
@@ -26,9 +27,10 @@ import kotlin.test.assertTrue
 
 class ChatControllerTest {
     private val chatService = mockk<ChatService>()
+    private val chatFeedbackService = mockk<ChatFeedbackService>()
     private val sendChatMessageUseCase = mockk<SendChatMessageUseCase>()
     private val replyToSessionUseCase = mockk<ReplyToSessionUseCase>()
-    private val controller = ChatController(chatService, sendChatMessageUseCase, replyToSessionUseCase)
+    private val controller = ChatController(chatService, chatFeedbackService, sendChatMessageUseCase, replyToSessionUseCase)
     private val principal = UserPrincipal(userId = UUID.randomUUID(), nickname = "test")
     private val sessionId = UUID.randomUUID()
 

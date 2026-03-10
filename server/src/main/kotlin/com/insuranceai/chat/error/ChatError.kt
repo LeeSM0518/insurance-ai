@@ -24,7 +24,11 @@ sealed class ChatError(
         override val status = HttpStatus.BAD_GATEWAY
     }
 
-    data object UserMessageNotFound : ChatError("세션에 사용자 메시지가 없습니다") {
+    data object MessageNotFound : ChatError("메시지를 찾을 수 없습니다") {
         override val status = HttpStatus.NOT_FOUND
+    }
+
+    data object InvalidFeedback : ChatError("잘못된 피드백 요청입니다") {
+        override val status = HttpStatus.BAD_REQUEST
     }
 }
