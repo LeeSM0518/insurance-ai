@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { processChildren, isSourceRefOnly, fixEmphasisParsing } from './source-ref-utils';
@@ -9,7 +9,39 @@ interface StreamingMessageProps {
   onSourceClick?: (index: number) => void;
 }
 
-export function StreamingMessage({ content, isFadingOut = false, onSourceClick }: StreamingMessageProps) {
+// 마크다운 커스텀 컴포넌트 (리렌더 시 재생성 방지)
+const markdownComponents = {
+  // h1은 채팅에서 너무 크므로 h2로 렌더링
+  h1: ({ children }: { children?: React.ReactNode }) => <h2>{processChildren(children)}</h2>,
+  h2: ({ children }: { children?: React.ReactNode }) => <h2>{processChildren(children)}</h2>,
+  h3: ({ children }: { children?: React.ReactNode }) => <h3>{processChildren(children)}</h3>,
+  // hr(---) 제거 — 제목만으로 섹션 구분 충분
+  hr: () => null,
+  p: ({ children }: { children?: React.ReactNode }) => {
+    if (isSourceRefOnly(children)) {
+      return (
+        <div className="flex flex-wrap items-center gap-1 -mt-2 mb-3 not-prose">
+          <span className="text-xs text-muted-foreground mr-0.5">출처</span>
+          {processChildren(children)}
+        </div>
+      );
+    }
+    return <p>{processChildren(children)}</p>;
+  },
+  blockquote: ({ children }: { children?: React.ReactNode }) => <blockquote>{processChildren(children)}</blockquote>,
+  li: ({ children }: { children?: React.ReactNode }) => <li>{processChildren(children)}</li>,
+  td: ({ children }: { children?: React.ReactNode }) => <td>{processChildren(children)}</td>,
+  th: ({ children }: { children?: React.ReactNode }) => <th>{processChildren(children)}</th>,
+  table: ({ children }: { children?: React.ReactNode }) => (
+    <div className="overflow-x-auto my-2">
+      <table>{children}</table>
+    </div>
+  ),
+};
+
+const remarkPlugins = [[remarkGfm, { singleTilde: false }]] as Parameters<typeof Markdown>[0]['remarkPlugins'];
+
+function StreamingMessageInner({ content, isFadingOut = false, onSourceClick }: StreamingMessageProps) {
   const [visible, setVisible] = useState(false);
   const mountedRef = useRef(false);
 
@@ -20,6 +52,9 @@ export function StreamingMessage({ content, isFadingOut = false, onSourceClick }
       requestAnimationFrame(() => setVisible(true));
     }
   }, []);
+
+  // 마크다운 emphasis 보정 결과 메모이제이션
+  const fixedContent = useMemo(() => fixEmphasisParsing(content), [content]);
 
   return (
     <div
@@ -38,37 +73,10 @@ export function StreamingMessage({ content, isFadingOut = false, onSourceClick }
         }}
       >
         <Markdown
-          remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
-          components={{
-            // h1은 채팅에서 너무 크므로 h2로 렌더링
-            h1: ({ children }) => <h2>{processChildren(children)}</h2>,
-            h2: ({ children }) => <h2>{processChildren(children)}</h2>,
-            h3: ({ children }) => <h3>{processChildren(children)}</h3>,
-            // hr(---) 제거 — 제목만으로 섹션 구분 충분
-            hr: () => null,
-            p: ({ children }) => {
-              if (isSourceRefOnly(children)) {
-                return (
-                  <div className="flex flex-wrap items-center gap-1 -mt-2 mb-3 not-prose">
-                    <span className="text-xs text-muted-foreground mr-0.5">출처</span>
-                    {processChildren(children)}
-                  </div>
-                );
-              }
-              return <p>{processChildren(children)}</p>;
-            },
-            blockquote: ({ children }) => <blockquote>{processChildren(children)}</blockquote>,
-            li: ({ children }) => <li>{processChildren(children)}</li>,
-            td: ({ children }) => <td>{processChildren(children)}</td>,
-            th: ({ children }) => <th>{processChildren(children)}</th>,
-            table: ({ children }) => (
-              <div className="overflow-x-auto my-2">
-                <table>{children}</table>
-              </div>
-            ),
-          }}
+          remarkPlugins={remarkPlugins}
+          components={markdownComponents}
         >
-          {fixEmphasisParsing(content)}
+          {fixedContent}
         </Markdown>
         {/* 깜빡이는 커서 — fade-out 중에는 숨김 */}
         {!isFadingOut && (
@@ -78,3 +86,5 @@ export function StreamingMessage({ content, isFadingOut = false, onSourceClick }
     </div>
   );
 }
+
+export const StreamingMessage = memo(StreamingMessageInner);

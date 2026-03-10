@@ -131,7 +131,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
     return () => {
       abortRef.current?.abort();
       if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
+        clearTimeout(rafIdRef.current);
       }
     };
   }, []);
@@ -147,7 +147,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
       streamingDataRef.current = { content: '', sources: [] };
       tokenBufferRef.current = '';
       if (rafIdRef.current) {
-        cancelAnimationFrame(rafIdRef.current);
+        clearTimeout(rafIdRef.current);
         rafIdRef.current = 0;
       }
 
@@ -178,9 +178,10 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
           streamingDataRef.current.content += token;
           tokenBufferRef.current += token;
 
-          // requestAnimationFrame으로 토큰을 모아 배치 렌더링 (60fps)
+          // 80ms 간격으로 토큰을 모아 배치 렌더링 (~12fps)
+          // react-markdown 파싱 비용을 줄여 부드러운 스트리밍 효과 제공
           if (!rafIdRef.current) {
-            rafIdRef.current = requestAnimationFrame(() => {
+            rafIdRef.current = window.setTimeout(() => {
               const buffered = tokenBufferRef.current;
               tokenBufferRef.current = '';
               rafIdRef.current = 0;
@@ -189,7 +190,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
                 phase: 'streaming',
                 streamingContent: prev.streamingContent + buffered,
               }));
-            });
+            }, 80);
           }
         },
         onDone: ({ messageId, suggestedQuestions, title }: { messageId: string; suggestedQuestions: string[]; title?: string }) => {
