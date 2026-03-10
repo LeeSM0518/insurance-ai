@@ -75,8 +75,8 @@ class RankFusionServiceTest {
         assertTrue(result[0].relevanceScore >= result[1].relevanceScore)
         assertNotNull(result[0].keywordRank)
         assertNull(result[0].vectorRank)
-        // 재정규화로 최고 점수는 1.0
-        assertEquals(1.0f, result[0].relevanceScore, 0.001f)
+        // 한쪽만 매칭: SINGLE_MATCH_SCALE(0.8) × 정규화 점수
+        assertEquals(RankFusionService.SINGLE_MATCH_SCALE, result[0].relevanceScore, 0.001f)
     }
 
     @Test
@@ -90,8 +90,8 @@ class RankFusionServiceTest {
         assertTrue(result[0].relevanceScore >= result[1].relevanceScore)
         assertNull(result[0].keywordRank)
         assertNotNull(result[0].vectorRank)
-        // 재정규화로 최고 점수는 1.0
-        assertEquals(1.0f, result[0].relevanceScore, 0.001f)
+        // 한쪽만 매칭: SINGLE_MATCH_SCALE(0.8) × 정규화 점수
+        assertEquals(RankFusionService.SINGLE_MATCH_SCALE, result[0].relevanceScore, 0.001f)
     }
 
     @Test
@@ -138,7 +138,7 @@ class RankFusionServiceTest {
         // 양쪽 매칭 결과가 한쪽만 매칭 결과보다 높은 점수
         assertTrue(sharedResult.relevanceScore > keywordOnly.relevanceScore)
         assertTrue(sharedResult.relevanceScore > vectorOnly.relevanceScore)
-        // 양쪽 매칭 최대값 = 1.0, 한쪽만 매칭 최대값 = SINGLE_MATCH_SCALE(0.8)
+        // 양쪽 매칭: Convex Combination (alpha=0.5 × 1.0 + 0.5 × 1.0 = 1.0)
         assertEquals(1.0f, sharedResult.relevanceScore, 0.001f)
     }
 
@@ -207,8 +207,8 @@ class RankFusionServiceTest {
         val bothMatch = result.first { it.articleId == bothId }
         val keywordOnly = result.first { it.articleId == keywordOnlyId }
 
-        // 양쪽 매칭 top = 1.0 (재정규화 후), 한쪽만 매칭은 그보다 낮음
-        assertEquals(1.0f, bothMatch.relevanceScore, 0.001f)
+        // 양쪽 매칭 top이 한쪽만 매칭보다 높음
+        assertTrue(bothMatch.relevanceScore > keywordOnly.relevanceScore)
         assertTrue(keywordOnly.relevanceScore < 1.0f)
     }
 
@@ -302,18 +302,8 @@ class RankFusionServiceTest {
         val keywordOnly03 = result03.first { it.articleId == keywordOnlyId }
         val keywordOnly07 = result07.first { it.articleId == keywordOnlyId }
 
-        // 양쪽 매칭 top은 항상 1.0, 한쪽만 매칭의 상대 점수는 alpha와 무관하게 동일
+        // 한쪽만 매칭은 SINGLE_MATCH_SCALE 적용이라 alpha와 무관하게 동일한 점수
         assertEquals(keywordOnly03.relevanceScore, keywordOnly07.relevanceScore, 0.001f)
-    }
-
-    @Test
-    fun `최종 결과의 최고 점수가 재정규화로 1_0이 된다`() {
-        // 한쪽만 매칭 결과만 있어도 최고 점수는 1.0
-        val keyword = keywordResult(rank = 1, matchQuality = 0.6f)
-        val result = service.fuse(listOf(keyword), emptyList())
-
-        assertEquals(1, result.size)
-        assertEquals(1.0f, result[0].relevanceScore, 0.001f)
     }
 
     @Test

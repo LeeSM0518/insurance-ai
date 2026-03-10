@@ -106,14 +106,6 @@ class RankFusionService {
                     vectorNormalizedScore = entry.vectorNormScore,
                 )
             }.sortedByDescending { it.relevanceScore }
-            .let { results -> renormalize(results) }
-    }
-
-    /** 최종 결과를 Min-Max 재정규화하여 최고 점수를 1.0으로 매핑 */
-    private fun renormalize(results: List<FusedSearchResult>): List<FusedSearchResult> {
-        if (results.isEmpty()) return results
-        val normalizer = MinMaxNormalizer(results.map { it.relevanceScore })
-        return results.map { it.copy(relevanceScore = normalizer.normalize(it.relevanceScore)) }
     }
 
     /** 다양성 보장: 보험사별 최대 maxPerCompany개 */
