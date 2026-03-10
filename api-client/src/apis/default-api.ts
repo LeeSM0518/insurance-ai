@@ -30,6 +30,12 @@ import type { LogoutRequest } from '../models';
 // @ts-ignore
 import type { SearchRequest } from '../models';
 // @ts-ignore
+import type { ServiceResponseListCategoryInfo } from '../models';
+// @ts-ignore
+import type { ServiceResponseListInsuranceCompanyResponse } from '../models';
+// @ts-ignore
+import type { ServiceResponseListString } from '../models';
+// @ts-ignore
 import type { ServiceResponseLoginResponse } from '../models';
 // @ts-ignore
 import type { ServiceResponseObject } from '../models';
@@ -104,6 +110,79 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getArticleDetail', 'articleId', articleId)
             const localVarPath = `/api/v1/policies/{articleId}`
                 .replace(`{${"articleId"}}`, encodeURIComponent(String(articleId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 카테고리 목록 조회
+         * @param {GetCategoriesInsuranceTypeEnum} [insuranceType] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getCategories: async (insuranceType?: GetCategoriesInsuranceTypeEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/categories`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            if (insuranceType !== undefined) {
+                localVarQueryParameter['insuranceType'] = insuranceType;
+            }
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 보험사 목록 조회
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getInsuranceCompanies: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/insurance-companies`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -251,6 +330,40 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
             assertParamExists('getProductIndices', 'productId', productId)
             const localVarPath = `/api/v1/products/{productId}/indices`
                 .replace(`{${"productId"}}`, encodeURIComponent(String(productId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 추천 검색어 목록
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSuggestions: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/search/suggestions`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
             let baseOptions;
@@ -504,6 +617,31 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary 카테고리 목록 조회
+         * @param {GetCategoriesInsuranceTypeEnum} [insuranceType] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getCategories(insuranceType?: GetCategoriesInsuranceTypeEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseListCategoryInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getCategories(insuranceType, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getCategories']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 보험사 목록 조회
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getInsuranceCompanies(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseListInsuranceCompanyResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getInsuranceCompanies(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getInsuranceCompanies']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -550,6 +688,18 @@ export const DefaultApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getProductIndices(productId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.getProductIndices']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 추천 검색어 목록
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getSuggestions(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseListString>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getSuggestions(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getSuggestions']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -644,6 +794,25 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
+         * @summary 카테고리 목록 조회
+         * @param {DefaultApiGetCategoriesRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getCategories(requestParameters: DefaultApiGetCategoriesRequest = {}, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseListCategoryInfo> {
+            return localVarFp.getCategories(requestParameters.insuranceType, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 보험사 목록 조회
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getInsuranceCompanies(options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseListInsuranceCompanyResponse> {
+            return localVarFp.getInsuranceCompanies(options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
@@ -679,6 +848,15 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          */
         getProductIndices(requestParameters: DefaultApiGetProductIndicesRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseProductIndexResponse> {
             return localVarFp.getProductIndices(requestParameters.productId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 추천 검색어 목록
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getSuggestions(options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseListString> {
+            return localVarFp.getSuggestions(options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -742,6 +920,13 @@ export interface DefaultApiDevLoginRequest {
  */
 export interface DefaultApiGetArticleDetailRequest {
     readonly articleId: string
+}
+
+/**
+ * Request parameters for getCategories operation in DefaultApi.
+ */
+export interface DefaultApiGetCategoriesRequest {
+    readonly insuranceType?: GetCategoriesInsuranceTypeEnum
 }
 
 /**
@@ -827,6 +1012,27 @@ export class DefaultApi extends BaseAPI {
 
     /**
      * 
+     * @summary 카테고리 목록 조회
+     * @param {DefaultApiGetCategoriesRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getCategories(requestParameters: DefaultApiGetCategoriesRequest = {}, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getCategories(requestParameters.insuranceType, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 보험사 목록 조회
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getInsuranceCompanies(options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getInsuranceCompanies(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
@@ -865,6 +1071,16 @@ export class DefaultApi extends BaseAPI {
      */
     public getProductIndices(requestParameters: DefaultApiGetProductIndicesRequest, options?: RawAxiosRequestConfig) {
         return DefaultApiFp(this.configuration).getProductIndices(requestParameters.productId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 추천 검색어 목록
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getSuggestions(options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getSuggestions(options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -920,3 +1136,8 @@ export class DefaultApi extends BaseAPI {
     }
 }
 
+export const GetCategoriesInsuranceTypeEnum = {
+    Life: 'LIFE',
+    NonLife: 'NON_LIFE'
+} as const;
+export type GetCategoriesInsuranceTypeEnum = typeof GetCategoriesInsuranceTypeEnum[keyof typeof GetCategoriesInsuranceTypeEnum];

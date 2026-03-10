@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **articleId** | **string** |  | [default to undefined]
 **insuranceCompany** | **string** |  | [default to undefined]
 **productName** | **string** |  | [default to undefined]
+**contentType** | **string** |  | [default to undefined]
 **articleNumber** | **string** |  | [optional] [default to undefined]
 **articleTitle** | **string** |  | [optional] [default to undefined]
 **relevanceScore** | **number** |  | [default to undefined]
@@ -22,6 +23,7 @@ const instance: MessageSourceResponse = {
     articleId,
     insuranceCompany,
     productName,
+    contentType,
     articleNumber,
     articleTitle,
     relevanceScore,

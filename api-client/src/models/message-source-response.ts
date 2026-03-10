@@ -18,6 +18,7 @@ export interface MessageSourceResponse {
     'articleId': string;
     'insuranceCompany': string;
     'productName': string;
+    'contentType': string;
     'articleNumber'?: string;
     'articleTitle'?: string;
     'relevanceScore': number;

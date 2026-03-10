@@ -8,6 +8,7 @@ base.ts
 common.ts
 configuration.ts
 docs/AIApi.md
+docs/CategoryInfo.md
 docs/ChatMessageRequest.md
 docs/ChatMessageResponse.md
 docs/ChatSessionResponse.md
@@ -15,6 +16,9 @@ docs/CompanyInfo.md
 docs/CreateSessionRequest.md
 docs/DefaultApi.md
 docs/DevLoginRequest.md
+docs/FeedbackRequest.md
+docs/FeedbackResponse.md
+docs/InsuranceCompanyResponse.md
 docs/LoginRequest.md
 docs/LoginResponse.md
 docs/LogoutRequest.md
@@ -30,7 +34,11 @@ docs/SearchRequest.md
 docs/SearchResponse.md
 docs/SearchResultItem.md
 docs/ServiceResponseChatSessionResponse.md
+docs/ServiceResponseFeedbackResponse.md
+docs/ServiceResponseListCategoryInfo.md
 docs/ServiceResponseListChatSessionResponse.md
+docs/ServiceResponseListInsuranceCompanyResponse.md
+docs/ServiceResponseListString.md
 docs/ServiceResponseLoginResponse.md
 docs/ServiceResponseObject.md
 docs/ServiceResponsePolicyArticleResponse.md
@@ -43,6 +51,7 @@ docs/ServiceResponseTokenRefreshResponse.md
 docs/ServiceResponseUnit.md
 docs/ServiceResponseUserResponse.md
 docs/SessionMessagesResponse.md
+docs/SubcategoryInfo.md
 docs/SupplementaryInfo.md
 docs/SurrenderValueItem.md
 docs/SurrenderValueResponse.md
@@ -51,13 +60,17 @@ docs/TokenRefreshResponse.md
 docs/UserResponse.md
 git_push.sh
 index.ts
+models/category-info.ts
 models/chat-message-request.ts
 models/chat-message-response.ts
 models/chat-session-response.ts
 models/company-info.ts
 models/create-session-request.ts
 models/dev-login-request.ts
+models/feedback-request.ts
+models/feedback-response.ts
 models/index.ts
+models/insurance-company-response.ts
 models/login-request.ts
 models/login-response.ts
 models/logout-request.ts
@@ -73,7 +86,11 @@ models/search-request.ts
 models/search-response.ts
 models/search-result-item.ts
 models/service-response-chat-session-response.ts
+models/service-response-feedback-response.ts
+models/service-response-list-category-info.ts
 models/service-response-list-chat-session-response.ts
+models/service-response-list-insurance-company-response.ts
+models/service-response-list-string.ts
 models/service-response-login-response.ts
 models/service-response-object.ts
 models/service-response-policy-article-response.ts
@@ -86,6 +103,7 @@ models/service-response-token-refresh-response.ts
 models/service-response-unit.ts
 models/service-response-user-response.ts
 models/session-messages-response.ts
+models/subcategory-info.ts
 models/supplementary-info.ts
 models/surrender-value-item.ts
 models/surrender-value-response.ts

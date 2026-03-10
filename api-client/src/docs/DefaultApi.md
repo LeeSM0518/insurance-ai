@@ -6,10 +6,13 @@ All URIs are relative to *http://localhost:8888*
 |------------- | ------------- | -------------|
 |[**devLogin**](#devlogin) | **POST** /api/v1/auth/dev-login | |
 |[**getArticleDetail**](#getarticledetail) | **GET** /api/v1/policies/{articleId} | 약관 조문 상세 조회|
+|[**getCategories**](#getcategories) | **GET** /api/v1/categories | 카테고리 목록 조회|
+|[**getInsuranceCompanies**](#getinsurancecompanies) | **GET** /api/v1/insurance-companies | 보험사 목록 조회|
 |[**getMe**](#getme) | **GET** /api/v1/users/me | |
 |[**getPdf**](#getpdf) | **GET** /api/v1/policies/pdf/{dataSourceId} | 약관 PDF 파일 조회|
 |[**getPremiumExamples**](#getpremiumexamples) | **GET** /api/v1/products/{productId}/premium-examples | 보험료 예시 조회|
 |[**getProductIndices**](#getproductindices) | **GET** /api/v1/products/{productId}/indices | 가격지수 조회|
+|[**getSuggestions**](#getsuggestions) | **GET** /api/v1/search/suggestions | 추천 검색어 목록|
 |[**getSurrenderValues**](#getsurrendervalues) | **GET** /api/v1/products/{productId}/surrender-values | 해약환급금 조회|
 |[**login**](#login) | **POST** /api/v1/auth/login | |
 |[**logout**](#logout) | **POST** /api/v1/auth/logout | |
@@ -99,6 +102,99 @@ const { status, data } = await apiInstance.getArticleDetail(
 ### Return type
 
 **ServiceResponsePolicyArticleResponse**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: */*
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getCategories**
+> ServiceResponseListCategoryInfo getCategories()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+let insuranceType: 'LIFE' | 'NON_LIFE'; // (optional) (default to undefined)
+
+const { status, data } = await apiInstance.getCategories(
+    insuranceType
+);
+```
+
+### Parameters
+
+|Name | Type | Description  | Notes|
+|------------- | ------------- | ------------- | -------------|
+| **insuranceType** | [**&#39;LIFE&#39; | &#39;NON_LIFE&#39;**]**Array<&#39;LIFE&#39; &#124; &#39;NON_LIFE&#39;>** |  | (optional) defaults to undefined|
+
+
+### Return type
+
+**ServiceResponseListCategoryInfo**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: */*
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getInsuranceCompanies**
+> ServiceResponseListInsuranceCompanyResponse getInsuranceCompanies()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+const { status, data } = await apiInstance.getInsuranceCompanies();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**ServiceResponseListInsuranceCompanyResponse**
 
 ### Authorization
 
@@ -292,6 +388,49 @@ const { status, data } = await apiInstance.getProductIndices(
 ### Return type
 
 **ServiceResponseProductIndexResponse**
+
+### Authorization
+
+[bearerAuth](../README.md#bearerAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: */*
+
+
+### HTTP response details
+| Status code | Description | Response headers |
+|-------------|-------------|------------------|
+|**200** | OK |  -  |
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getSuggestions**
+> ServiceResponseListString getSuggestions()
+
+
+### Example
+
+```typescript
+import {
+    DefaultApi,
+    Configuration
+} from './api';
+
+const configuration = new Configuration();
+const apiInstance = new DefaultApi(configuration);
+
+const { status, data } = await apiInstance.getSuggestions();
+```
+
+### Parameters
+This endpoint does not have any parameters.
+
+
+### Return type
+
+**ServiceResponseListString**
 
 ### Authorization
 

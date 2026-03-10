@@ -43,6 +43,117 @@
     }
   ],
   "paths": {
+    "/api/v1/chat/messages/{messageId}/feedback": {
+      "get": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "메시지 피드백 조회",
+        "operationId": "getFeedback",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseFeedbackResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "메시지 피드백 저장/수정",
+        "operationId": "submitFeedback",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseFeedbackResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "AI 채팅"
+        ],
+        "summary": "메시지 피드백 삭제",
+        "operationId": "deleteFeedback",
+        "parameters": [
+          {
+            "name": "messageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/search": {
       "post": {
         "tags": [
@@ -409,6 +520,27 @@
         ]
       }
     },
+    "/api/v1/search/suggestions": {
+      "get": {
+        "tags": [
+          "검색"
+        ],
+        "summary": "추천 검색어 목록",
+        "operationId": "getSuggestions",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseListString"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/products/{productId}/surrender-values": {
       "get": {
         "tags": [
@@ -595,6 +727,62 @@
         ]
       }
     },
+    "/api/v1/insurance-companies": {
+      "get": {
+        "tags": [
+          "약관"
+        ],
+        "summary": "보험사 목록 조회",
+        "operationId": "getInsuranceCompanies",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseListInsuranceCompanyResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categories": {
+      "get": {
+        "tags": [
+          "약관"
+        ],
+        "summary": "카테고리 목록 조회",
+        "operationId": "getCategories",
+        "parameters": [
+          {
+            "name": "insuranceType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LIFE",
+                "NON_LIFE"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseListCategoryInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/chat/sessions/{sessionId}": {
       "delete": {
         "tags": [
@@ -629,6 +817,107 @@
   },
   "components": {
     "schemas": {
+      "FeedbackRequest": {
+        "type": "object",
+        "properties": {
+          "feedbackType": {
+            "type": "string",
+            "enum": [
+              "POSITIVE",
+              "NEGATIVE"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "INACCURATE",
+              "MISUNDERSTOOD",
+              "INSUFFICIENT",
+              "WRONG_SOURCE",
+              "OTHER"
+            ]
+          },
+          "comment": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "feedbackType"
+        ]
+      },
+      "FeedbackResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "chatMessageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "feedbackType": {
+            "type": "string",
+            "enum": [
+              "POSITIVE",
+              "NEGATIVE"
+            ]
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "INACCURATE",
+              "MISUNDERSTOOD",
+              "INSUFFICIENT",
+              "WRONG_SOURCE",
+              "OTHER"
+            ]
+          },
+          "comment": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "chatMessageId",
+          "createdAt",
+          "feedbackType",
+          "id",
+          "updatedAt"
+        ]
+      },
+      "ServiceResponseFeedbackResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/FeedbackResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
       "SearchFilters": {
         "type": "object",
         "properties": {
@@ -1160,6 +1449,34 @@
           "success"
         ]
       },
+      "ServiceResponseListString": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
       "ServiceResponseSurrenderValueResponse": {
         "type": "object",
         "properties": {
@@ -1488,6 +1805,58 @@
           "success"
         ]
       },
+      "InsuranceCompanyResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "LIFE",
+              "NON_LIFE"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      },
+      "ServiceResponseListInsuranceCompanyResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InsuranceCompanyResponse"
+            }
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
       "ServiceResponseListChatSessionResponse": {
         "type": "object",
         "properties": {
@@ -1561,6 +1930,9 @@
           "productName": {
             "type": "string"
           },
+          "contentType": {
+            "type": "string"
+          },
           "articleNumber": {
             "type": "string"
           },
@@ -1578,6 +1950,7 @@
         },
         "required": [
           "articleId",
+          "contentType",
           "insuranceCompany",
           "productName",
           "relevanceScore"
@@ -1625,6 +1998,79 @@
         "required": [
           "messages",
           "sessionId"
+        ]
+      },
+      "CategoryInfo": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "insuranceType": {
+            "type": "string",
+            "enum": [
+              "LIFE",
+              "NON_LIFE"
+            ]
+          },
+          "subcategories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SubcategoryInfo"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "insuranceType",
+          "name",
+          "subcategories"
+        ]
+      },
+      "ServiceResponseListCategoryInfo": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryInfo"
+            }
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "SubcategoryInfo": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
         ]
       }
     },

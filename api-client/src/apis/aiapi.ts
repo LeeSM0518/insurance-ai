@@ -26,7 +26,11 @@ import type { ChatMessageRequest } from '../models';
 // @ts-ignore
 import type { CreateSessionRequest } from '../models';
 // @ts-ignore
+import type { FeedbackRequest } from '../models';
+// @ts-ignore
 import type { ServiceResponseChatSessionResponse } from '../models';
+// @ts-ignore
+import type { ServiceResponseFeedbackResponse } from '../models';
 // @ts-ignore
 import type { ServiceResponseListChatSessionResponse } from '../models';
 // @ts-ignore
@@ -77,6 +81,43 @@ export const AIApiAxiosParamCreator = function (configuration?: Configuration) {
         },
         /**
          * 
+         * @summary 메시지 피드백 삭제
+         * @param {string} messageId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteFeedback: async (messageId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'messageId' is not null or undefined
+            assertParamExists('deleteFeedback', 'messageId', messageId)
+            const localVarPath = `/api/v1/chat/messages/{messageId}/feedback`
+                .replace(`{${"messageId"}}`, encodeURIComponent(String(messageId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary 채팅 세션 삭제
          * @param {string} sessionId 
          * @param {*} [options] Override http request option.
@@ -102,6 +143,44 @@ export const AIApiAxiosParamCreator = function (configuration?: Configuration) {
             // http bearer authentication required
             await setBearerAuthToObject(localVarHeaderParameter, configuration)
 
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 메시지 피드백 조회
+         * @param {string} messageId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getFeedback: async (messageId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'messageId' is not null or undefined
+            assertParamExists('getFeedback', 'messageId', messageId)
+            const localVarPath = `/api/v1/chat/messages/{messageId}/feedback`
+                .replace(`{${"messageId"}}`, encodeURIComponent(String(messageId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
 
             setSearchParams(localVarUrlObj, localVarQueryParameter);
             let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
@@ -265,6 +344,49 @@ export const AIApiAxiosParamCreator = function (configuration?: Configuration) {
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @summary 메시지 피드백 저장/수정
+         * @param {string} messageId 
+         * @param {FeedbackRequest} feedbackRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        submitFeedback: async (messageId: string, feedbackRequest: FeedbackRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'messageId' is not null or undefined
+            assertParamExists('submitFeedback', 'messageId', messageId)
+            // verify required parameter 'feedbackRequest' is not null or undefined
+            assertParamExists('submitFeedback', 'feedbackRequest', feedbackRequest)
+            const localVarPath = `/api/v1/chat/messages/{messageId}/feedback`
+                .replace(`{${"messageId"}}`, encodeURIComponent(String(messageId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'PUT', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(feedbackRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -289,6 +411,19 @@ export const AIApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary 메시지 피드백 삭제
+         * @param {string} messageId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteFeedback(messageId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteFeedback(messageId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AIApi.deleteFeedback']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary 채팅 세션 삭제
          * @param {string} sessionId 
          * @param {*} [options] Override http request option.
@@ -298,6 +433,19 @@ export const AIApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.deleteSession(sessionId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['AIApi.deleteSession']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 메시지 피드백 조회
+         * @param {string} messageId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getFeedback(messageId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseFeedbackResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getFeedback(messageId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AIApi.getFeedback']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -352,6 +500,20 @@ export const AIApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['AIApi.sendMessage']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @summary 메시지 피드백 저장/수정
+         * @param {string} messageId 
+         * @param {FeedbackRequest} feedbackRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async submitFeedback(messageId: string, feedbackRequest: FeedbackRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseFeedbackResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.submitFeedback(messageId, feedbackRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['AIApi.submitFeedback']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -373,6 +535,16 @@ export const AIApiFactory = function (configuration?: Configuration, basePath?: 
         },
         /**
          * 
+         * @summary 메시지 피드백 삭제
+         * @param {AIApiDeleteFeedbackRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteFeedback(requestParameters: AIApiDeleteFeedbackRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteFeedback(requestParameters.messageId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary 채팅 세션 삭제
          * @param {AIApiDeleteSessionRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
@@ -380,6 +552,16 @@ export const AIApiFactory = function (configuration?: Configuration, basePath?: 
          */
         deleteSession(requestParameters: AIApiDeleteSessionRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.deleteSession(requestParameters.sessionId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 메시지 피드백 조회
+         * @param {AIApiGetFeedbackRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getFeedback(requestParameters: AIApiGetFeedbackRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseFeedbackResponse> {
+            return localVarFp.getFeedback(requestParameters.messageId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -420,6 +602,16 @@ export const AIApiFactory = function (configuration?: Configuration, basePath?: 
         sendMessage(requestParameters: AIApiSendMessageRequest, options?: RawAxiosRequestConfig): AxiosPromise<Array<any>> {
             return localVarFp.sendMessage(requestParameters.sessionId, requestParameters.chatMessageRequest, options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @summary 메시지 피드백 저장/수정
+         * @param {AIApiSubmitFeedbackRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        submitFeedback(requestParameters: AIApiSubmitFeedbackRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseFeedbackResponse> {
+            return localVarFp.submitFeedback(requestParameters.messageId, requestParameters.feedbackRequest, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -431,10 +623,24 @@ export interface AIApiCreateSessionRequest {
 }
 
 /**
+ * Request parameters for deleteFeedback operation in AIApi.
+ */
+export interface AIApiDeleteFeedbackRequest {
+    readonly messageId: string
+}
+
+/**
  * Request parameters for deleteSession operation in AIApi.
  */
 export interface AIApiDeleteSessionRequest {
     readonly sessionId: string
+}
+
+/**
+ * Request parameters for getFeedback operation in AIApi.
+ */
+export interface AIApiGetFeedbackRequest {
+    readonly messageId: string
 }
 
 /**
@@ -461,6 +667,15 @@ export interface AIApiSendMessageRequest {
 }
 
 /**
+ * Request parameters for submitFeedback operation in AIApi.
+ */
+export interface AIApiSubmitFeedbackRequest {
+    readonly messageId: string
+
+    readonly feedbackRequest: FeedbackRequest
+}
+
+/**
  * AIApi - object-oriented interface
  */
 export class AIApi extends BaseAPI {
@@ -477,6 +692,17 @@ export class AIApi extends BaseAPI {
 
     /**
      * 
+     * @summary 메시지 피드백 삭제
+     * @param {AIApiDeleteFeedbackRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public deleteFeedback(requestParameters: AIApiDeleteFeedbackRequest, options?: RawAxiosRequestConfig) {
+        return AIApiFp(this.configuration).deleteFeedback(requestParameters.messageId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary 채팅 세션 삭제
      * @param {AIApiDeleteSessionRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
@@ -484,6 +710,17 @@ export class AIApi extends BaseAPI {
      */
     public deleteSession(requestParameters: AIApiDeleteSessionRequest, options?: RawAxiosRequestConfig) {
         return AIApiFp(this.configuration).deleteSession(requestParameters.sessionId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 메시지 피드백 조회
+     * @param {AIApiGetFeedbackRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getFeedback(requestParameters: AIApiGetFeedbackRequest, options?: RawAxiosRequestConfig) {
+        return AIApiFp(this.configuration).getFeedback(requestParameters.messageId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -527,6 +764,17 @@ export class AIApi extends BaseAPI {
      */
     public sendMessage(requestParameters: AIApiSendMessageRequest, options?: RawAxiosRequestConfig) {
         return AIApiFp(this.configuration).sendMessage(requestParameters.sessionId, requestParameters.chatMessageRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 메시지 피드백 저장/수정
+     * @param {AIApiSubmitFeedbackRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public submitFeedback(requestParameters: AIApiSubmitFeedbackRequest, options?: RawAxiosRequestConfig) {
+        return AIApiFp(this.configuration).submitFeedback(requestParameters.messageId, requestParameters.feedbackRequest, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
