@@ -55,17 +55,13 @@ export function ProfileDropdown() {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem
-              render={
-                <a href="#" target="_blank" rel="noopener noreferrer" />
-              }
+              render={<a href="/terms" />}
             >
               <FileText className="h-4 w-4" aria-hidden="true" />
               서비스 이용약관
             </DropdownMenuItem>
             <DropdownMenuItem
-              render={
-                <a href="#" target="_blank" rel="noopener noreferrer" />
-              }
+              render={<a href="/privacy" />}
             >
               <Lock className="h-4 w-4" aria-hidden="true" />
               개인정보처리방침

@@ -11,6 +11,8 @@ const SearchResultsPage = lazy(() => import('@/pages/search-results'));
 const ChatPage = lazy(() => import('@/pages/chat'));
 const PolicyDetailPage = lazy(() => import('@/pages/policy-detail'));
 const ProfilePage = lazy(() => import('@/pages/profile'));
+const TermsPage = lazy(() => import('@/pages/terms'));
+const PrivacyPage = lazy(() => import('@/pages/privacy'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const router = createBrowserRouter([
@@ -26,6 +28,14 @@ export const router = createBrowserRouter([
       {
         path: '/auth/callback',
         Component: AuthCallbackPage,
+      },
+      {
+        path: '/terms',
+        Component: TermsPage,
+      },
+      {
+        path: '/privacy',
+        Component: PrivacyPage,
       },
 
       // 인증 필요 (ProtectedRoute + AppLayout)

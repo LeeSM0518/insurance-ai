@@ -46,18 +46,14 @@ export default function ProfilePage() {
       {/* 메뉴 목록 */}
       <div className="space-y-1">
         <a
-          href="#"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/terms"
           className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm hover:bg-accent transition-colors"
         >
           <FileText className="size-5 text-muted-foreground" aria-hidden="true" />
           서비스 이용약관
         </a>
         <a
-          href="#"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/privacy"
           className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm hover:bg-accent transition-colors"
         >
           <Lock className="size-5 text-muted-foreground" aria-hidden="true" />
