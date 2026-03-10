@@ -142,6 +142,8 @@ class SearchService(
                 contentTypes = contentTypes,
             )
 
+        val searchKeywords = analysis.searchKeywords.takeIf { it.isNotEmpty() }
+
         // 하위 질문이 있으면 각각 검색 후 통합 (중복 제거, 점수 기준 정렬)
         val searchQueries =
             if (analysis.subQuestions.isNotEmpty()) {
@@ -154,7 +156,14 @@ class SearchService(
             coroutineScope {
                 searchQueries
                     .map { q ->
-                        async { executeHybridSearch(q, filters, analysis.isComparison) }
+                        async {
+                            executeHybridSearchWithFallback(
+                                q,
+                                filters,
+                                analysis.isComparison,
+                                searchKeywords,
+                            )
+                        }
                     }.awaitAll()
                     .flatten()
             }
@@ -169,15 +178,65 @@ class SearchService(
         return deduplicated.take(20)
     }
 
+    /** 단계적 필터 완화를 통한 폴백 검색 (RAG 전용) */
+    private suspend fun executeHybridSearchWithFallback(
+        query: String,
+        filters: SearchFilters,
+        isComparison: Boolean,
+        searchKeywords: List<String>? = null,
+    ): List<FusedSearchResult> {
+        // 1차: 원본 필터
+        val results = executeHybridSearch(query, filters, isComparison, searchKeywords)
+        if (results.isNotEmpty()) return results
+
+        // 2차: contentTypes 제거
+        val relaxed1 = filters.copy(contentTypes = null)
+        val results1 = executeHybridSearch(query, relaxed1, isComparison, searchKeywords)
+        if (results1.isNotEmpty()) {
+            log.info("검색 폴백: contentTypes 필터 제거 후 {} 건 발견", results1.size)
+            return results1
+        }
+
+        // 3차: subcategories도 제거
+        val relaxed2 = relaxed1.copy(subcategories = null)
+        val results2 = executeHybridSearch(query, relaxed2, isComparison, searchKeywords)
+        if (results2.isNotEmpty()) {
+            log.info("검색 폴백: subcategories 필터 제거 후 {} 건 발견", results2.size)
+            return results2
+        }
+
+        // 4차: categories 제거 (companyIds는 유지하여 보험사 맥락 보존)
+        val relaxed3 = relaxed2.copy(categories = null)
+        val results3 = executeHybridSearch(query, relaxed3, isComparison, searchKeywords)
+        if (results3.isNotEmpty()) {
+            log.info("검색 폴백: categories 필터 제거 후 {} 건 발견", results3.size)
+            return results3
+        }
+
+        // 5차: companyIds까지 제거 (전체 검색)
+        val noFilters = SearchFilters()
+        val results4 = executeHybridSearch(query, noFilters, isComparison, searchKeywords)
+        log.info("검색 폴백: 전체 검색 {} 건 발견", results4.size)
+        return results4
+    }
+
     /** 병렬 검색 + RRF 통합 공통 로직 */
     private suspend fun executeHybridSearch(
         query: String,
         filters: SearchFilters,
         isComparison: Boolean,
+        searchKeywords: List<String>? = null,
     ): List<FusedSearchResult> {
         val (keywordResults, vectorResults) =
             coroutineScope {
-                val keywordDeferred = async { keywordSearchService.search(query, filters) }
+                val keywordDeferred =
+                    async {
+                        if (searchKeywords != null) {
+                            keywordSearchService.searchByKeywords(searchKeywords, filters)
+                        } else {
+                            keywordSearchService.search(query, filters)
+                        }
+                    }
                 val vectorDeferred = async { vectorSearchService.search(query, filters) }
                 keywordDeferred.await() to vectorDeferred.await()
             }

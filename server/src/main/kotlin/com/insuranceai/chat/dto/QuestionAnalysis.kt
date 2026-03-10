@@ -20,6 +20,8 @@ data class QuestionAnalysis(
     val needsSupplementary: SupplementaryNeeds = SupplementaryNeeds(),
     @JsonPropertyDescription("복합 질문일 경우 분해된 하위 질문 목록. 단일 주제 질문이면 빈 배열")
     val subQuestions: List<String> = emptyList(),
+    @JsonPropertyDescription("질문에서 추출한 핵심 키워드 목록 (조사 제거, 보험사명 제외)")
+    val searchKeywords: List<String> = emptyList(),
 )
 
 /** 보충 데이터 필요 여부 */

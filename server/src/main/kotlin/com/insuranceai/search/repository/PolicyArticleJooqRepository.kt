@@ -147,6 +147,105 @@ class PolicyArticleJooqRepository(
                 }
         }
 
+    /**
+     * 키워드 리스트 기반 AND 검색 (RAG용).
+     * 각 키워드를 ILIKE AND 조건으로 결합하여 모든 키워드가 포함된 결과만 반환합니다.
+     */
+    suspend fun searchByKeywords(
+        keywords: List<String>,
+        filters: SearchFilters,
+        limit: Int = 30,
+    ): List<KeywordSearchResult> =
+        withContext(Dispatchers.IO) {
+            val primaryKeyword = keywords.first()
+            val primaryLower = primaryKeyword.lowercase()
+
+            // match_quality: 첫 번째 키워드 기준 계산
+            val matchQualityField =
+                DSL
+                    .field(
+                        """
+                        (
+                            CASE WHEN {0} ILIKE {1} THEN 0.4 ELSE 0.0 END
+                            + 0.3
+                            + LEAST(
+                                (LENGTH(LOWER({2})) - LENGTH(REPLACE(LOWER({2}), {3}, '')))::float
+                                / NULLIF(LENGTH({3}), 0) * 0.04,
+                                0.2
+                              )
+                            + CASE WHEN POSITION({4} IN {2}) > 0
+                                   AND POSITION({4} IN {2}) < LENGTH({2}) * 0.2
+                                   THEN 0.1 ELSE 0.0 END
+                        )
+                        """.trimIndent(),
+                        Float::class.java,
+                        paArticleTitle,
+                        DSL.inline("%$primaryKeyword%"),
+                        paContent,
+                        DSL.inline(primaryLower),
+                        DSL.inline(primaryKeyword),
+                    )
+
+            var step =
+                dsl
+                    .select(
+                        paId,
+                        paProductId,
+                        pName,
+                        icId,
+                        icName,
+                        icType,
+                        paContentType,
+                        paArticleNumber,
+                        paArticleTitle,
+                        paContent,
+                        dsSourceType,
+                        matchQualityField.`as`("match_quality"),
+                    ).from(policyArticles)
+                    .join(products)
+                    .on(paProductId.eq(pId))
+                    .join(insuranceCompanies)
+                    .on(pInsuranceCompanyId.eq(icId))
+                    .leftJoin(dataSources)
+                    .on(paDataSourceId.eq(dsId))
+                    .where(paIsActive.eq(true))
+
+            // 각 키워드에 대해 AND 조건 추가
+            for (keyword in keywords) {
+                step = step.and(paContent.likeIgnoreCase("%$keyword%"))
+            }
+
+            // 동적 필터 적용
+            step = applyFilters(step, filters)
+
+            val result =
+                step
+                    .orderBy(DSL.field("match_quality").desc())
+                    .limit(limit)
+
+            Flux
+                .from(result)
+                .collectList()
+                .awaitSingle()
+                .mapIndexed { index, record ->
+                    KeywordSearchResult(
+                        articleId = record.get(paId)!!,
+                        productId = record.get(paProductId)!!,
+                        productName = record.get(pName)!!,
+                        companyId = record.get(icId)!!,
+                        companyName = record.get(icName)!!,
+                        insuranceType = record.get(icType)!!,
+                        contentType = record.get(paContentType)!!,
+                        articleNumber = record.get(paArticleNumber),
+                        articleTitle = record.get(paArticleTitle),
+                        content = record.get(paContent)!!,
+                        dataSource = record.get(dsSourceType),
+                        rank = index + 1,
+                        matchQuality = record.get("match_quality", Float::class.java) ?: 0.3f,
+                    )
+                }
+        }
+
     /** 동적 필터 적용 */
     private fun <T : Record> applyFilters(
         step: SelectConditionStep<T>,

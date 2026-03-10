@@ -46,6 +46,35 @@ class KeywordSearchService(
         }
     }
 
+    /** 키워드 리스트 기반 검색 (RAG용: LLM이 추출한 핵심 키워드로 AND 조건 검색) */
+    suspend fun searchByKeywords(
+        keywords: List<String>,
+        filters: SearchFilters = SearchFilters(),
+        limit: Int = 50,
+    ): List<KeywordSearchResult> {
+        val sanitizedKeywords = keywords.map { sanitizeQuery(it) }.filter { it.isNotBlank() }
+        if (sanitizedKeywords.isEmpty()) return emptyList()
+
+        log.debug("키워드 리스트 검색: keywords={}, filters={}", sanitizedKeywords, filters)
+
+        val results =
+            policyArticleJooqRepository.searchByKeywords(
+                keywords = sanitizedKeywords,
+                filters = filters,
+                limit = limit,
+            )
+
+        log.debug("키워드 리스트 검색 결과: {} 건", results.size)
+
+        // 스니펫 + 하이라이트 적용 (첫 번째 키워드 기준)
+        val primaryKeyword = sanitizedKeywords.first()
+        return results.map { result ->
+            val snippet = TextUtil.createSnippet(result.content, primaryKeyword)
+            val highlighted = TextUtil.highlightKeyword(snippet, primaryKeyword)
+            result.copy(content = highlighted)
+        }
+    }
+
     /** 쿼리 전처리: 특수문자 제거, 공백 정규화 */
     internal fun sanitizeQuery(query: String): String =
         query

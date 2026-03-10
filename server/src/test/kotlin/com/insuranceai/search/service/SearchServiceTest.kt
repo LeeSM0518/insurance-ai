@@ -261,6 +261,161 @@ class SearchServiceTest {
         }
 
     @Test
+    fun `searchForRag - 1차 검색 성공 시 폴백 없이 반환`() =
+        runTest {
+            val companyId = UUID.randomUUID()
+            val analysis =
+                QuestionAnalysis(
+                    companies = listOf("삼성생명"),
+                    categories = listOf("PROTECTION"),
+                    subcategories = listOf("CANCER"),
+                    contentTypes = listOf("EXEMPTION"),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+
+            every { insuranceCompanyRepository.findByNameIn(listOf("삼성생명")) } returns
+                flowOf(InsuranceCompanyEntity(id = companyId, name = "삼성생명", type = "LIFE"))
+
+            val keywordResult =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "암보험",
+                    companyId = companyId,
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "EXEMPTION",
+                    articleNumber = "제5조",
+                    articleTitle = "면책사항",
+                    content = "면책 내용",
+                    dataSource = "ASSOCIATION",
+                    rank = 1,
+                )
+
+            coEvery { keywordSearchService.search(any(), any(), any()) } returns listOf(keywordResult)
+            coEvery { vectorSearchService.search(any(), any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("암보험 면책사항", analysis)
+
+            assertEquals(1, results.size)
+            // executeHybridSearch 1회만 호출 (폴백 없음)
+            io.mockk.coVerify(exactly = 1) { keywordSearchService.search(any(), any(), any()) }
+        }
+
+    @Test
+    fun `searchForRag - contentTypes 폴백으로 결과 반환`() =
+        runTest {
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = listOf("PROTECTION"),
+                    subcategories = listOf("CANCER"),
+                    contentTypes = listOf("EXEMPTION"),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+
+            val keywordResult =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "암보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = null,
+                    articleTitle = null,
+                    content = "유사암 제외 보장",
+                    dataSource = null,
+                    rank = 1,
+                )
+
+            // 1차: EXEMPTION 필터 → 0건
+            coEvery {
+                keywordSearchService.search(any(), match { it.contentTypes != null }, any())
+            } returns emptyList()
+            coEvery {
+                vectorSearchService.search(any(), match { it.contentTypes != null }, any(), any())
+            } returns emptyList()
+
+            // 2차: contentTypes 제거 → 결과 있음
+            coEvery {
+                keywordSearchService.search(any(), match { it.contentTypes == null && it.subcategories != null }, any())
+            } returns listOf(keywordResult)
+            coEvery {
+                vectorSearchService.search(any(), match { it.contentTypes == null && it.subcategories != null }, any(), any())
+            } returns emptyList()
+
+            val results = service.searchForRag("유사암 제외", analysis)
+
+            assertEquals(1, results.size)
+            assertEquals("유사암 제외 보장", results[0].content)
+        }
+
+    @Test
+    fun `searchForRag - 모든 폴백 후에도 0건이면 빈 리스트`() =
+        runTest {
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = listOf("PROTECTION"),
+                    subcategories = listOf("CANCER"),
+                    contentTypes = listOf("EXEMPTION"),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+
+            coEvery { keywordSearchService.search(any(), any(), any()) } returns emptyList()
+            coEvery { vectorSearchService.search(any(), any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("존재하지 않는 질문", analysis)
+
+            assertTrue(results.isEmpty())
+        }
+
+    @Test
+    fun `searchForRag - searchKeywords가 있으면 키워드 리스트 검색을 사용한다`() =
+        runTest {
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = emptyList(),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                    searchKeywords = listOf("유사암", "제외"),
+                )
+
+            val keywordResult =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "암보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = null,
+                    articleTitle = null,
+                    content = "유사암 제외 보장",
+                    dataSource = null,
+                    rank = 1,
+                )
+
+            coEvery {
+                keywordSearchService.searchByKeywords(listOf("유사암", "제외"), any(), any())
+            } returns listOf(keywordResult)
+            coEvery { vectorSearchService.search(any(), any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("유사암이 제외되는 경우", analysis)
+
+            assertEquals(1, results.size)
+            io.mockk.coVerify { keywordSearchService.searchByKeywords(listOf("유사암", "제외"), any(), any()) }
+        }
+
+    @Test
     fun `searchForRag - 정상 흐름`() =
         runTest {
             val companyId = UUID.randomUUID()
