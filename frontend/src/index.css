@@ -107,6 +107,7 @@
   /* === 도메인 특화 간격 (기획서 §2.3) === */
   --spacing-safe-bottom: env(safe-area-inset-bottom);
   --spacing-tab-bar: 56px;
+  --spacing-tab-bar-full: calc(56px + env(safe-area-inset-bottom));
   --spacing-header: 48px;
   --spacing-header-desktop: 64px;
 

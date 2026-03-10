@@ -158,14 +158,16 @@ export default function PolicyDetailPage() {
         {/* 우측 PDF 사이드바 (데스크톱, PDF 열렸을 때만) */}
         {isDesktop && pdfOpen && article.dataSourceId && (
           <aside
-            className="relative shrink-0 flex flex-col border-l"
+            className="relative shrink-0 flex flex-col"
             style={{ width: pdfPanelWidth }}
           >
-            {/* 리사이즈 핸들 */}
+            {/* 리사이즈 핸들 - 넓은 히트 영역 + 시각적 그립 표시 */}
             <div
-              className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-10"
+              className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-10 group flex items-center justify-center"
               onMouseDown={(e) => handleResizeMouseDown(e, pdfPanelWidth)}
-            />
+            >
+              <div className="w-1 h-8 rounded-full bg-border group-hover:bg-primary/40 group-active:bg-primary/60 transition-colors" />
+            </div>
             <div className="flex-1 flex flex-col">
               <div className="flex items-center justify-between p-3 border-b">
                 <span className="text-sm font-medium">원본 PDF</span>

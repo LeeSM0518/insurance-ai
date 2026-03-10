@@ -54,7 +54,7 @@ export default function ChatPage() {
 
   // 스크롤 컨테이너 ref + 자동 스크롤
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const { isAtBottom, scrollToBottom } = useAutoScroll({
+  const { isAtBottom, scrollToBottom, forceScrollToBottom } = useAutoScroll({
     containerRef: scrollContainerRef,
     deps: [messages, streamingState.streamingContent, streamingState.phase],
   });
@@ -150,14 +150,14 @@ export default function ChatPage() {
         // 기존 세션: /messages 엔드포인트 (USER 메시지 저장 + AI 응답)
         sendMessage(message);
       }
-      // 메시지 전송 후 최하단으로 스크롤
-      setTimeout(() => scrollToBottom('smooth'), 0);
+      // 메시지 전송 후 최하단으로 스크롤 (키보드 상태 무관하게 강제)
+      forceScrollToBottom('smooth');
     } catch {
       toast.error('대화를 시작할 수 없습니다');
     } finally {
       sendingRef.current = false;
     }
-  }, [activeSessionId, createSession, sendMessage, setActiveSessionId, scrollToBottom]);
+  }, [activeSessionId, createSession, sendMessage, setActiveSessionId, forceScrollToBottom]);
 
   const handleSuggestedQuestion = (question: string) => {
     if (activeSessionId) {
@@ -307,7 +307,7 @@ export default function ChatPage() {
         <div className="relative flex-1 min-h-0">
           <div
             ref={scrollContainerRef}
-            className="h-full overflow-y-auto px-4 py-3 space-y-4"
+            className="h-full overflow-y-auto px-4 pt-3 pb-28 desktop:pb-3 space-y-4"
             role="log"
             aria-live="polite"
           >
@@ -413,19 +413,23 @@ export default function ChatPage() {
           />
         </div>
 
-        {/* 면책 고지 + 입력 영역 */}
-        <DisclaimerBanner />
-        <ChatInput ref={chatInputRef} onSend={handleSend} disabled={isStreaming} />
+        {/* 면책 고지 + 입력 영역 - 모바일: 탭바 위 고정, 데스크톱: flex 흐름 */}
+        <div className="fixed bottom-tab-bar-full left-0 right-0 z-40 bg-background desktop:static desktop:bottom-auto desktop:z-auto">
+          <DisclaimerBanner />
+          <ChatInput ref={chatInputRef} onSend={handleSend} disabled={isStreaming} />
+        </div>
       </div>
 
       {/* 데스크톱 출처 사이드패널 (리사이즈 가능) */}
       {isDesktop && openTabs.length > 0 && (
-        <aside className="relative flex-shrink-0 border-l" style={{ width: sourcePanelWidth }}>
-          {/* 리사이즈 핸들 */}
+        <aside className="relative flex-shrink-0" style={{ width: sourcePanelWidth }}>
+          {/* 리사이즈 핸들 - 넓은 히트 영역 + 시각적 그립 표시 */}
           <div
-            className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/20 active:bg-primary/30 z-10"
+            className="absolute -left-2 top-0 bottom-0 w-4 cursor-col-resize z-10 group flex items-center justify-center"
             onMouseDown={(e) => handleResizeMouseDown(e, sourcePanelWidth)}
-          />
+          >
+            <div className="w-1 h-8 rounded-full bg-border group-hover:bg-primary/40 group-active:bg-primary/60 transition-colors" />
+          </div>
           <SourceTabPanel
             tabs={openTabs}
             activeTabId={activeTabId}
