@@ -132,7 +132,7 @@ class ContextBuilderTest {
             val result = builder.build(searchResults, defaultAnalysis, emptyList())
 
             assertTrue(result.contextText.contains("## 검색된 약관 자료"))
-            assertTrue(result.contextText.contains("[출처 1]"))
+            assertTrue(result.contextText.contains("[1]"))
             assertTrue(result.contextText.contains("삼성생명"))
             assertEquals(1, result.sources.size)
         }

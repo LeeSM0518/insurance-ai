@@ -8,12 +8,12 @@ interface SourceButtonOptions {
   renderWrapper?: (index: number, isActive: boolean, key: number, source?: Source) => ReactNode;
 }
 
-// 문자열 내 [N] 패턴을 인라인 출처 버튼 React 엘리먼트로 변환
+// 문자열 내 [N] 또는 [출처 N] 패턴을 인라인 출처 버튼 React 엘리먼트로 변환
 export function replaceSourceRefs(text: string, options: SourceButtonOptions = {}): ReactNode[] {
   const { activeSourceIndex, renderWrapper } = options;
-  const parts = text.split(/(\[\d+\])/);
+  const parts = text.split(/(\[출처\s*\d+\]|\[\d+\])/);
   return parts.map((part, i) => {
-    const match = part.match(/^\[(\d+)\]$/);
+    const match = part.match(/^\[(?:출처\s*)?(\d+)\]$/);
     if (match) {
       const index = parseInt(match[1], 10);
       const isActive = activeSourceIndex === index;
@@ -43,7 +43,7 @@ export function replaceSourceRefs(text: string, options: SourceButtonOptions = {
 // React children을 재귀 순회하며 문자열 노드의 [N] 패턴을 버튼으로 변환
 export function processChildren(children: ReactNode, options: SourceButtonOptions = {}): ReactNode {
   if (typeof children === 'string') {
-    if (/\[\d+\]/.test(children)) return replaceSourceRefs(children, options);
+    if (/\[(?:출처\s*)?\d+\]/.test(children)) return replaceSourceRefs(children, options);
     return children;
   }
   if (Array.isArray(children)) {

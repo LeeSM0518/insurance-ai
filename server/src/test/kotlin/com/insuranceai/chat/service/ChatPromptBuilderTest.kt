@@ -20,7 +20,7 @@ class ChatPromptBuilderTest {
 
     private val context =
         ContextResult(
-            contextText = "## 검색된 약관 자료\n\n### [출처 1] 삼성생명 - 테스트보험\n내용",
+            contextText = "## 검색된 약관 자료\n\n### [1] 삼성생명 - 테스트보험\n내용",
             sources =
                 listOf(
                     SourceInfo(

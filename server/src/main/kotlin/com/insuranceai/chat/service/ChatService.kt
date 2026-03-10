@@ -184,7 +184,7 @@ class ChatService(
     suspend fun getLastUserMessage(sessionId: UUID): ChatMessageEntity {
         val messages = chatMessageRepository.findByChatSessionIdOrderByCreatedAt(sessionId).toList()
         return messages.lastOrNull { it.role == MessageRole.USER.name }
-            ?: throw ChatError.UserMessageNotFound
+            ?: throw ChatError.MessageNotFound
     }
 
     /** 최근 대화 이력 조회 (RAG 컨텍스트용) */

@@ -119,7 +119,7 @@ class ContextBuilder(
                     result.articleTitle ?: ""
                 }
 
-            sb.appendLine("### [출처 $sourceNum] ${result.companyName} - ${result.productName} - $articleRef")
+            sb.appendLine("### [$sourceNum] ${result.companyName} - ${result.productName} - $articleRef")
             if (result.dataSource != null) {
                 sb.appendLine("데이터 출처: ${result.dataSource}")
             }

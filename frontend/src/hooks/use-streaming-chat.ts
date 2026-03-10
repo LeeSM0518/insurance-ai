@@ -10,7 +10,7 @@ const BASE_DELAY_MS = 1000;
 
 // 스트리밍 상태 타입
 export interface StreamingState {
-  phase: 'idle' | 'searching' | 'sources_found' | 'generating' | 'streaming' | 'done' | 'error';
+  phase: 'idle' | 'searching' | 'sources_found' | 'generating' | 'streaming' | 'fading_out' | 'done' | 'error';
   sources: Source[];
   streamingContent: string;
   suggestedQuestions: string[];
@@ -76,6 +76,9 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
     content: '',
     sources: [],
   });
+  // 토큰 버퍼링: requestAnimationFrame으로 배치 렌더링 (60fps)
+  const tokenBufferRef = useRef('');
+  const rafIdRef = useRef<number>(0);
 
   // 세션 변경 시 메시지 이력 API 호출
   useEffect(() => {
@@ -125,6 +128,9 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
     };
   }, []);
 
@@ -135,8 +141,13 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
       const controller = new AbortController();
       abortRef.current = controller;
 
-      // 스트리밍 데이터 초기화
+      // 스트리밍 데이터 및 토큰 버퍼 초기화
       streamingDataRef.current = { content: '', sources: [] };
+      tokenBufferRef.current = '';
+      if (rafIdRef.current) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = 0;
+      }
 
       // 콜백 정의
       const callbacks = {
@@ -163,14 +174,29 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
         },
         onToken: (token: string) => {
           streamingDataRef.current.content += token;
-          setStreamingState((prev) => ({
-            ...prev,
-            phase: 'streaming',
-            streamingContent: prev.streamingContent + token,
-          }));
+          tokenBufferRef.current += token;
+
+          // requestAnimationFrame으로 토큰을 모아 배치 렌더링 (60fps)
+          if (!rafIdRef.current) {
+            rafIdRef.current = requestAnimationFrame(() => {
+              const buffered = tokenBufferRef.current;
+              tokenBufferRef.current = '';
+              rafIdRef.current = 0;
+              setStreamingState((prev) => ({
+                ...prev,
+                phase: 'streaming',
+                streamingContent: prev.streamingContent + buffered,
+              }));
+            });
+          }
         },
         onDone: ({ messageId, suggestedQuestions }: { messageId: string; suggestedQuestions: string[] }) => {
-          // Ref에서 누적 데이터를 읽어 메시지 생성 (updater 내 side-effect 방지)
+          // fade-out phase 시작: 스트리밍 메시지가 서서히 사라진 뒤 최종 메시지로 교체
+          setStreamingState((prev) => ({
+            ...prev,
+            phase: 'fading_out',
+          }));
+
           const { content: streamedContent, sources } = streamingDataRef.current;
           const aiMessage: ChatMessage = {
             id: messageId,
@@ -180,10 +206,14 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
             suggestedQuestions: suggestedQuestions.length > 0 ? suggestedQuestions : undefined,
             createdAt: new Date().toISOString(),
           };
-          setMessages((msgs) => [...msgs, aiMessage]);
-          setStreamingState(INITIAL_STATE);
-          lastMessageRef.current = null;
-          lastIsInitialRef.current = false;
+
+          // fade-out 트랜지션 후 최종 메시지로 교체 (300ms)
+          setTimeout(() => {
+            setMessages((msgs) => [...msgs, aiMessage]);
+            setStreamingState(INITIAL_STATE);
+            lastMessageRef.current = null;
+            lastIsInitialRef.current = false;
+          }, 300);
         },
         onError: (errorMessage: string) => {
           setStreamingState((prev) => ({

@@ -358,10 +358,11 @@ export default function ChatPage() {
                   />
                 )}
 
-                {/* streaming 단계: 실시간 텍스트 */}
-                {streamingState.phase === 'streaming' && streamingState.streamingContent && (
+                {/* streaming / fading_out 단계: 실시간 텍스트 + fade 효과 */}
+                {(streamingState.phase === 'streaming' || streamingState.phase === 'fading_out') && streamingState.streamingContent && (
                   <StreamingMessage
                     content={streamingState.streamingContent}
+                    isFadingOut={streamingState.phase === 'fading_out'}
                     onSourceClick={
                       isDesktop
                         ? (index) => {
