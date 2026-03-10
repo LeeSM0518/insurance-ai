@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { isValidElement, cloneElement, type ReactNode, type ReactElement } from 'react';
 import type { Source } from '@/types/chat';
 
 interface SourceButtonOptions {
@@ -50,6 +50,13 @@ export function processChildren(children: ReactNode, options: SourceButtonOption
     return children.map((child, i) => (
       <span key={i}>{processChildren(child, options)}</span>
     ));
+  }
+  // React 요소(strong, em 등) 내부 children도 재귀 처리
+  if (isValidElement(children)) {
+    const element = children as ReactElement<{ children?: ReactNode }>;
+    if (element.props.children) {
+      return cloneElement(element, {}, processChildren(element.props.children, options));
+    }
   }
   return children;
 }

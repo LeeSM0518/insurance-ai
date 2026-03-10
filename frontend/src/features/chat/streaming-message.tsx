@@ -40,8 +40,17 @@ export function StreamingMessage({ content, isFadingOut = false, onSourceClick }
         <Markdown
           remarkPlugins={[remarkGfm]}
           components={{
+            // h1은 채팅에서 너무 크므로 h2로 렌더링
+            h1: ({ children }) => <h2>{processChildren(children)}</h2>,
+            h2: ({ children }) => <h2>{processChildren(children)}</h2>,
+            h3: ({ children }) => <h3>{processChildren(children)}</h3>,
+            // hr(---) 제거 — 제목만으로 섹션 구분 충분
+            hr: () => null,
             p: ({ children }) => <p>{processChildren(children)}</p>,
+            blockquote: ({ children }) => <blockquote>{processChildren(children)}</blockquote>,
             li: ({ children }) => <li>{processChildren(children)}</li>,
+            td: ({ children }) => <td>{processChildren(children)}</td>,
+            th: ({ children }) => <th>{processChildren(children)}</th>,
             table: ({ children }) => (
               <div className="overflow-x-auto my-2">
                 <table>{children}</table>

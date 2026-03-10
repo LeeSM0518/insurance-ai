@@ -149,12 +149,14 @@ export default function ChatPage() {
         // 기존 세션: /messages 엔드포인트 (USER 메시지 저장 + AI 응답)
         sendMessage(message);
       }
+      // 메시지 전송 후 최하단으로 스크롤
+      setTimeout(() => scrollToBottom('smooth'), 0);
     } catch {
       toast.error('대화를 시작할 수 없습니다');
     } finally {
       sendingRef.current = false;
     }
-  }, [activeSessionId, createSession, sendMessage, setActiveSessionId]);
+  }, [activeSessionId, createSession, sendMessage, setActiveSessionId, scrollToBottom]);
 
   const handleSuggestedQuestion = (question: string) => {
     if (activeSessionId) {

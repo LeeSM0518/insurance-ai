@@ -81,8 +81,17 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
             <Markdown
               remarkPlugins={[remarkGfm]}
               components={{
+                // h1은 채팅에서 너무 크므로 h2로 렌더링
+                h1: ({ children }) => <h2>{processChildren(children, sourceButtonOptions)}</h2>,
+                h2: ({ children }) => <h2>{processChildren(children, sourceButtonOptions)}</h2>,
+                h3: ({ children }) => <h3>{processChildren(children, sourceButtonOptions)}</h3>,
+                // hr(---) 제거 — 제목만으로 섹션 구분 충분
+                hr: () => null,
                 p: ({ children }) => <p>{processChildren(children, sourceButtonOptions)}</p>,
+                blockquote: ({ children }) => <blockquote>{processChildren(children, sourceButtonOptions)}</blockquote>,
                 li: ({ children }) => <li>{processChildren(children, sourceButtonOptions)}</li>,
+                td: ({ children }) => <td>{processChildren(children, sourceButtonOptions)}</td>,
+                th: ({ children }) => <th>{processChildren(children, sourceButtonOptions)}</th>,
                 table: ({ children }) => (
                   <div className="overflow-x-auto my-2">
                     <table>{children}</table>
