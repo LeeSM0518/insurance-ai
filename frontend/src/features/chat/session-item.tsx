@@ -71,7 +71,7 @@ export function SessionItemCompact({ session, isActive, onSelect, onDelete }: Se
         }}
       >
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm truncate">{session.title}</h3>
+          <h3 className="text-sm font-normal truncate">{session.title}</h3>
           {/* 데스크톱 호버 삭제 버튼 */}
           {isDesktop && (
             <button

@@ -65,7 +65,7 @@ export function ChatSidebar({
           <EmptyState
             icon={MessageSquare}
             title="아직 대화가 없습니다"
-            description="검색으로 시작해보세요"
+            description="AI에게 약관을 물어보세요"
           />
         )}
       </div>

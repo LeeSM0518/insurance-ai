@@ -3,7 +3,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MessageActions } from './message-actions';
 import { SourceTooltip } from './source-tooltip';
-import { processChildren, isSourceRefOnly } from './source-ref-utils';
+import { processChildren, isSourceRefOnly, fixEmphasisParsing } from './source-ref-utils';
 import type { ChatMessage as ChatMessageType, Source } from '@/types/chat';
 
 const chatMessageVariants = cva('rounded-lg px-4 py-3 w-fit max-w-[85%] animate-[fade-in_0.3s_ease-in-out]', {
@@ -79,7 +79,7 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
             }}
           >
             <Markdown
-              remarkPlugins={[remarkGfm]}
+              remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
               components={{
                 // h1은 채팅에서 너무 크므로 h2로 렌더링
                 h1: ({ children }) => <h2>{processChildren(children, sourceButtonOptions)}</h2>,
@@ -109,7 +109,7 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
                 ),
               }}
             >
-              {message.content}
+              {fixEmphasisParsing(message.content)}
             </Markdown>
           </div>
           <MessageActions content={message.content} messageId={message.id} className="mt-2" />

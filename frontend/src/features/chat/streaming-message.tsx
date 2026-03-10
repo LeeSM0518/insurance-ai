@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { processChildren, isSourceRefOnly } from './source-ref-utils';
+import { processChildren, isSourceRefOnly, fixEmphasisParsing } from './source-ref-utils';
 
 interface StreamingMessageProps {
   content: string;
@@ -38,7 +38,7 @@ export function StreamingMessage({ content, isFadingOut = false, onSourceClick }
         }}
       >
         <Markdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[[remarkGfm, { singleTilde: false }]]}
           components={{
             // h1은 채팅에서 너무 크므로 h2로 렌더링
             h1: ({ children }) => <h2>{processChildren(children)}</h2>,
@@ -68,7 +68,7 @@ export function StreamingMessage({ content, isFadingOut = false, onSourceClick }
             ),
           }}
         >
-          {content}
+          {fixEmphasisParsing(content)}
         </Markdown>
         {/* 깜빡이는 커서 — fade-out 중에는 숨김 */}
         {!isFadingOut && (

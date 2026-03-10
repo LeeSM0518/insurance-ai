@@ -8,6 +8,17 @@ interface SourceButtonOptions {
   renderWrapper?: (index: number, isActive: boolean, key: number, source?: Source) => ReactNode;
 }
 
+// CommonMark emphasis 파싱 실패 케이스 보정
+// 1) 닫는 **: 구두점+"**"+비구두점/비공백 → right-flanking 실패
+//    예: "**에 → "\u200B**에 (구두점과 ** 사이에 ZWS 삽입)
+// 2) 여는 **: 비구두점/비공백+"**"+구두점 → left-flanking 실패
+//    예: 한**" → 한**\u200B" (** 와 구두점 사이에 ZWS 삽입)
+export function fixEmphasisParsing(content: string): string {
+  let result = content.replace(/([\p{P}])\*\*(?=[^\s\p{P}*])/gu, '$1\u200B**');
+  result = result.replace(/([^\s\p{P}*])\*\*([\p{P}])/gu, '$1**\u200B$2');
+  return result;
+}
+
 // 문자열 내 [N] 또는 [출처 N] 패턴을 인라인 출처 버튼 React 엘리먼트로 변환
 export function replaceSourceRefs(text: string, options: SourceButtonOptions = {}): ReactNode[] {
   const { activeSourceIndex, renderWrapper } = options;
