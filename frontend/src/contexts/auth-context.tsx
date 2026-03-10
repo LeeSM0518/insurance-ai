@@ -15,6 +15,7 @@ import {
   getRefreshToken,
   setAccessToken,
   setRefreshToken,
+  setExpiresAt,
   clearTokens,
 } from '@/lib/token-storage';
 
@@ -73,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback((loginResponse: LoginResponse) => {
     setAccessToken(loginResponse.accessToken);
     setRefreshToken(loginResponse.refreshToken);
+    setExpiresAt(Date.now() + loginResponse.expiresIn * 1000);
     setUser(loginResponse.user);
   }, []);
 
