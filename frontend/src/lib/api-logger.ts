@@ -26,7 +26,7 @@ export function logSseStart(method: string, url: string, body?: unknown): void {
 }
 
 /** SSE 이벤트 수신 */
-export function logSseEvent(url: string, eventType: string, data: unknown): void {
+export function logSseEvent(_url: string, eventType: string, data: unknown): void {
   if (!isDev) return;
 
   // token 이벤트는 너무 빈번하므로 간략하게 표시

@@ -17,7 +17,7 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
         configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq, req) => {
+          proxy.on('proxyReq', (_proxyReq, req) => {
             const timestamp = new Date().toLocaleTimeString('ko-KR', { hour12: false });
             console.log(`\x1b[36m[${timestamp}] → ${req.method} ${req.url}\x1b[0m`);
             // request body 수집

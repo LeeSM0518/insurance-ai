@@ -128,7 +128,7 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
     };
   }, []);
 
-  const runStreamingRef = useRef<(content: string, isInitial: boolean, targetSessionId: string) => void>();
+  const runStreamingRef = useRef<((content: string, isInitial: boolean, targetSessionId: string) => void) | undefined>(undefined);
 
   const runStreaming = useCallback(
     async (content: string, isInitialMessage: boolean, targetSessionId: string) => {

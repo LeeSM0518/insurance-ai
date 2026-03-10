@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Download, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { useMediaQuery } from '@/hooks/use-media-query';
 import { axiosInstance } from '@/lib/api';
 
@@ -51,12 +51,15 @@ export function PdfViewer({ dataSourceId, mode = 'standalone' }: PdfViewerProps)
       <div className="flex flex-col items-center gap-3 rounded-lg border bg-muted/30 p-6">
         <p className="text-sm text-muted-foreground">모바일에서는 PDF를 직접 열어 확인할 수 있습니다</p>
         {blobUrl ? (
-          <Button asChild variant="outline" className="gap-2">
-            <a href={blobUrl} target="_blank" rel="noopener noreferrer">
-              <Download className="size-4" />
-              원본 PDF 열기
-            </a>
-          </Button>
+          <a
+            href={blobUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonVariants({ variant: 'outline', className: 'gap-2' })}
+          >
+            <Download className="size-4" />
+            원본 PDF 열기
+          </a>
         ) : isLoading ? (
           <Loader2 className="size-5 animate-spin text-muted-foreground" />
         ) : (
