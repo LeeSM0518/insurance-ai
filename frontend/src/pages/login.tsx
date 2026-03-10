@@ -56,9 +56,9 @@ export default function LoginPage() {
 
         {/* 서비스 소개 */}
         <div className="mt-4 flex flex-col items-center gap-2">
-          <h1 className="text-2xl font-bold">Insurance AI</h1>
-          <p className="text-sm text-muted-foreground">
-            전 보험사 약관 AI 검색 서비스
+          <h1 className="text-3xl font-bold text-primary">Insurance AI</h1>
+          <p className="text-base text-muted-foreground">
+            전 보험사 약관 AI 서비스
           </p>
         </div>
 
@@ -89,11 +89,11 @@ export default function LoginPage() {
 
         {/* 약관 링크 */}
         <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
-          <a href="#" className="hover:underline">
+          <a href="/terms" className="hover:underline">
             서비스 이용약관
           </a>
           <span>|</span>
-          <a href="#" className="hover:underline">
+          <a href="/privacy" className="hover:underline">
             개인정보처리방침
           </a>
         </div>
