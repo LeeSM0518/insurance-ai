@@ -1,0 +1,27 @@
+# Gradle
+.gradle/
+build/
+!build/libs/*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 소스 코드 (JAR만 복사하므로 불필요)
+src/
+*.kts
+*.md
+gradlew*
+gradle/
+
+# 테스트
+**/test/
+
+# 환경 파일
+.env*
+!.env.production.example

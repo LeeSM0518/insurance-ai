@@ -1,0 +1,110 @@
+services:
+  # PostgreSQL 17 + pgvector + pg_bigm
+  insurance-database:
+    build:
+      context: ../db
+      dockerfile: Dockerfile
+    env_file: .env.production
+    environment:
+      POSTGRES_DB: ${DB_NAME:-insurance_ai}
+      POSTGRES_USER: ${DB_USERNAME:-insurance}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-insurance}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - insurance-network
+    restart: unless-stopped
+
+  # Spring Boot — Blue 슬롯
+  insurance-server-blue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["blue"]
+    env_file: .env.production
+    environment:
+      SERVER_PORT: 8080
+    volumes:
+      - app_logs:/app/logs
+    depends_on:
+      insurance-database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - insurance-network
+    restart: unless-stopped
+
+  # Spring Boot — Green 슬롯
+  insurance-server-green:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["green"]
+    env_file: .env.production
+    environment:
+      SERVER_PORT: 8080
+    volumes:
+      - app_logs:/app/logs
+    depends_on:
+      insurance-database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - insurance-network
+    restart: unless-stopped
+
+  # Nginx 리버스 프록시 + SSL + 정적 파일 서빙
+  insurance-nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx-ssl.conf:/etc/nginx/conf.d/default.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+      - certbot_webroot:/var/www/certbot:ro
+      - /var/www/insurance-ai:/var/www/insurance-ai:ro
+    depends_on:
+      - insurance-database
+    networks:
+      - insurance-network
+    restart: unless-stopped
+
+  # Let's Encrypt 자동 갱신
+  insurance-certbot:
+    image: certbot/certbot
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done'
+    networks:
+      - insurance-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  app_logs:
+  letsencrypt:
+    external: true
+    name: docker_letsencrypt
+  certbot_webroot:
+
+networks:
+  insurance-network:
+    driver: bridge
