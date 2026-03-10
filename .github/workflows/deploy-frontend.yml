@@ -56,5 +56,5 @@ jobs:
           script: |
             sudo mkdir -p /var/www/insurance-ai
             sudo rm -rf /var/www/insurance-ai/*
-            sudo cp -r ~/insurance-ai/frontend-dist/dist/* /var/www/insurance-ai/
+            sudo cp -r ~/insurance-ai/frontend-dist/* /var/www/insurance-ai/
             sudo chown -R www-data:www-data /var/www/insurance-ai/
