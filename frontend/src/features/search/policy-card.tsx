@@ -8,12 +8,6 @@ interface PolicyCardProps {
   item: SearchResultItem;
 }
 
-function relevanceColor(score: number) {
-  if (score >= 0.85) return 'text-relevance-high';
-  if (score >= 0.6) return 'text-relevance-mid';
-  return 'text-relevance-low';
-}
-
 export function PolicyCard({ item }: PolicyCardProps) {
   const navigate = useNavigate();
 
@@ -44,14 +38,10 @@ export function PolicyCard({ item }: PolicyCardProps) {
         dangerouslySetInnerHTML={{ __html: item.highlight }}
       />
 
-      {/* 하단: 내용유형 · 관련도 · 보충 뱃지 */}
+      {/* 하단: 내용유형 · 보충 뱃지 */}
       <div className="mt-3 flex items-center gap-2 flex-wrap">
         <span className="text-xs text-muted-foreground">
           {CONTENT_TYPE_LABELS[item.contentType as ContentType] || item.contentType}
-        </span>
-        <span className="text-xs text-muted-foreground">·</span>
-        <span className={`text-xs font-medium ${relevanceColor(item.relevanceScore)}`}>
-          관련도 {Math.round(item.relevanceScore * 100)}%
         </span>
 
         {/* 보충 데이터 뱃지 */}

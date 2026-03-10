@@ -27,10 +27,6 @@ test.describe('검색 결과 화면', () => {
     await expect(marks.first()).toBeVisible();
   });
 
-  test('관련도 퍼센트가 표시된다', async ({ page }) => {
-    await expect(page.getByText('관련도 92%')).toBeVisible();
-  });
-
   test('보충 데이터 뱃지가 표시된다', async ({ page }) => {
     await expect(page.getByText('환급금').first()).toBeVisible();
     await expect(page.getByText('보험료').first()).toBeVisible();

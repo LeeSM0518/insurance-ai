@@ -71,15 +71,25 @@ export interface SurrenderValue {
 }
 
 export interface PremiumExample {
-  gender: 'M' | 'F';
+  gender: string;
   age: number;
   insurancePeriod: string;
   paymentPeriod: string;
   premium: number;
 }
 
+// 가격지수 유형
+export type IndexType = 'PRICE' | 'EXTRA_PREMIUM' | 'CONTRACT_COST' | 'COVERAGE';
+
+export const INDEX_TYPE_LABELS: Record<IndexType, string> = {
+  PRICE: '보험가격지수',
+  EXTRA_PREMIUM: '부가보험료지수',
+  CONTRACT_COST: '계약체결비용지수',
+  COVERAGE: '보장범위지수',
+};
+
 export interface PriceIndex {
-  gender: 'M' | 'F';
+  gender: string;
   indexType: string;
   indexValue: number;
 }

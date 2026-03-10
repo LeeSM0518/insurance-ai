@@ -10,12 +10,6 @@ interface SourceCardProps {
   onSourceClick?: (source: Source, index: number) => void;
 }
 
-function relevanceColor(score: number) {
-  if (score >= 0.85) return 'text-relevance-high';
-  if (score >= 0.6) return 'text-relevance-mid';
-  return 'text-relevance-low';
-}
-
 export function SourceCard({ source, index, isActive, onSourceClick }: SourceCardProps) {
   const navigate = useNavigate();
 
@@ -49,10 +43,7 @@ export function SourceCard({ source, index, isActive, onSourceClick }: SourceCar
           CONTENT_TYPE_LABELS[source.contentType as ContentType] ||
           source.contentType}
       </p>
-      <div className="mt-1 flex items-center justify-between">
-        <p className={`text-[11px] font-medium ${relevanceColor(source.relevanceScore)}`}>
-          관련도 {Math.round(source.relevanceScore * 100)}%
-        </p>
+      <div className="mt-1 flex items-center justify-end">
         {source.dataSourceId && (
           <a
             href={`/api/v1/policies/pdf/${source.dataSourceId}`}

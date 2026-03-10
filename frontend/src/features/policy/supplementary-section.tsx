@@ -4,7 +4,8 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from '@/components/ui/accordion';
-import type { SurrenderValue, PremiumExample, PriceIndex } from '@/types/policy';
+import type { SurrenderValue, PremiumExample, PriceIndex, IndexType } from '@/types/policy';
+import { INDEX_TYPE_LABELS } from '@/types/policy';
 
 interface SupplementarySectionProps {
   surrenderValues?: SurrenderValue[];
@@ -76,7 +77,7 @@ export function SupplementarySection({
                   <tbody>
                     {premiumExamples.map((pe, i) => (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="py-1.5 px-2">{pe.gender === 'M' ? '남' : '여'}</td>
+                        <td className="py-1.5 px-2">{pe.gender}</td>
                         <td className="py-1.5 px-2 text-right">{pe.age}세</td>
                         <td className="py-1.5 px-2 text-right">{pe.insurancePeriod}</td>
                         <td className="py-1.5 px-2 text-right">{pe.paymentPeriod}</td>
@@ -106,8 +107,8 @@ export function SupplementarySection({
                   <tbody>
                     {priceIndices.map((pi, i) => (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="py-1.5 px-2">{pi.gender === 'M' ? '남' : '여'}</td>
-                        <td className="py-1.5 px-2">{pi.indexType}</td>
+                        <td className="py-1.5 px-2">{pi.gender}</td>
+                        <td className="py-1.5 px-2">{INDEX_TYPE_LABELS[pi.indexType as IndexType] ?? pi.indexType}</td>
                         <td className="py-1.5 px-2 text-right">{pi.indexValue}</td>
                       </tr>
                     ))}

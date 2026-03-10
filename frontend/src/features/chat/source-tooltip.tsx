@@ -50,9 +50,6 @@ export function SourceTooltip({
               {source.articleNumber} {source.articleTitle}
             </p>
           )}
-          <p className="text-xs text-primary font-medium">
-            관련도 {Math.round(source.relevanceScore * 100)}%
-          </p>
         </div>
       </TooltipContent>
     </Tooltip>

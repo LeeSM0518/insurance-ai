@@ -19,7 +19,6 @@ test.describe('SourceTooltip', () => {
       // 호버 시 Tooltip 표시
       await sourceButton.hover();
       await expect(page.getByText('무배당 삼성 암보험')).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('관련도 92%')).toBeVisible();
     });
 
     test('인라인 [1] 클릭 시 사이드패널 탭 열림 확인', async ({ page }) => {
@@ -38,7 +37,6 @@ test.describe('SourceTooltip', () => {
       await expect(page.getByText('한화생명')).toBeVisible({ timeout: 3000 });
       await expect(page.getByText('한화 무배당 건강보험')).toBeVisible();
       await expect(page.getByText('제3조 보장 내용')).toBeVisible();
-      await expect(page.getByText('관련도 87%')).toBeVisible();
     });
   });
 

@@ -50,10 +50,6 @@
   --chat-user-bg: hsl(221 83% 96%);
   --chat-ai-bg: hsl(0 0% 98%);
   --source-card-bg: hsl(210 40% 98%);
-  --relevance-high: hsl(142 76% 36%);
-  --relevance-mid: hsl(38 92% 50%);
-  --relevance-low: hsl(0 84% 60%);
-
   /* === Kakao 브랜드 === */
   --kakao-yellow: hsl(48 100% 50%);
   --kakao-brown: hsl(30 10% 24%);
@@ -118,9 +114,6 @@
   --color-chat-user-bg: var(--chat-user-bg);
   --color-chat-ai-bg: var(--chat-ai-bg);
   --color-source-card-bg: var(--source-card-bg);
-  --color-relevance-high: var(--relevance-high);
-  --color-relevance-mid: var(--relevance-mid);
-  --color-relevance-low: var(--relevance-low);
   --color-kakao-yellow: var(--kakao-yellow);
   --color-kakao-brown: var(--kakao-brown);
   --color-success: var(--success);
