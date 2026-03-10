@@ -108,9 +108,11 @@ class CrawlerCommonTest {
         }
 
         @Test
-        fun `200자까지만 유지한다`() {
+        fun `200바이트까지만 유지한다`() {
             val longName = "가".repeat(300)
-            assertEquals(200, crawlerCommon.sanitize(longName).length)
+            val result = crawlerCommon.sanitize(longName)
+            val byteSize = result.toByteArray(Charsets.UTF_8).size
+            assertTrue(byteSize <= 200, "sanitize 결과가 200바이트를 초과: ${byteSize}바이트")
         }
 
         @Test
@@ -193,12 +195,13 @@ class CrawlerCommonTest {
         }
 
         @Test
-        fun `상품 디렉토리명은 200자로 제한한다`() {
+        fun `상품 디렉토리명은 200바이트로 제한한다`() {
             val cc = createCrawlerCommon(tempDir.toString())
             val longProduct = "가".repeat(300)
             val result = cc.buildProductDir("life", "종신보험", "삼성생명", longProduct)
             val dirName = result.fileName.toString()
-            assertTrue(dirName.length <= 200)
+            val byteSize = dirName.toByteArray(Charsets.UTF_8).size
+            assertTrue(byteSize <= 200, "디렉토리명이 200바이트를 초과: ${byteSize}바이트")
         }
     }
 

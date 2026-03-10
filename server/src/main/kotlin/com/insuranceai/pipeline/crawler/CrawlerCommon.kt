@@ -98,12 +98,27 @@ class CrawlerCommon(
         return base
     }
 
-    /** 파일/디렉토리명에서 특수문자 제거 */
-    fun sanitize(name: String): String =
-        name
-            .replace(Regex("""[/\\:*?"<>|]"""), "")
-            .replace(Regex("""\s+"""), "_")
-            .take(200)
+    /** 파일/디렉토리명에서 특수문자 제거 (255바이트 이내로 제한) */
+    fun sanitize(name: String): String {
+        val cleaned =
+            name
+                .replace(Regex("""[/\\:*?"<>|]"""), "")
+                .replace(Regex("""\s+"""), "_")
+        return truncateToBytes(cleaned, 200)
+    }
+
+    /** UTF-8 바이트 기준으로 문자열을 maxBytes 이내로 자름 */
+    private fun truncateToBytes(
+        str: String,
+        maxBytes: Int,
+    ): String {
+        var bytes = 0
+        for (i in str.indices) {
+            bytes += str[i].toString().toByteArray(Charsets.UTF_8).size
+            if (bytes > maxBytes) return str.substring(0, i)
+        }
+        return str
+    }
 
     /** 카테고리 기반 경로: data/summaries/{type}/{category}/{yyyy-MM}/ */
     fun buildCategoryDir(
@@ -133,7 +148,7 @@ class CrawlerCommon(
         company: String,
         product: String,
     ): Path {
-        val dirName = "${sanitize(company)}_${sanitize(product)}".take(200)
+        val dirName = truncateToBytes("${sanitize(company)}_${sanitize(product)}", 200)
         val dir = buildCategoryDir(type, category).resolve(dirName)
         Files.createDirectories(dir)
         return dir
