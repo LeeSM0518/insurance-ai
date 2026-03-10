@@ -25,6 +25,7 @@ import { useChatSessions } from '@/hooks/use-chat-sessions';
 import { toast } from 'sonner';
 import type { Source } from '@/types/chat';
 import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
+import { trackEvent } from '@/lib/analytics';
 
 const SOURCE_PANEL_MIN = 280;
 const SOURCE_PANEL_DEFAULT = 360;
@@ -83,6 +84,7 @@ export default function ChatPage() {
   );
 
   const handleSelectSession = (id: string) => {
+    trackEvent('chat', 'select_session', id);
     setActiveSessionId(id);
     setIsNewChatMode(false);
     if (!isDesktop) setSidebarOpen(false);
@@ -93,6 +95,7 @@ export default function ChatPage() {
   };
 
   const handleNewChat = () => {
+    trackEvent('chat', 'new_chat');
     setActiveSessionId(null);
     setIsNewChatMode(true);
     if (!isDesktop) setSidebarOpen(false);
@@ -132,6 +135,7 @@ export default function ChatPage() {
     // 동시 호출 방지
     if (sendingRef.current) return;
     sendingRef.current = true;
+    trackEvent('chat', 'send_message');
 
     try {
       if (!activeSessionId) {
@@ -154,6 +158,7 @@ export default function ChatPage() {
 
   const handleSuggestedQuestion = (question: string) => {
     if (activeSessionId) {
+      trackEvent('chat', 'suggested_question', question);
       sendMessage(question);
     }
   };
@@ -170,6 +175,8 @@ export default function ChatPage() {
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleOpenSource = (source: Source, index: number) => {
+    trackEvent('chat', 'source_click', source.articleId);
+
     // 이미 열린 탭이면 활성화만
     if (openTabs.some((tab) => tab.articleId === source.articleId)) {
       setActiveTabId(source.articleId);
@@ -226,6 +233,7 @@ export default function ChatPage() {
   // 스트리밍 중 에러 toast 표시
   useEffect(() => {
     if (streamingState.phase === 'error' && streamingState.errorMessage) {
+      trackEvent('chat', 'stream_error', streamingState.errorMessage);
       toast.error(streamingState.errorMessage);
     }
   }, [streamingState.phase, streamingState.errorMessage]);
@@ -375,7 +383,7 @@ export default function ChatPage() {
                   <span className="text-sm">연결이 끊어졌습니다.</span>
                 </div>
                 <p className="text-sm text-muted-foreground">다시 시도해주세요.</p>
-                <Button variant="outline" size="sm" onClick={retryStreaming}>
+                <Button variant="outline" size="sm" onClick={() => { trackEvent('chat', 'stream_retry', String(streamingState.retryCount)); retryStreaming(); }}>
                   <RefreshCw className="size-4" />
                   다시 시도
                 </Button>

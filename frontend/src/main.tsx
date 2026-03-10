@@ -2,6 +2,9 @@ import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App.tsx';
 import { logError } from './lib/error-logger';
+import { initGA } from './lib/analytics';
+
+initGA();
 
 // 전역 동기 에러 캐치
 window.onerror = (message, fileName, lineno, colno, error) => {

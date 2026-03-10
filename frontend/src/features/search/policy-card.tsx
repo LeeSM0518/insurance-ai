@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router';
 import { Badge } from '@/components/ui/badge';
 import { Coins, Calculator, TrendingUp } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 import type { SearchResultItem } from '@/types/policy';
 import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
 
@@ -14,10 +15,10 @@ export function PolicyCard({ item }: PolicyCardProps) {
   return (
     <article
       className="cursor-pointer rounded-lg border bg-card p-4 shadow-card transition-shadow hover:shadow-card-hover active:scale-[0.98]"
-      onClick={() => navigate(`/policies/${item.id}`)}
+      onClick={() => { trackEvent('search', 'result_click', item.id); navigate(`/policies/${item.id}`); }}
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') navigate(`/policies/${item.id}`);
+        if (e.key === 'Enter') { trackEvent('search', 'result_click', item.id); navigate(`/policies/${item.id}`); }
       }}
     >
       {/* 보험사 · 상품명 */}

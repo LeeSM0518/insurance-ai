@@ -6,6 +6,7 @@ import { RecentSearchChips } from '@/features/search/recent-search-chips';
 import { SuggestedSearches } from '@/features/search/suggested-searches';
 import { useRecentSearches } from '@/hooks/use-recent-searches';
 import { buildSearchParams } from '@/lib/search-params';
+import { trackEvent } from '@/lib/analytics';
 import { MOCK_INSURANCE_COMPANIES, MOCK_CATEGORIES, MOCK_SUGGESTIONS } from '@/mocks/search-data';
 import type { SearchFilters } from '@/types/search';
 
@@ -22,9 +23,20 @@ export default function SearchPage() {
   const [filters, setFilters] = useState<SearchFilters>(INITIAL_FILTERS);
 
   const handleSearch = (query: string) => {
+    trackEvent('search', 'execute', query);
     addSearch(query);
     const params = buildSearchParams(query, filters);
     navigate(`/search/results?${params}`);
+  };
+
+  const handleRecentSelect = (query: string) => {
+    trackEvent('search', 'recent_click', query);
+    handleSearch(query);
+  };
+
+  const handleSuggestionSelect = (query: string) => {
+    trackEvent('search', 'suggested_click', query);
+    handleSearch(query);
   };
 
   return (
@@ -42,9 +54,9 @@ export default function SearchPage() {
         categories={MOCK_CATEGORIES}
       />
 
-      <RecentSearchChips searches={recentSearches} onSelect={handleSearch} onRemove={removeSearch} />
+      <RecentSearchChips searches={recentSearches} onSelect={handleRecentSelect} onRemove={removeSearch} />
 
-      <SuggestedSearches suggestions={MOCK_SUGGESTIONS} onSelect={handleSearch} />
+      <SuggestedSearches suggestions={MOCK_SUGGESTIONS} onSelect={handleSuggestionSelect} />
     </div>
   );
 }

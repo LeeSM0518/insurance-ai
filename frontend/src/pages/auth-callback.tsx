@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/hooks/use-auth';
 import { getApi } from '@/lib/api';
 import { logError } from '@/lib/error-logger';
+import { trackEvent } from '@/lib/analytics';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -73,6 +74,7 @@ export default function AuthCallbackPage() {
         }
 
         // 성공 시 code 처리 기록 정리 후 이동
+        trackEvent('auth', 'login_success', 'kakao');
         sessionStorage.removeItem(`oauth_code_processed_${code}`);
         navigate('/', { replace: true });
       })

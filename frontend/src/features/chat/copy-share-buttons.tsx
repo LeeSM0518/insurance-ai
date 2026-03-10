@@ -2,6 +2,7 @@ import { Copy, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { trackEvent } from '@/lib/analytics';
 
 interface CopyShareButtonsProps {
   content: string;
@@ -11,6 +12,7 @@ interface CopyShareButtonsProps {
 export function CopyShareButtons({ content, className }: CopyShareButtonsProps) {
   const handleCopy = async () => {
     try {
+      trackEvent('policy', 'copy');
       await navigator.clipboard.writeText(content);
       toast.success('복사되었습니다');
     } catch {
@@ -21,6 +23,7 @@ export function CopyShareButtons({ content, className }: CopyShareButtonsProps) 
   const handleShare = async () => {
     if (navigator.share) {
       try {
+        trackEvent('policy', 'share');
         await navigator.share({ text: content });
       } catch {
         // 사용자가 공유 취소한 경우 무시

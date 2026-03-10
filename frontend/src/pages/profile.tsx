@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FileText, Lock, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { trackEvent } from '@/lib/analytics';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,6 +19,7 @@ export default function ProfilePage() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async () => {
+    trackEvent('auth', 'logout');
     setIsLoggingOut(true);
     await logout();
   };

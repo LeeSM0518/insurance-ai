@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { parseSearchParams, buildSearchParams } from '@/lib/search-params';
 import { useSearch } from '@/hooks/use-search';
+import { trackEvent } from '@/lib/analytics';
 import { MOCK_INSURANCE_COMPANIES } from '@/mocks/search-data';
 import type { SearchFilters, ContentType } from '@/types/search';
 
@@ -27,6 +28,7 @@ export default function SearchResultsPage() {
 
   // 검색 실행 (URL 업데이트)
   const handleSearch = (newQuery: string) => {
+    trackEvent('search', 'execute', newQuery);
     setSearchParams(buildSearchParams(newQuery, filters));
   };
 
@@ -92,7 +94,7 @@ export default function SearchResultsPage() {
             {/* 더 보기 버튼 */}
             {hasNext && (
               <div className="flex justify-center py-4">
-                <Button variant="outline" onClick={loadMore} disabled={isLoading}>
+                <Button variant="outline" onClick={() => { trackEvent('search', 'load_more'); loadMore(); }} disabled={isLoading}>
                   {isLoading ? (
                     <Loader2 className="size-4 animate-spin" />
                   ) : (

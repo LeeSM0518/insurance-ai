@@ -16,6 +16,7 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useResizeHandle } from '@/hooks/use-resize-handle';
 import { usePolicyDetail } from '@/hooks/use-policy-detail';
 import { useSupplementaryData } from '@/hooks/use-supplementary-data';
+import { trackEvent } from '@/lib/analytics';
 
 const PDF_PANEL_MIN = 280;
 const PDF_PANEL_DEFAULT = 360;
@@ -27,6 +28,11 @@ export default function PolicyDetailPage() {
   const { article, isLoading, error } = usePolicyDetail(articleId);
   const { surrenderValues, premiumExamples, priceIndices } = useSupplementaryData(article?.productId ?? null);
   const [pdfOpen, setPdfOpen] = useState(false);
+
+  // 약관 조회 이벤트
+  useEffect(() => {
+    if (articleId) trackEvent('policy', 'view', articleId);
+  }, [articleId]);
   const [pdfPanelWidth, setPdfPanelWidth] = useLocalStorage('policy-pdf-panel-width', PDF_PANEL_DEFAULT);
 
   const handlePdfPanelResize = useCallback(
@@ -99,7 +105,7 @@ export default function PolicyDetailPage() {
                 variant={pdfOpen ? 'default' : 'outline'}
                 size="sm"
                 className="gap-2"
-                onClick={() => setPdfOpen(!pdfOpen)}
+                onClick={() => { if (!pdfOpen) trackEvent('policy', 'open_pdf', articleId); setPdfOpen(!pdfOpen); }}
               >
                 <FileText className="size-4" />
                 {pdfOpen ? '원문 PDF 닫기' : '원문 PDF 보기'}
@@ -133,6 +139,7 @@ export default function PolicyDetailPage() {
               <Button
                 className="flex-1 gap-2"
                 onClick={() => {
+                  trackEvent('policy', 'ask_ai', articleId);
                   const queryParts = [article.articleNumber, article.articleTitle].filter(Boolean);
                   const query = queryParts.length > 0
                     ? queryParts.join(' ')

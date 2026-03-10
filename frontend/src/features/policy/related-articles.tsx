@@ -1,5 +1,6 @@
 import { Link } from 'react-router';
 import { FileText } from 'lucide-react';
+import { trackEvent } from '@/lib/analytics';
 import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
 
 interface RelatedArticle {
@@ -31,6 +32,7 @@ export function RelatedArticles({ articles }: RelatedArticlesProps) {
             <Link
               to={`/policies/${article.id}`}
               className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-primary hover:bg-muted transition-colors"
+              onClick={() => trackEvent('policy', 'related_click', article.id)}
             >
               <FileText className="size-3.5 shrink-0" />
               {getDisplayLabel(article)}
