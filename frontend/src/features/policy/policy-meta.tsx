@@ -22,18 +22,18 @@ export function PolicyMeta({ article }: PolicyMetaProps) {
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-primary">{article.insuranceCompany.name}</span>
+        <span className="text-base font-medium text-primary">{article.insuranceCompany.name}</span>
         <Badge variant="outline" className="text-[10px]">
           {article.insuranceCompany.type === 'LIFE' ? '생보' : '손보'}
         </Badge>
       </div>
-      <h1 className="text-lg font-semibold">{article.productName}</h1>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <h1 className="text-xl font-semibold">{article.productName}</h1>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <span>{CONTENT_TYPE_LABELS[article.contentType as ContentType] ?? article.contentType}</span>
         <span>·</span>
         <span>{SECTION_TYPE_LABELS[article.sectionType] ?? article.sectionType}</span>
       </div>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <span>적용일: {article.effectiveDate}</span>
         <span>·</span>
         <span>출처: {DATA_SOURCE_LABELS[article.dataSource] || article.dataSource}</span>

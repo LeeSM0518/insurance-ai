@@ -22,7 +22,7 @@ export function SourceTabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Sou
             key={tab.articleId}
             role="tab"
             aria-selected={isActive}
-            className={`group flex items-center gap-1 shrink-0 px-3 py-2 text-xs border-r transition-colors ${
+            className={`group flex items-center gap-1 shrink-0 px-3 py-2 text-sm border-r transition-colors ${
               isActive
                 ? 'bg-background border-b-transparent font-medium'
                 : 'bg-muted/50 hover:bg-muted text-muted-foreground'

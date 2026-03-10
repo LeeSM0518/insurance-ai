@@ -25,13 +25,13 @@ export function RelatedArticles({ articles }: RelatedArticlesProps) {
 
   return (
     <section>
-      <h2 className="text-sm font-semibold mb-2">관련 조문</h2>
+      <h2 className="text-base font-semibold mb-2">관련 조문</h2>
       <ul className="space-y-1.5">
         {articles.map((article) => (
           <li key={article.id}>
             <Link
               to={`/policies/${article.id}`}
-              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-primary hover:bg-muted transition-colors"
+              className="flex items-center gap-2 rounded-md px-2 py-1.5 text-base text-primary hover:bg-muted transition-colors"
               onClick={() => trackEvent('policy', 'related_click', article.id)}
             >
               <FileText className="size-3.5 shrink-0" />

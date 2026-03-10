@@ -11,7 +11,7 @@ export function SuggestedQuestions({ questions, onSelect }: SuggestedQuestionsPr
       {questions.map((question) => (
         <button
           key={question}
-          className="rounded-full border bg-background px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
+          className="rounded-full border bg-background px-3.5 py-2 text-sm text-foreground hover:bg-muted transition-colors"
           onClick={() => onSelect(question)}
         >
           {question}

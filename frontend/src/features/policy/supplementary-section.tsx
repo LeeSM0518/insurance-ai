@@ -27,14 +27,14 @@ export function SupplementarySection({
 
   return (
     <section>
-      <h2 className="text-sm font-semibold mb-2">보충 정보</h2>
+      <h2 className="text-base font-semibold mb-2">보충 정보</h2>
       <Accordion>
         {surrenderValues && surrenderValues.length > 0 && (
           <AccordionItem value="surrender">
             <AccordionTrigger>해약환급금 예시</AccordionTrigger>
             <AccordionContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs" data-testid="surrender-table">
+                <table className="w-full text-sm" data-testid="surrender-table">
                   <thead>
                     <tr className="border-b">
                       <th className="py-1.5 px-2 text-left font-medium">경과기간</th>
@@ -64,7 +64,7 @@ export function SupplementarySection({
             <AccordionTrigger>보험료 예시</AccordionTrigger>
             <AccordionContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs" data-testid="premium-table">
+                <table className="w-full text-sm" data-testid="premium-table">
                   <thead>
                     <tr className="border-b">
                       <th className="py-1.5 px-2 text-left font-medium">성별</th>
@@ -96,7 +96,7 @@ export function SupplementarySection({
             <AccordionTrigger>가격지수</AccordionTrigger>
             <AccordionContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs" data-testid="price-index-table">
+                <table className="w-full text-sm" data-testid="price-index-table">
                   <thead>
                     <tr className="border-b">
                       <th className="py-1.5 px-2 text-left font-medium">성별</th>

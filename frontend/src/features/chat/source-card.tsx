@@ -35,10 +35,10 @@ export function SourceCard({ source, index, isActive, onSourceClick }: SourceCar
         <span className="inline-flex items-center justify-center size-5 rounded-full bg-primary/10 text-primary text-xs font-medium">
           {index + 1}
         </span>
-        <span className="text-xs text-muted-foreground truncate">{source.insuranceCompany}</span>
+        <span className="text-sm text-muted-foreground truncate">{source.insuranceCompany}</span>
       </div>
-      <p className="mt-1 text-xs truncate">{source.productName}</p>
-      <p className="mt-0.5 text-xs font-medium truncate">
+      <p className="mt-1 text-sm truncate">{source.productName}</p>
+      <p className="mt-0.5 text-sm font-medium truncate">
         {[source.articleNumber, source.articleTitle].filter(Boolean).join(' ') ||
           CONTENT_TYPE_LABELS[source.contentType as ContentType] ||
           source.contentType}
@@ -49,7 +49,7 @@ export function SourceCard({ source, index, isActive, onSourceClick }: SourceCar
             href={`/api/v1/policies/pdf/${source.dataSourceId}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-0.5 text-[11px] text-primary hover:underline"
+            className="flex items-center gap-0.5 text-xs text-primary hover:no-underline"
             onClick={(e) => e.stopPropagation()}
             title="원본 PDF"
           >

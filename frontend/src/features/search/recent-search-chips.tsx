@@ -12,8 +12,8 @@ export function RecentSearchChips({ searches, onSelect, onRemove }: RecentSearch
 
   return (
     <section aria-labelledby="recent-search-label" className="space-y-2">
-      <h2 id="recent-search-label" className="flex items-center gap-1 text-sm font-medium text-muted-foreground">
-        <Clock className="size-3.5" />
+      <h2 id="recent-search-label" className="flex items-center gap-1 text-base font-medium text-muted-foreground">
+        <Clock className="size-4" />
         최근 검색
       </h2>
       <div className="flex flex-wrap gap-1.5">

@@ -46,27 +46,27 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
           <button
             role="tab"
             aria-selected={activeTab === 'content'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'content'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('content')}
           >
-            <FileText className="size-3" />
+            <FileText className="size-3.5" />
             조문
           </button>
           <button
             role="tab"
             aria-selected={activeTab === 'pdf'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'pdf'
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
             onClick={() => setActiveTab('pdf')}
           >
-            <FileText className="size-3" />
+            <FileText className="size-3.5" />
             원본 PDF
           </button>
         </div>

@@ -22,12 +22,12 @@ export function PolicyCard({ item }: PolicyCardProps) {
       }}
     >
       {/* 보험사 · 상품명 */}
-      <div className="text-xs text-muted-foreground">
+      <div className="text-sm text-muted-foreground">
         {item.insuranceCompany.name} · {item.productName}
       </div>
 
       {/* 조문 제목 */}
-      <h3 className="mt-1 text-sm font-semibold">
+      <h3 className="mt-1 text-base font-semibold">
         {[item.articleNumber, item.articleTitle].filter(Boolean).join(' ') ||
           CONTENT_TYPE_LABELS[item.contentType as ContentType] ||
           item.contentType}
@@ -35,32 +35,32 @@ export function PolicyCard({ item }: PolicyCardProps) {
 
       {/* 하이라이트 미리보기 */}
       <p
-        className="mt-2 text-sm text-muted-foreground line-clamp-3 [&_mark]:bg-warning/30 [&_mark]:text-foreground [&_mark]:rounded-sm [&_mark]:px-0.5"
+        className="mt-2 text-base text-muted-foreground line-clamp-3 [&_mark]:bg-warning/30 [&_mark]:text-foreground [&_mark]:rounded-sm [&_mark]:px-0.5"
         dangerouslySetInnerHTML={{ __html: item.highlight }}
       />
 
       {/* 하단: 내용유형 · 보충 뱃지 */}
       <div className="mt-3 flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-muted-foreground">
+        <span className="text-sm text-muted-foreground">
           {CONTENT_TYPE_LABELS[item.contentType as ContentType] || item.contentType}
         </span>
 
         {/* 보충 데이터 뱃지 */}
         <div className="ml-auto flex gap-1">
           {item.supplementary.hasSurrenderValues && (
-            <Badge variant="secondary" className="gap-0.5 text-[10px]">
+            <Badge variant="secondary" className="gap-0.5 text-xs">
               <Coins className="size-3" />
               환급금
             </Badge>
           )}
           {item.supplementary.hasPremiumExamples && (
-            <Badge variant="secondary" className="gap-0.5 text-[10px]">
+            <Badge variant="secondary" className="gap-0.5 text-xs">
               <Calculator className="size-3" />
               보험료
             </Badge>
           )}
           {item.supplementary.hasPriceIndices && (
-            <Badge variant="secondary" className="gap-0.5 text-[10px]">
+            <Badge variant="secondary" className="gap-0.5 text-xs">
               <TrendingUp className="size-3" />
               가격지수
             </Badge>

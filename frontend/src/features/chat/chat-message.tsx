@@ -6,7 +6,7 @@ import { SourceTooltip } from './source-tooltip';
 import { processChildren } from './source-ref-utils';
 import type { ChatMessage as ChatMessageType, Source } from '@/types/chat';
 
-const chatMessageVariants = cva('rounded-lg px-4 py-3 w-fit max-w-[85%]', {
+const chatMessageVariants = cva('rounded-lg px-4 py-3 w-fit max-w-[85%] animate-[fade-in_0.3s_ease-in-out]', {
   variants: {
     role: {
       user: 'bg-chat-user-bg ml-auto',
@@ -68,7 +68,7 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
       {isAssistant ? (
         <div>
           <div
-            className="prose prose-sm max-w-none [&_h2]:text-base [&_h3]:text-sm [&_p]:text-sm [&_li]:text-sm [&_blockquote]:text-sm"
+            className="prose max-w-none leading-relaxed [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:text-base [&_h3]:font-semibold [&_p]:text-base [&_li]:text-base [&_blockquote]:text-base"
             onClick={(e) => {
               const target = e.target as HTMLElement;
               const button = target.closest('[data-source-index]');
@@ -96,7 +96,7 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
           <MessageActions content={message.content} messageId={message.id} className="mt-2" />
         </div>
       ) : (
-        <p className="text-sm">{message.content}</p>
+        <p className="text-base leading-relaxed">{message.content}</p>
       )}
     </div>
   );

@@ -20,7 +20,7 @@ export function BottomTabBar() {
               key={tab.id}
               to={tab.path}
               aria-current={isActive ? 'page' : undefined}
-              className={`touch-target flex flex-col items-center justify-center gap-0.5 text-xs font-medium transition-colors ${
+              className={`touch-target flex flex-col items-center justify-center gap-0.5 text-sm font-medium transition-colors ${
                 isActive ? 'text-primary' : 'text-muted-foreground'
               }`}
             >

@@ -15,8 +15,8 @@ export function PolicyContent({ articleNumber, articleTitle, contentType, conten
 
   return (
     <section>
-      <h2 className="text-base font-semibold mb-3">{displayTitle}</h2>
-      <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{content}</div>
+      <h2 className="text-lg font-semibold mb-3">{displayTitle}</h2>
+      <div className="whitespace-pre-wrap text-base leading-relaxed text-foreground/90">{content}</div>
     </section>
   );
 }

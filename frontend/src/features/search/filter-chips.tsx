@@ -47,7 +47,7 @@ export function FilterChips({ filters, onFiltersChange, companies, categories }:
 
   return (
     <section aria-labelledby="filter-label" className="space-y-3">
-      <h2 id="filter-label" className="text-sm font-medium text-muted-foreground">
+      <h2 id="filter-label" className="text-base font-medium text-muted-foreground">
         필터
       </h2>
 
