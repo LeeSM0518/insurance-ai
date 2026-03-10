@@ -6,7 +6,7 @@ import { ChatSidebar } from '@/features/chat/chat-sidebar';
 import { ChatMessage } from '@/features/chat/chat-message';
 import { SourceCards } from '@/features/chat/source-cards';
 import { SuggestedQuestions } from '@/features/chat/suggested-questions';
-import { ChatInput } from '@/features/chat/chat-input';
+import { ChatInput, type ChatInputHandle } from '@/features/chat/chat-input';
 import { DisclaimerBanner } from '@/features/chat/disclaimer-banner';
 import { SourceTabPanel } from '@/features/chat/source-tab-panel';
 import type { SourceTab } from '@/features/chat/source-tab-panel';
@@ -27,7 +27,6 @@ import type { Source } from '@/types/chat';
 import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
 
 const SOURCE_PANEL_MIN = 280;
-const SOURCE_PANEL_MAX = 700;
 const SOURCE_PANEL_DEFAULT = 360;
 
 const MAX_TABS = 5;
@@ -45,6 +44,7 @@ export default function ChatPage() {
   const [sourcePanelWidth, setSourcePanelWidth] = useLocalStorage('chat-source-panel-width', SOURCE_PANEL_DEFAULT);
   const [mobileSourceSheet, setMobileSourceSheet] = useState<Source | null>(null);
   const initialQueryProcessed = useRef(false);
+  const chatInputRef = useRef<ChatInputHandle>(null);
 
   // 스트리밍 채팅 Hook
   const { messages, streamingState, isStreaming, sendMessage, retryStreaming } =
@@ -61,9 +61,18 @@ export default function ChatPage() {
     setSourcePanelWidth(width);
   }, [setSourcePanelWidth]);
 
+  // 화면 너비의 50%를 최대값으로 사용 (창 리사이즈 반영)
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const sourcePanelMax = Math.max(SOURCE_PANEL_MIN, Math.floor(windowWidth * 0.5));
+
   const { handleMouseDown: handleResizeMouseDown } = useResizeHandle({
     minWidth: SOURCE_PANEL_MIN,
-    maxWidth: SOURCE_PANEL_MAX,
+    maxWidth: sourcePanelMax,
     onResize: handleSourceResize,
     direction: 'left',
   });
@@ -89,6 +98,8 @@ export default function ChatPage() {
     if (!isDesktop) setSidebarOpen(false);
     setOpenTabs([]);
     setActiveTabId(null);
+    // 새 대화 시 입력 필드에 자동 포커스
+    setTimeout(() => chatInputRef.current?.focus(), 0);
   };
 
   // 최신 세션 자동 선택 (새 대화 모드가 아닐 때만)
@@ -381,7 +392,7 @@ export default function ChatPage() {
 
         {/* 면책 고지 + 입력 영역 */}
         <DisclaimerBanner />
-        <ChatInput onSend={handleSend} disabled={isStreaming} />
+        <ChatInput ref={chatInputRef} onSend={handleSend} disabled={isStreaming} />
       </div>
 
       {/* 데스크톱 출처 사이드패널 (리사이즈 가능) */}

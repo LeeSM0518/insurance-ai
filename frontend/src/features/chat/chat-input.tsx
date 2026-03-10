@@ -1,15 +1,23 @@
-import { useState, useRef, type KeyboardEvent } from 'react';
+import { useState, useRef, useImperativeHandle, forwardRef, type KeyboardEvent } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+export interface ChatInputHandle {
+  focus: () => void;
+}
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
 }
 
-export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
+export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({ onSend, disabled = false }, ref) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => textareaRef.current?.focus(),
+  }));
 
   const handleSend = () => {
     const trimmed = value.trim();
@@ -61,4 +69,4 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
       </Button>
     </div>
   );
-}
+});

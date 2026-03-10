@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { ArrowLeft, FileText, Loader2, MessageSquare, SearchX, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,6 @@ import { usePolicyDetail } from '@/hooks/use-policy-detail';
 import { useSupplementaryData } from '@/hooks/use-supplementary-data';
 
 const PDF_PANEL_MIN = 280;
-const PDF_PANEL_MAX = 700;
 const PDF_PANEL_DEFAULT = 360;
 
 export default function PolicyDetailPage() {
@@ -35,9 +34,18 @@ export default function PolicyDetailPage() {
     [setPdfPanelWidth],
   );
 
+  // 화면 너비의 50%를 최대값으로 사용 (창 리사이즈 반영)
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const pdfPanelMax = Math.max(PDF_PANEL_MIN, Math.floor(windowWidth * 0.5));
+
   const { handleMouseDown: handleResizeMouseDown } = useResizeHandle({
     minWidth: PDF_PANEL_MIN,
-    maxWidth: PDF_PANEL_MAX,
+    maxWidth: pdfPanelMax,
     onResize: handlePdfPanelResize,
     direction: 'left',
   });
