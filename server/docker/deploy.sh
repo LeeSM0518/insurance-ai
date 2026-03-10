@@ -23,9 +23,13 @@ get_active_slot() {
 # Nginx 설정 렌더링 (upstream 전환)
 render_nginx_conf() {
   local slot="$1"
+  # .env.production에서 DOMAIN 값 로드
+  set -a
+  source .env.production
+  set +a
   ACTIVE_SLOT="$slot" envsubst '${ACTIVE_SLOT} ${DOMAIN}' \
     < nginx-ssl.conf.template > nginx-ssl.conf
-  log "Nginx 설정 렌더링 완료 (upstream → insurance-server-${slot})"
+  log "Nginx 설정 렌더링 완료 (upstream → insurance-server-${slot}, domain → ${DOMAIN})"
 }
 
 # Nginx 리로드

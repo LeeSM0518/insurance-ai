@@ -13,6 +13,9 @@ log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 # Nginx 설정 렌더링
 render_nginx_conf() {
   local slot="$1"
+  set -a
+  source .env.production
+  set +a
   ACTIVE_SLOT="$slot" envsubst '${ACTIVE_SLOT} ${DOMAIN}' \
     < nginx-ssl.conf.template > nginx-ssl.conf
 }
