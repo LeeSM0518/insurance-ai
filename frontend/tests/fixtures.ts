@@ -421,6 +421,56 @@ export async function mockAuthenticatedUser(page: Page) {
     return route.continue();
   });
 
+  // 보험사 목록 API
+  await page.route('**/api/v1/insurance-companies', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        statusCode: 200,
+        data: [
+          { id: 'c0a80101-0000-0000-0000-000000000001', name: '삼성생명', type: 'LIFE' },
+          { id: 'c0a80101-0000-0000-0000-000000000002', name: '한화생명', type: 'LIFE' },
+          { id: 'c0a80101-0000-0000-0000-000000000003', name: '교보생명', type: 'LIFE' },
+          { id: 'c0a80101-0000-0000-0000-000000000004', name: '현대해상', type: 'NON_LIFE' },
+          { id: 'c0a80101-0000-0000-0000-000000000005', name: 'DB손해보험', type: 'NON_LIFE' },
+        ],
+      }),
+    }),
+  );
+
+  // 카테고리 목록 API
+  await page.route('**/api/v1/categories**', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        statusCode: 200,
+        data: [
+          { code: 'PROTECTION', name: '보장성보험', insuranceType: 'LIFE', subcategories: [{ code: 'WHOLE_LIFE', name: '종신' }] },
+          { code: 'SAVINGS', name: '저축성보험', insuranceType: 'LIFE', subcategories: [] },
+          { code: 'LONG_TERM', name: '장기보장성보험', insuranceType: 'NON_LIFE', subcategories: [{ code: 'LT_ACCIDENT', name: '상해' }] },
+          { code: 'AUTO', name: '자동차보험', insuranceType: 'NON_LIFE', subcategories: [] },
+        ],
+      }),
+    }),
+  );
+
+  // 추천 검색어 API
+  await page.route('**/api/v1/search/suggestions', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        statusCode: 200,
+        data: ['암보험 면책기간', '실손 4세대', '치아보험 비교'],
+      }),
+    }),
+  );
+
   // 검색 API
   await page.route('**/api/v1/search', (route) => {
     return route.fulfill({

@@ -9,8 +9,8 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { parseSearchParams, buildSearchParams } from '@/lib/search-params';
 import { useSearch } from '@/hooks/use-search';
+import { useSearchFilters } from '@/hooks/use-search-filters';
 import { trackEvent } from '@/lib/analytics';
-import { MOCK_INSURANCE_COMPANIES } from '@/mocks/search-data';
 import type { SearchFilters, ContentType } from '@/types/search';
 
 export default function SearchResultsPage() {
@@ -18,6 +18,7 @@ export default function SearchResultsPage() {
   const { query, filters: initialFilters } = useMemo(() => parseSearchParams(searchParams), [searchParams]);
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
   const { results, totalCount, hasNext, isLoading, error, search, loadMore } = useSearch();
+  const { companies } = useSearchFilters();
 
   // query 또는 filters 변경 시 검색 실행
   useEffect(() => {
@@ -61,7 +62,7 @@ export default function SearchResultsPage() {
         {/* 적용 필터 칩 */}
         <ActiveFilters
           filters={filters}
-          companies={MOCK_INSURANCE_COMPANIES}
+          companies={companies}
           onRemoveCompany={removeCompany}
           onRemoveInsuranceType={removeInsuranceType}
           onRemoveCategory={removeCategory}
