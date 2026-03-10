@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router';
 import { Loader2, SearchX } from 'lucide-react';
 import { SearchBar } from '@/features/search/search-bar';
-import { ActiveFilters } from '@/features/search/active-filters';
+import { FilterChips } from '@/features/search/filter-chips';
 import { SearchResultCount } from '@/features/search/search-result-count';
 import { PolicyCard } from '@/features/search/policy-card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -11,14 +11,14 @@ import { parseSearchParams, buildSearchParams } from '@/lib/search-params';
 import { useSearch } from '@/hooks/use-search';
 import { useSearchFilters } from '@/hooks/use-search-filters';
 import { trackEvent } from '@/lib/analytics';
-import type { SearchFilters, ContentType } from '@/types/search';
+import type { SearchFilters } from '@/types/search';
 
 export default function SearchResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { query, filters: initialFilters } = useMemo(() => parseSearchParams(searchParams), [searchParams]);
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
   const { results, totalCount, hasNext, isLoading, error, search, loadMore } = useSearch();
-  const { companies } = useSearchFilters();
+  const { companies, categories } = useSearchFilters();
 
   // query 또는 filters 변경 시 검색 실행
   useEffect(() => {
@@ -39,34 +39,19 @@ export default function SearchResultsPage() {
     setSearchParams(buildSearchParams(query, newFilters));
   };
 
-  // 필터 제거 핸들러
-  const removeCompany = (id: string) => {
-    updateFilters({ ...filters, insuranceCompanyIds: filters.insuranceCompanyIds.filter((c) => c !== id) });
-  };
-  const removeInsuranceType = () => {
-    updateFilters({ ...filters, insuranceType: null, categories: [] });
-  };
-  const removeCategory = (code: string) => {
-    updateFilters({ ...filters, categories: filters.categories.filter((c) => c !== code) });
-  };
-  const removeContentType = (type: ContentType) => {
-    updateFilters({ ...filters, contentTypes: filters.contentTypes.filter((t) => t !== type) });
-  };
-
   return (
     <div className="flex-1 flex flex-col">
       <div className="px-4 pt-4 space-y-3">
         {/* 검색바 */}
         <SearchBar onSearch={handleSearch} defaultValue={query} />
 
-        {/* 적용 필터 칩 */}
-        <ActiveFilters
+        {/* 필터 칩 */}
+        <FilterChips
           filters={filters}
+          onFiltersChange={updateFilters}
           companies={companies}
-          onRemoveCompany={removeCompany}
-          onRemoveInsuranceType={removeInsuranceType}
-          onRemoveCategory={removeCategory}
-          onRemoveContentType={removeContentType}
+          categories={categories}
+          compact
         />
 
         {/* 결과 카운트 */}
