@@ -6,6 +6,7 @@ import com.insuranceai.pipeline.parser.ExtractedItem
 import com.insuranceai.pipeline.parser.ExtractedSurrenderValue
 import com.insuranceai.pipeline.parser.PdfStructuredData
 import com.insuranceai.policy.domain.ContentType
+import com.insuranceai.policy.domain.SectionType
 import com.insuranceai.policy.entity.PolicyArticleEntity
 import com.insuranceai.policy.entity.ProductEntity
 import com.insuranceai.policy.entity.SurrenderValueEntity
@@ -68,7 +69,7 @@ class NormalizationService {
                         productId = productId,
                         content = normalizeText(item.content),
                         contentType = contentType.name,
-                        sectionType = item.sectionType,
+                        sectionType = SectionType.normalize(item.sectionType),
                     ),
                 )
             }

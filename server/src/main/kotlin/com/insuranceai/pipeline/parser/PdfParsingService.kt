@@ -1,6 +1,7 @@
 package com.insuranceai.pipeline.parser
 
 import com.insuranceai.policy.domain.ContentType
+import com.insuranceai.policy.domain.SectionType
 import com.insuranceai.policy.domain.SourceType
 import com.insuranceai.policy.entity.DataSourceEntity
 import com.insuranceai.policy.entity.PolicyArticleEntity
@@ -238,7 +239,7 @@ class PdfParsingService(
                         productId = productId,
                         content = item.content,
                         contentType = contentType.name,
-                        sectionType = item.sectionType,
+                        sectionType = SectionType.normalize(item.sectionType),
                     ),
                 )
             }

@@ -5,6 +5,7 @@ import com.insuranceai.pipeline.crawler.LifeSummaryPdfCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.NonLifeSummaryPdfCrawler
 import com.insuranceai.pipeline.domain.PipelineStep
+import com.insuranceai.pipeline.domain.ValidationStatus
 import com.insuranceai.pipeline.dto.ProductRawData
 import com.insuranceai.pipeline.embedder.EmbeddingService
 import com.insuranceai.pipeline.mapper.CrawlStagingMapper
@@ -236,7 +237,7 @@ class RunPipelineUseCase(
                 val passedNames = validationResult.passed.map { it.productName }.toSet()
                 for (record in stagingRecords) {
                     val rawData = crawlStagingMapper.fromStagingEntity(record)
-                    val status = if (rawData.productName in passedNames) "PASSED" else "FAILED"
+                    val status = if (rawData.productName in passedNames) ValidationStatus.PASSED.name else ValidationStatus.FAILED.name
                     crawlStagingRepository.save(record.copy(validationStatus = status))
                 }
 
@@ -269,7 +270,7 @@ class RunPipelineUseCase(
                         // crawl_staging 레코드에 pdfSummaryPath 반영
                         val passedRecords =
                             crawlStagingRepository
-                                .findByBatchIdAndValidationStatus(batchId, "PASSED")
+                                .findByBatchIdAndValidationStatus(batchId, ValidationStatus.PASSED.name)
                                 .toList()
 
                         for (record in passedRecords) {
@@ -304,7 +305,7 @@ class RunPipelineUseCase(
 
                 val passedRecords =
                     crawlStagingRepository
-                        .findByBatchIdAndValidationStatus(batchId, "PASSED")
+                        .findByBatchIdAndValidationStatus(batchId, ValidationStatus.PASSED.name)
                         .toList()
 
                 val productsWithPdf =
@@ -379,7 +380,7 @@ class RunPipelineUseCase(
                 // 검증 통과 목록이 없으면 스테이징에서 PASSED 레코드 복원
                 if (validatedProducts.isEmpty()) {
                     val passedRecords =
-                        crawlStagingRepository.findByBatchIdAndValidationStatus(batchId, "PASSED").toList()
+                        crawlStagingRepository.findByBatchIdAndValidationStatus(batchId, ValidationStatus.PASSED.name).toList()
                     validatedProducts = passedRecords.map { crawlStagingMapper.fromStagingEntity(it) }
                 }
 

@@ -1,9 +1,11 @@
 package com.insuranceai.pipeline.service
 
+import com.insuranceai.pipeline.domain.ValidationStatus
 import com.insuranceai.pipeline.mapper.CrawlStagingMapper
 import com.insuranceai.pipeline.repository.CrawlStagingRepository
 import com.insuranceai.policy.domain.ContentType
 import com.insuranceai.policy.domain.SectionType
+import com.insuranceai.policy.domain.SourceType
 import com.insuranceai.policy.entity.DataSourceEntity
 import com.insuranceai.policy.entity.PolicyArticleEntity
 import com.insuranceai.policy.entity.ProductFeatureEntity
@@ -59,7 +61,7 @@ class StagingPublisher(
     suspend fun publish(batchId: String): PublishResult {
         val passedRecords =
             crawlStagingRepository
-                .findByBatchIdAndValidationStatus(batchId, "PASSED")
+                .findByBatchIdAndValidationStatus(batchId, ValidationStatus.PASSED.name)
                 .toList()
 
         if (passedRecords.isEmpty()) {
@@ -82,7 +84,7 @@ class StagingPublisher(
         val dataSource =
             dataSourceRepository.save(
                 DataSourceEntity(
-                    sourceType = "ASSOCIATION",
+                    sourceType = SourceType.ASSOCIATION.name,
                     sourceUrl =
                         passedRecords.firstOrNull()?.let {
                             crawlStagingMapper.fromStagingEntity(it).sourceUrl
@@ -340,13 +342,7 @@ class StagingPublisher(
 
         val newArticles =
             rawData.coverages.map { coverage ->
-                val sectionType =
-                    when (coverage.sectionType) {
-                        "MAIN" -> SectionType.MAIN.name
-                        "RIDER" -> SectionType.RIDER.name
-                        "MAIN_CONTRACT" -> SectionType.MAIN.name
-                        else -> SectionType.MAIN.name
-                    }
+                val sectionType = SectionType.normalize(coverage.sectionType)
 
                 PolicyArticleEntity(
                     productId = productId,
