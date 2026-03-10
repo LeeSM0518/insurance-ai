@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.io.File
 import java.math.BigDecimal
+import java.nio.file.Path
 import java.security.MessageDigest
 import java.util.UUID
 
@@ -69,11 +70,13 @@ class PdfParsingService(
         // Phase 5: Entity 변환
         val articles = toArticleEntities(structuredData, productId)
         val surrenderValues = toSurrenderValueEntities(structuredData, productId)
+        // 작업 디렉토리 기준 상대 경로로 저장 (환경 독립적)
+        val baseDir = Path.of("").toAbsolutePath()
         val dataSource =
             DataSourceEntity(
                 sourceType = SourceType.PRODUCT_SUMMARY.name,
-                filePath = file.absolutePath,
-                extractedTextPath = textCachePath.absolutePath,
+                filePath = baseDir.relativize(file.toPath()).toString(),
+                extractedTextPath = baseDir.relativize(textCachePath.toPath()).toString(),
                 checksum = calculateChecksum(file.readBytes()),
             )
 

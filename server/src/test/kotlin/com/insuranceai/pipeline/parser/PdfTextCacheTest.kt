@@ -112,8 +112,13 @@ class PdfTextCacheTest {
             assertTrue(cacheFile.exists())
             assertTrue(cacheFile.readText().contains("--- PAGE 1 ---"))
 
-            // extractedTextPath가 결과에 포함됨
-            assertEquals(cacheFile.absolutePath, result.dataSource.extractedTextPath)
+            // extractedTextPath가 상대 경로로 저장됨
+            val baseDir =
+                java.nio.file.Path
+                    .of("")
+                    .toAbsolutePath()
+            val expectedPath = baseDir.relativize(cacheFile.toPath()).toString()
+            assertEquals(expectedPath, result.dataSource.extractedTextPath)
         }
 
     @Test
