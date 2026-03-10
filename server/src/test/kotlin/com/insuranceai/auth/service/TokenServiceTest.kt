@@ -85,38 +85,28 @@ class TokenServiceTest {
     }
 
     @Test
-    fun `Refresh Token 생성 시 기존 토큰 revoke 후 새로 생성`() =
+    fun `Refresh Token 생성 시 기존 토큰 삭제 후 새로 생성`() =
         runTest {
             val userId = UUID.randomUUID()
-            val existingEntity =
-                RefreshTokenEntity(
-                    id = UUID.randomUUID(),
-                    userId = userId,
-                    token = "old-token",
-                    expiresAt = Instant.now().plus(7, ChronoUnit.DAYS),
-                )
 
-            coEvery { refreshTokenRepository.findByUserId(userId) } returns existingEntity
-            val savedEntities = mutableListOf<RefreshTokenEntity>()
-            coEvery { refreshTokenRepository.save(capture(savedEntities)) } answers {
-                savedEntities.last().let { if (it.id == null) it.copy(id = UUID.randomUUID()) else it }
+            coEvery { refreshTokenRepository.deleteByUserId(userId) } returns Unit
+            coEvery { refreshTokenRepository.save(any()) } answers {
+                firstArg<RefreshTokenEntity>().copy(id = UUID.randomUUID())
             }
 
             val token = tokenService.createRefreshToken(userId)
 
             assertNotNull(token)
-            // 첫 번째 save: 기존 토큰 revoke
-            assertTrue(savedEntities[0].revoked)
-            // 두 번째 save: 새 토큰 생성
-            assertEquals(token, savedEntities[1].token)
+            coVerify { refreshTokenRepository.deleteByUserId(userId) }
+            coVerify { refreshTokenRepository.save(match { it.token == token }) }
         }
 
     @Test
-    fun `Refresh Token 생성 시 기존 토큰 없으면 새로 생성`() =
+    fun `Refresh Token 생성 시 기존 토큰 없어도 정상 생성`() =
         runTest {
             val userId = UUID.randomUUID()
 
-            coEvery { refreshTokenRepository.findByUserId(userId) } returns null
+            coEvery { refreshTokenRepository.deleteByUserId(userId) } returns Unit
             val savedSlot = slot<RefreshTokenEntity>()
             coEvery { refreshTokenRepository.save(capture(savedSlot)) } answers {
                 savedSlot.captured.copy(id = UUID.randomUUID())
@@ -133,7 +123,7 @@ class TokenServiceTest {
         runTest {
             val userId = UUID.randomUUID()
 
-            coEvery { refreshTokenRepository.findByUserId(userId) } returns null
+            coEvery { refreshTokenRepository.deleteByUserId(userId) } returns Unit
             coEvery { refreshTokenRepository.save(any()) } answers {
                 firstArg<RefreshTokenEntity>().copy(id = UUID.randomUUID())
             }
@@ -198,7 +188,7 @@ class TokenServiceTest {
         runTest {
             val userId = UUID.randomUUID()
 
-            coEvery { refreshTokenRepository.findByUserId(userId) } returns null
+            coEvery { refreshTokenRepository.deleteByUserId(userId) } returns Unit
             coEvery { refreshTokenRepository.save(any()) } answers {
                 firstArg<RefreshTokenEntity>().copy(id = UUID.randomUUID())
             }

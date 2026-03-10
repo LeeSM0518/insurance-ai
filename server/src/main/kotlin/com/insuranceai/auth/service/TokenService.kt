@@ -60,13 +60,8 @@ class TokenService(
                 )
             }
         } else {
-            // 신규 로그인: 기존 사용자의 토큰이 있으면 교체 (하위 호환)
-            val existing = refreshTokenRepository.findByUserId(userId)
-            if (existing != null) {
-                refreshTokenRepository.save(
-                    existing.copy(revoked = true, updatedAt = Instant.now()),
-                )
-            }
+            // 신규 로그인: 기존 사용자의 모든 토큰 삭제 후 새 family 시작
+            refreshTokenRepository.deleteByUserId(userId)
         }
 
         val saved =
