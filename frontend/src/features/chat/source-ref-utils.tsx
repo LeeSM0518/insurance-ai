@@ -40,6 +40,26 @@ export function replaceSourceRefs(text: string, options: SourceButtonOptions = {
   });
 }
 
+// React children에서 텍스트만 추출
+function extractText(children: ReactNode): string {
+  if (typeof children === 'string') return children;
+  if (typeof children === 'number') return String(children);
+  if (Array.isArray(children)) return children.map(extractText).join('');
+  if (isValidElement(children)) {
+    const element = children as ReactElement<{ children?: ReactNode }>;
+    if (element.props.children) return extractText(element.props.children);
+  }
+  return '';
+}
+
+// 출처 참조 패턴([N] 또는 [출처 N])만으로 구성된 텍스트인지 판별
+export function isSourceRefOnly(children: ReactNode): boolean {
+  const text = extractText(children);
+  if (!text) return false;
+  const stripped = text.replace(/\[(?:출처\s*)?\d+\]/g, '').trim();
+  return stripped.length === 0 && /\[(?:출처\s*)?\d+\]/.test(text);
+}
+
 // React children을 재귀 순회하며 문자열 노드의 [N] 패턴을 버튼으로 변환
 export function processChildren(children: ReactNode, options: SourceButtonOptions = {}): ReactNode {
   if (typeof children === 'string') {

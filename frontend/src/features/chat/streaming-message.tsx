@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { processChildren } from './source-ref-utils';
+import { processChildren, isSourceRefOnly } from './source-ref-utils';
 
 interface StreamingMessageProps {
   content: string;
@@ -46,7 +46,17 @@ export function StreamingMessage({ content, isFadingOut = false, onSourceClick }
             h3: ({ children }) => <h3>{processChildren(children)}</h3>,
             // hr(---) 제거 — 제목만으로 섹션 구분 충분
             hr: () => null,
-            p: ({ children }) => <p>{processChildren(children)}</p>,
+            p: ({ children }) => {
+              if (isSourceRefOnly(children)) {
+                return (
+                  <div className="flex flex-wrap items-center gap-1 -mt-2 mb-3 not-prose">
+                    <span className="text-xs text-muted-foreground mr-0.5">출처</span>
+                    {processChildren(children)}
+                  </div>
+                );
+              }
+              return <p>{processChildren(children)}</p>;
+            },
             blockquote: ({ children }) => <blockquote>{processChildren(children)}</blockquote>,
             li: ({ children }) => <li>{processChildren(children)}</li>,
             td: ({ children }) => <td>{processChildren(children)}</td>,

@@ -3,7 +3,7 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { MessageActions } from './message-actions';
 import { SourceTooltip } from './source-tooltip';
-import { processChildren } from './source-ref-utils';
+import { processChildren, isSourceRefOnly } from './source-ref-utils';
 import type { ChatMessage as ChatMessageType, Source } from '@/types/chat';
 
 const chatMessageVariants = cva('rounded-lg px-4 py-3 w-fit max-w-[85%] animate-[fade-in_0.3s_ease-in-out]', {
@@ -87,7 +87,17 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
                 h3: ({ children }) => <h3>{processChildren(children, sourceButtonOptions)}</h3>,
                 // hr(---) 제거 — 제목만으로 섹션 구분 충분
                 hr: () => null,
-                p: ({ children }) => <p>{processChildren(children, sourceButtonOptions)}</p>,
+                p: ({ children }) => {
+                  if (isSourceRefOnly(children)) {
+                    return (
+                      <div className="flex flex-wrap items-center gap-1 -mt-2 mb-3 not-prose">
+                        <span className="text-xs text-muted-foreground mr-0.5">출처</span>
+                        {processChildren(children, sourceButtonOptions)}
+                      </div>
+                    );
+                  }
+                  return <p>{processChildren(children, sourceButtonOptions)}</p>;
+                },
                 blockquote: ({ children }) => <blockquote>{processChildren(children, sourceButtonOptions)}</blockquote>,
                 li: ({ children }) => <li>{processChildren(children, sourceButtonOptions)}</li>,
                 td: ({ children }) => <td>{processChildren(children, sourceButtonOptions)}</td>,
