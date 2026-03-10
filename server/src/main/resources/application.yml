@@ -48,6 +48,9 @@ app:
   security:
     permit-paths:
       - /api/v1/auth/**
+      - /api/v1/insurance-companies
+      - /api/v1/categories
+      - /api/v1/search/suggestions
       - /actuator/health
       - /swagger-ui/**
       - /v3/api-docs/**

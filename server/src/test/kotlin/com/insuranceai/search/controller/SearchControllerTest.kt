@@ -19,6 +19,16 @@ class SearchControllerTest {
     private val controller = SearchController(searchService)
     private val principal = UserPrincipal(userId = UUID.randomUUID(), nickname = "test")
 
+    @Test
+    fun `추천 검색어 목록 반환`() =
+        runTest {
+            val result = controller.getSuggestions()
+
+            assertTrue(result.success)
+            assertTrue(result.data!!.isNotEmpty())
+            assertTrue(result.data!!.contains("암보험 면책기간"))
+        }
+
     private val mockSearchResponse =
         SearchResponse(
             query = "암보험",
