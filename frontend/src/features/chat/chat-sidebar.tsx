@@ -3,7 +3,7 @@ import { MessageSquare, SquarePen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { groupSessionsByDate } from '@/lib/format-time';
-import { SessionItemFeatured, SessionItemCompact } from './session-item';
+import { SessionItemCompact } from './session-item';
 import type { ChatSession } from '@/types/chat';
 
 interface ChatSidebarProps {
@@ -22,9 +22,6 @@ export function ChatSidebar({
   onDeleteSession,
 }: ChatSidebarProps) {
   const groupedSessions = useMemo(() => groupSessionsByDate(sessions), [sessions]);
-
-  // 전체 세션 중 첫 번째(가장 최신)의 ID
-  const latestSessionId = sessions.length > 0 ? sessions[0].id : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -53,25 +50,15 @@ export function ChatSidebar({
               </div>
 
               {/* 세션 목록 */}
-              {groupSessions.map((session) =>
-                session.id === latestSessionId ? (
-                  <SessionItemFeatured
-                    key={session.id}
-                    session={session}
-                    isActive={session.id === activeSessionId}
-                    onSelect={onSelectSession}
-                    onDelete={onDeleteSession}
-                  />
-                ) : (
-                  <SessionItemCompact
-                    key={session.id}
-                    session={session}
-                    isActive={session.id === activeSessionId}
-                    onSelect={onSelectSession}
-                    onDelete={onDeleteSession}
-                  />
-                )
-              )}
+              {groupSessions.map((session) => (
+                <SessionItemCompact
+                  key={session.id}
+                  session={session}
+                  isActive={session.id === activeSessionId}
+                  onSelect={onSelectSession}
+                  onDelete={onDeleteSession}
+                />
+              ))}
             </div>
           ))
         ) : (
