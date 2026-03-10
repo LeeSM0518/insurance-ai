@@ -17,6 +17,7 @@ export interface StreamingState {
   errorMessage: string | null;
   retryCount: number;
   isReconnecting: boolean;
+  title: string | null;
 }
 
 export interface UseStreamingChatReturn {
@@ -36,6 +37,7 @@ const INITIAL_STATE: StreamingState = {
   errorMessage: null,
   retryCount: 0,
   isReconnecting: false,
+  title: null,
 };
 
 // 백엔드 메시지 응답 → ChatMessage 변환
@@ -190,11 +192,12 @@ export function useStreamingChat(sessionId: string | null): UseStreamingChatRetu
             });
           }
         },
-        onDone: ({ messageId, suggestedQuestions }: { messageId: string; suggestedQuestions: string[] }) => {
+        onDone: ({ messageId, suggestedQuestions, title }: { messageId: string; suggestedQuestions: string[]; title?: string }) => {
           // fade-out phase 시작: 스트리밍 메시지가 서서히 사라진 뒤 최종 메시지로 교체
           setStreamingState((prev) => ({
             ...prev,
             phase: 'fading_out',
+            title: title ?? null,
           }));
 
           const { content: streamedContent, sources } = streamingDataRef.current;

@@ -18,7 +18,7 @@ export interface ChatSSEOptions {
   onSourcesFound: (sources: Source[]) => void;
   onGenerating: (message: string) => void;
   onToken: (content: string) => void;
-  onDone: (data: { messageId: string; suggestedQuestions: string[] }) => void;
+  onDone: (data: { messageId: string; suggestedQuestions: string[]; title?: string }) => void;
   onError: (error: string) => void;
   signal?: AbortSignal;
 }
@@ -127,10 +127,12 @@ async function processStream(
             const data = event.data as {
               messageId: string;
               suggestedQuestions: string[];
+              title?: string;
             };
             options.onDone({
               messageId: String(data.messageId),
               suggestedQuestions: data.suggestedQuestions ?? [],
+              title: data.title ?? undefined,
             });
             break;
           }

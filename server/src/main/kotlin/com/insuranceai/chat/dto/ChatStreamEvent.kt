@@ -34,6 +34,7 @@ data class DoneEvent(
     val messageId: UUID,
     val suggestedQuestions: List<String>,
     val supplementary: SupplementaryData? = null,
+    val title: String? = null,
 )
 
 data class SupplementaryData(

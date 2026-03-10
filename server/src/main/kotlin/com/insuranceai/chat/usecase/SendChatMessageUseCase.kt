@@ -81,30 +81,45 @@ class SendChatMessageUseCase(
                 // 7. 프롬프트 구성
                 val chatPrompt = chatPromptBuilder.build(message, contextResult, analysis.isComparison)
 
-                // 8. 스트리밍
-                streamingService
-                    .stream(chatPrompt, sources) { fullResponse, messageId ->
-                        // 9. AI 응답 메시지 저장
-                        try {
-                            chatService.saveAssistantMessage(
-                                sessionId = sessionId,
-                                content = fullResponse,
-                                sources =
-                                    sources.map { source ->
-                                        ChatMessageSourceEntity(
-                                            chatMessageId = UUID.randomUUID(), // saveAssistantMessage에서 재설정됨
-                                            policyArticleId = source.articleId,
-                                            relevanceScore = source.relevanceScore,
-                                        )
-                                    },
-                            )
-                        } catch (e: Exception) {
-                            log.error("AI 응답 메시지 저장 실패", e)
-                        }
+                // 8. 첫 메시지 여부 확인
+                val isFirstMessage = chatService.isFirstUserMessage(sessionId)
 
-                        // 10. 세션 제목 자동 생성 (첫 메시지인 경우)
-                        generateSessionTitleIfFirst(sessionId, message)
-                    }.doOnNext { event -> sink.tryEmitNext(event) }
+                // 9. 스트리밍
+                streamingService
+                    .stream(
+                        chatPrompt = chatPrompt,
+                        sources = sources,
+                        titleGenerator =
+                            if (isFirstMessage) {
+                                { generateTitle(message) }
+                            } else {
+                                null
+                            },
+                        onComplete = { fullResponse, messageId, title ->
+                            // 10. AI 응답 메시지 저장
+                            try {
+                                chatService.saveAssistantMessage(
+                                    sessionId = sessionId,
+                                    content = fullResponse,
+                                    sources =
+                                        sources.map { source ->
+                                            ChatMessageSourceEntity(
+                                                chatMessageId = UUID.randomUUID(), // saveAssistantMessage에서 재설정됨
+                                                policyArticleId = source.articleId,
+                                                relevanceScore = source.relevanceScore,
+                                            )
+                                        },
+                                )
+                            } catch (e: Exception) {
+                                log.error("AI 응답 메시지 저장 실패", e)
+                            }
+
+                            // 11. 세션 제목 DB 저장
+                            if (title != null) {
+                                chatService.updateSessionTitle(sessionId, title)
+                            }
+                        },
+                    ).doOnNext { event -> sink.tryEmitNext(event) }
                     .doOnComplete { sink.tryEmitComplete() }
                     .doOnError { e ->
                         log.error("스트리밍 에러", e)
@@ -128,32 +143,16 @@ class SendChatMessageUseCase(
         return sink.asFlux()
     }
 
-    /** 첫 메시지인 경우 LLM으로 세션 제목 자동 생성 */
-    private suspend fun generateSessionTitleIfFirst(
-        sessionId: UUID,
-        message: String,
-    ) {
+    /** LLM으로 세션 제목 생성 */
+    private suspend fun generateTitle(message: String): String =
         try {
-            val messages = chatService.getRecentMessages(sessionId)
-            // USER 메시지가 1개 = 첫 메시지 (방금 저장한 사용자 메시지 + AI 응답)
-            val userMessageCount = messages.count { it.role == "USER" }
-            if (userMessageCount != 1) return
-
-            val title =
-                try {
-                    suspendingChatClient
-                        .call(
-                            userMessage = "다음 메시지를 10자 이내로 요약해주세요. 요약만 출력하세요:\n$message",
-                            systemMessage = "간단하고 명확한 제목을 생성해주세요. 부연 설명 없이 제목만 출력하세요.",
-                        ).take(30)
-                } catch (e: Exception) {
-                    log.warn("LLM 제목 생성 실패, 메시지 앞 30자로 폴백", e)
-                    message.take(30)
-                }
-
-            chatService.updateSessionTitle(sessionId, title)
+            suspendingChatClient
+                .call(
+                    userMessage = "다음 메시지를 10자 이내로 요약해주세요. 요약만 출력하세요:\n$message",
+                    systemMessage = "간단하고 명확한 제목을 생성해주세요. 부연 설명 없이 제목만 출력하세요.",
+                ).take(30)
         } catch (e: Exception) {
-            log.warn("세션 제목 생성 실패", e)
+            log.warn("LLM 제목 생성 실패, 메시지 앞 30자로 폴백", e)
+            message.take(30)
         }
-    }
 }

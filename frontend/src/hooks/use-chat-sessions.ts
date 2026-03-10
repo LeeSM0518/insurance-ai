@@ -9,6 +9,7 @@ export interface UseChatSessionsReturn {
   createSession: (initialMessage: string) => Promise<string>;
   deleteSession: (sessionId: string) => Promise<void>;
   refreshSessions: () => Promise<void>;
+  updateSessionTitle: (sessionId: string, title: string) => void;
 }
 
 // 백엔드 응답 → ChatSession 변환
@@ -65,11 +66,18 @@ export function useChatSessions(): UseChatSessionsReturn {
     setSessions((prev) => prev.filter((s) => s.id !== sessionId));
   }, []);
 
+  const updateSessionTitle = useCallback((sessionId: string, title: string) => {
+    setSessions((prev) => prev.map((s) =>
+      s.id === sessionId ? { ...s, title } : s,
+    ));
+  }, []);
+
   return {
     sessions,
     isLoading,
     createSession,
     deleteSession,
     refreshSessions: fetchSessions,
+    updateSessionTitle,
   };
 }

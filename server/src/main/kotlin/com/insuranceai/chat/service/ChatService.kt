@@ -180,6 +180,12 @@ class ChatService(
         chatSessionRepository.save(session.copy(title = title, updatedAt = Instant.now()))
     }
 
+    /** 첫 번째 사용자 메시지인지 확인 */
+    suspend fun isFirstUserMessage(sessionId: UUID): Boolean {
+        val messages = chatMessageRepository.findByChatSessionIdOrderByCreatedAt(sessionId).toList()
+        return messages.count { it.role == MessageRole.USER.name } == 1
+    }
+
     /** 세션의 마지막 USER 메시지 조회 */
     suspend fun getLastUserMessage(sessionId: UUID): ChatMessageEntity {
         val messages = chatMessageRepository.findByChatSessionIdOrderByCreatedAt(sessionId).toList()

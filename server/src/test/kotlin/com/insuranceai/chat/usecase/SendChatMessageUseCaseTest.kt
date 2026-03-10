@@ -124,6 +124,7 @@ class SendChatMessageUseCaseTest {
         coEvery { questionAnalyzer.analyze(message) } returns defaultAnalysis
         coEvery { searchService.searchForRag(message, defaultAnalysis) } returns listOf(defaultSearchResult)
         coEvery { chatService.getRecentMessages(sessionId) } returns emptyList()
+        coEvery { chatService.isFirstUserMessage(sessionId) } returns false
         coEvery { contextBuilder.build(any(), any(), any()) } returns defaultContextResult
         every { chatPromptBuilder.build(message, defaultContextResult, false) } returns defaultChatPrompt
     }
@@ -133,7 +134,7 @@ class SendChatMessageUseCaseTest {
         setupDefaultMocks()
 
         val messageId = UUID.randomUUID()
-        every { streamingService.stream(defaultChatPrompt, any(), any()) } returns
+        every { streamingService.stream(defaultChatPrompt, any(), any(), any()) } returns
             Flux.just(
                 ChatStreamEvent("generating", GeneratingEvent("응답 생성 중...")),
                 ChatStreamEvent("token", TokenEvent("면책")),
@@ -190,7 +191,7 @@ class SendChatMessageUseCaseTest {
         every { chatPromptBuilder.build(message, any(), false) } returns defaultChatPrompt
 
         val messageId = UUID.randomUUID()
-        every { streamingService.stream(any(), any(), any()) } returns
+        every { streamingService.stream(any(), any(), any(), any()) } returns
             Flux.just(
                 ChatStreamEvent("generating", GeneratingEvent("응답 생성 중...")),
                 ChatStreamEvent("done", DoneEvent(messageId = messageId, suggestedQuestions = emptyList())),

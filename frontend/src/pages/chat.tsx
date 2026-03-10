@@ -7,6 +7,7 @@ import { ChatMessage } from '@/features/chat/chat-message';
 import { SourceCards } from '@/features/chat/source-cards';
 import { SuggestedQuestions } from '@/features/chat/suggested-questions';
 import { ChatInput, type ChatInputHandle } from '@/features/chat/chat-input';
+import { ChatWelcome } from '@/features/chat/chat-welcome';
 import { DisclaimerBanner } from '@/features/chat/disclaimer-banner';
 import { SourceTabPanel } from '@/features/chat/source-tab-panel';
 import type { SourceTab } from '@/features/chat/source-tab-panel';
@@ -38,7 +39,7 @@ export default function ChatPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeSessionId, setActiveSessionId] = useLocalStorage<string | null>('chat-active-session', null);
   const [isNewChatMode, setIsNewChatMode] = useState(false);
-  const { sessions, createSession, deleteSession, refreshSessions } = useChatSessions();
+  const { sessions, createSession, deleteSession, refreshSessions, updateSessionTitle } = useChatSessions();
   const [sidebarOpen, setSidebarOpen] = useLocalStorage('chat-sidebar-open', isDesktop);
   const [openTabs, setOpenTabs] = useState<SourceTab[]>([]);
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -223,14 +224,19 @@ export default function ChatPage() {
     setMobileSourceSheet(source);
   }, []);
 
-  // 스트리밍 완료 시 세션 목록 갱신 (백엔드에서 생성된 제목 반영)
+  // 스트리밍 완료 시 세션 타이틀 즉시 반영 + DB 동기화
   const prevPhaseRef = useRef(streamingState.phase);
   useEffect(() => {
+    // fading_out 단계에서 타이틀 즉시 반영 (INITIAL_STATE 리셋 전에 처리)
+    if (streamingState.phase === 'fading_out' && streamingState.title && activeSessionId) {
+      updateSessionTitle(activeSessionId, streamingState.title);
+    }
+    // idle 전환 시 DB 동기화 (기존 로직 유지)
     if (prevPhaseRef.current !== 'idle' && streamingState.phase === 'idle') {
       refreshSessions();
     }
     prevPhaseRef.current = streamingState.phase;
-  }, [streamingState.phase, refreshSessions]);
+  }, [streamingState.phase, streamingState.title, activeSessionId, updateSessionTitle, refreshSessions]);
 
   // 스트리밍 중 에러 toast 표시
   useEffect(() => {
@@ -255,6 +261,8 @@ export default function ChatPage() {
     if (!isStreaming) return false;
     return currentLocation.pathname !== nextLocation.pathname;
   });
+
+  const showWelcome = !activeSessionId && messages.length === 0 && !isStreaming;
 
   const title = session?.title || '새 대화';
 
@@ -303,6 +311,10 @@ export default function ChatPage() {
             role="log"
             aria-live="polite"
           >
+            {showWelcome && (
+              <ChatWelcome onSelectQuestion={handleSend} />
+            )}
+
             {messages.map((message) => (
               <div key={message.id}>
                 {message.role === 'ASSISTANT' && message.sources && message.sources.length > 0 && (

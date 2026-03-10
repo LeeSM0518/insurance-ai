@@ -54,7 +54,7 @@ class StreamingServiceTest {
 
         var savedResponse = ""
         val flux =
-            service.stream(chatPrompt, sources) { fullResponse, _ ->
+            service.stream(chatPrompt, sources) { fullResponse, _, _ ->
                 savedResponse = fullResponse
             }
 
@@ -87,7 +87,7 @@ class StreamingServiceTest {
             suspendingChatClient.callEntity(any(), any(), eq(SuggestedQuestions::class.java))
         } throws RuntimeException("LLM 에러")
 
-        val flux = service.stream(chatPrompt, sources) { _, _ -> }
+        val flux = service.stream(chatPrompt, sources) { _, _, _ -> }
 
         StepVerifier
             .create(flux)
@@ -105,7 +105,7 @@ class StreamingServiceTest {
         every { suspendingChatClient.stream("사용자 질문", "시스템 프롬프트") } returns
             Flux.error(RuntimeException("LLM 장애"))
 
-        val flux = service.stream(chatPrompt, sources) { _, _ -> }
+        val flux = service.stream(chatPrompt, sources) { _, _, _ -> }
 
         StepVerifier
             .create(flux)

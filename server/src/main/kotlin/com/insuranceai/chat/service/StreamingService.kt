@@ -11,6 +11,8 @@ import com.insuranceai.common.ai.PromptLoader
 import com.insuranceai.common.ai.SuspendingChatClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -29,7 +31,8 @@ class StreamingService(
     fun stream(
         chatPrompt: ChatPrompt,
         sources: List<SourceInfo>,
-        onComplete: suspend (fullResponse: String, messageId: UUID) -> Unit,
+        titleGenerator: (suspend () -> String?)? = null,
+        onComplete: suspend (fullResponse: String, messageId: UUID, title: String?) -> Unit,
     ): Flux<ChatStreamEvent> {
         val sink = Sinks.many().unicast().onBackpressureBuffer<ChatStreamEvent>()
 
@@ -51,8 +54,13 @@ class StreamingService(
                                 val responseText = fullResponse.toString()
                                 val messageId = UUID.randomUUID()
 
-                                // 추천 질문 생성
-                                val suggestedQuestions = generateSuggestedQuestions(responseText)
+                                // 추천 질문 + 타이틀 병렬 생성
+                                val (suggestedQuestions, title) =
+                                    coroutineScope {
+                                        val questionsDeferred = async { generateSuggestedQuestions(responseText) }
+                                        val titleDeferred = async { titleGenerator?.invoke() }
+                                        questionsDeferred.await() to titleDeferred.await()
+                                    }
 
                                 // done 이벤트
                                 sink.tryEmitNext(
@@ -61,12 +69,13 @@ class StreamingService(
                                         DoneEvent(
                                             messageId = messageId,
                                             suggestedQuestions = suggestedQuestions,
+                                            title = title,
                                         ),
                                     ),
                                 )
 
                                 // 메시지 저장 콜백
-                                onComplete(responseText, messageId)
+                                onComplete(responseText, messageId, title)
                             } catch (e: Exception) {
                                 log.error("스트림 완료 처리 실패", e)
                             } finally {
