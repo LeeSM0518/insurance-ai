@@ -322,7 +322,7 @@ class SearchServiceTest {
         }
 
     @Test
-    fun `searchForRag - 최대 10개만 반환한다`() =
+    fun `searchForRag - 최대 20개만 반환한다`() =
         runTest {
             val analysis =
                 QuestionAnalysis(
@@ -334,7 +334,7 @@ class SearchServiceTest {
                 )
 
             val keywordResults =
-                (1..15).map { rank ->
+                (1..25).map { rank ->
                     KeywordSearchResult(
                         articleId = UUID.randomUUID(),
                         productId = productId,
@@ -356,6 +356,64 @@ class SearchServiceTest {
 
             val results = service.searchForRag("보험", analysis)
 
-            assertEquals(10, results.size)
+            assertEquals(20, results.size)
+        }
+
+    @Test
+    fun `searchForRag - subQuestions가 있으면 각각 검색 후 통합한다`() =
+        runTest {
+            val articleId1 = UUID.randomUUID()
+            val articleId2 = UUID.randomUUID()
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = emptyList(),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                    subQuestions = listOf("면책사항", "납입면제 조건"),
+                )
+
+            coEvery { keywordSearchService.search("면책사항", any(), any()) } returns
+                listOf(
+                    KeywordSearchResult(
+                        articleId = articleId1,
+                        productId = productId,
+                        productName = "보험A",
+                        companyId = UUID.randomUUID(),
+                        companyName = "삼성생명",
+                        insuranceType = "LIFE",
+                        contentType = "EXEMPTION",
+                        articleNumber = null,
+                        articleTitle = null,
+                        content = "면책 내용",
+                        dataSource = null,
+                        rank = 1,
+                    ),
+                )
+            coEvery { vectorSearchService.search("면책사항", any(), any(), any()) } returns emptyList()
+
+            coEvery { keywordSearchService.search("납입면제 조건", any(), any()) } returns
+                listOf(
+                    KeywordSearchResult(
+                        articleId = articleId2,
+                        productId = productId,
+                        productName = "보험A",
+                        companyId = UUID.randomUUID(),
+                        companyName = "삼성생명",
+                        insuranceType = "LIFE",
+                        contentType = "COVERAGE",
+                        articleNumber = null,
+                        articleTitle = null,
+                        content = "납입면제 내용",
+                        dataSource = null,
+                        rank = 1,
+                    ),
+                )
+            coEvery { vectorSearchService.search("납입면제 조건", any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("면책사항과 납입면제 조건", analysis)
+
+            assertEquals(2, results.size)
         }
 }

@@ -18,7 +18,7 @@ class VectorSearchService(
     suspend fun search(
         query: String,
         filters: SearchFilters = SearchFilters(),
-        limit: Int = 30,
+        limit: Int = 50,
         minSimilarity: Float = 0.5f,
     ): List<VectorSearchResult> {
         if (query.isBlank()) return emptyList()

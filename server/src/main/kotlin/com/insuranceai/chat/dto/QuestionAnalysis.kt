@@ -1,27 +1,23 @@
 package com.insuranceai.chat.dto
 
 import com.fasterxml.jackson.annotation.JsonClassDescription
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 
 /** 사용자 보험 질문 분석 결과 (Spring AI Structured Output용) */
 @JsonClassDescription("사용자 보험 질문 분석 결과")
 data class QuestionAnalysis(
-    @JsonProperty(required = true)
     @JsonPropertyDescription("언급된 보험사명 목록 (예: [\"삼성생명\", \"한화생명\"])")
-    val companies: List<String>,
-    @JsonProperty(required = true)
+    val companies: List<String> = emptyList(),
     @JsonPropertyDescription("카테고리 목록 (PROTECTION, SAVINGS, ANNUITY 등)")
-    val categories: List<String>,
-    @JsonProperty(required = true)
+    val categories: List<String> = emptyList(),
     @JsonPropertyDescription("내용유형 목록 (COVERAGE, EXEMPTION, REDUCTION 등)")
-    val contentTypes: List<String>,
-    @JsonProperty(required = true)
+    val contentTypes: List<String> = emptyList(),
     @JsonPropertyDescription("비교 질의 여부")
-    val isComparison: Boolean,
-    @JsonProperty(required = true)
+    val isComparison: Boolean = false,
     @JsonPropertyDescription("보충 데이터 필요 여부")
-    val needsSupplementary: SupplementaryNeeds,
+    val needsSupplementary: SupplementaryNeeds = SupplementaryNeeds(),
+    @JsonPropertyDescription("복합 질문일 경우 분해된 하위 질문 목록. 단일 주제 질문이면 빈 배열")
+    val subQuestions: List<String> = emptyList(),
 )
 
 /** 보충 데이터 필요 여부 */

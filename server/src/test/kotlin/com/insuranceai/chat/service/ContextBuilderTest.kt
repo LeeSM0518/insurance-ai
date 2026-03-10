@@ -312,4 +312,52 @@ class ContextBuilderTest {
             assertTrue(!result.contextText.contains("### 수익률 시나리오"))
             assertTrue(!result.contextText.contains("### 상품 지표"))
         }
+
+    @Test
+    fun `동적 예산 배분 - 이력 없고 보충 없으면 약관 예산이 최대로 할당된다`() {
+        val budgets = builder.calculateBudgets(historyTokens = 0, hasSupplementary = false)
+        // TOKEN_BUDGET(40000) - 0 - 0 = 40000, but capped by ARTICLE_BUDGET(20000)
+        assertEquals(ContextBuilder.ARTICLE_BUDGET, budgets.article)
+        assertEquals(0, budgets.supplementary)
+        assertEquals(0, budgets.history)
+    }
+
+    @Test
+    fun `동적 예산 배분 - 이력과 보충이 있으면 약관 예산이 줄어든다`() {
+        val budgets = builder.calculateBudgets(historyTokens = 5_000, hasSupplementary = true)
+        // TOKEN_BUDGET(40000) - 5000 - SUPPLEMENTARY_BUDGET(5000) = 30000, capped by ARTICLE_BUDGET(20000)
+        assertEquals(ContextBuilder.ARTICLE_BUDGET, budgets.article)
+        assertEquals(ContextBuilder.SUPPLEMENTARY_BUDGET, budgets.supplementary)
+        assertEquals(5_000, budgets.history)
+    }
+
+    @Test
+    fun `동적 예산 배분 - 이력이 최대치를 초과하면 잘린다`() {
+        val budgets = builder.calculateBudgets(historyTokens = 20_000, hasSupplementary = true)
+        // 이력은 HISTORY_BUDGET(8000)로 제한됨
+        assertEquals(ContextBuilder.HISTORY_BUDGET, budgets.history)
+    }
+
+    @Test
+    fun `검색 품질 평가 - 빈 결과면 NO_RESULTS`() {
+        assertEquals(SearchQuality.NO_RESULTS, builder.assessSearchQuality(emptyList()))
+    }
+
+    @Test
+    fun `검색 품질 평가 - 높은 점수면 HIGH`() {
+        val results = listOf(fusedResult().copy(relevanceScore = 0.9f))
+        assertEquals(SearchQuality.HIGH, builder.assessSearchQuality(results))
+    }
+
+    @Test
+    fun `검색 품질 평가 - 낮은 점수면 LOW`() {
+        val results = listOf(fusedResult().copy(relevanceScore = 0.1f))
+        assertEquals(SearchQuality.LOW, builder.assessSearchQuality(results))
+    }
+
+    @Test
+    fun `검색 품질 평가 - 중간 점수면 MEDIUM`() {
+        val results = listOf(fusedResult().copy(relevanceScore = 0.45f))
+        assertEquals(SearchQuality.MEDIUM, builder.assessSearchQuality(results))
+    }
 }

@@ -20,7 +20,7 @@ class KeywordSearchService(
     suspend fun search(
         query: String,
         filters: SearchFilters = SearchFilters(),
-        limit: Int = 30,
+        limit: Int = 50,
     ): List<KeywordSearchResult> {
         val sanitizedQuery = sanitizeQuery(query)
         if (sanitizedQuery.isBlank()) {

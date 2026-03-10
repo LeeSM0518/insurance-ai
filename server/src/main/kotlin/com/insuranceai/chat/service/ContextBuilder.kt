@@ -20,7 +20,23 @@ data class ContextResult(
     val contextText: String,
     val sources: List<SourceInfo>,
     val tokenEstimate: Int,
+    val searchQuality: SearchQuality = SearchQuality.HIGH,
 )
+
+/** 동적 토큰 예산 배분 결과 */
+data class Budgets(
+    val article: Int,
+    val supplementary: Int,
+    val history: Int,
+)
+
+/** 검색 결과 품질 등급 */
+enum class SearchQuality {
+    NO_RESULTS,
+    LOW,
+    MEDIUM,
+    HIGH,
+}
 
 @Service
 class ContextBuilder(
@@ -34,12 +50,28 @@ class ContextBuilder(
     private val insuranceCompanyRepository: InsuranceCompanyRepository,
 ) {
     companion object {
-        const val MAX_ARTICLES = 10
+        const val MAX_ARTICLES = 20
         const val MAX_MESSAGES = 20
-        const val TOKEN_BUDGET = 17_500
-        const val ARTICLE_BUDGET = 5_000
-        const val SUPPLEMENTARY_BUDGET = 3_000
-        const val HISTORY_BUDGET = 5_000
+        const val TOKEN_BUDGET = 40_000
+        const val ARTICLE_BUDGET = 20_000
+        const val SUPPLEMENTARY_BUDGET = 5_000
+        const val HISTORY_BUDGET = 8_000
+    }
+
+    /** 동적 예산 배분: 대화 이력과 보충 데이터 사용량에 따라 약관 자료 예산을 확대 */
+    internal fun calculateBudgets(
+        historyTokens: Int,
+        hasSupplementary: Boolean,
+    ): Budgets {
+        val usedByHistory = minOf(historyTokens, HISTORY_BUDGET)
+        val usedBySupp = if (hasSupplementary) SUPPLEMENTARY_BUDGET else 0
+        // 남는 예산을 약관 자료에 재배분
+        val articleBudget = TOKEN_BUDGET - usedByHistory - usedBySupp
+        return Budgets(
+            article = minOf(articleBudget, ARTICLE_BUDGET),
+            supplementary = usedBySupp,
+            history = usedByHistory,
+        )
     }
 
     /** 검색 결과 + 보충 데이터 → 컨텍스트 문자열 조합 */
@@ -52,44 +84,48 @@ class ContextBuilder(
         val contextParts = mutableListOf<String>()
         var totalTokens = 0
 
+        // 동적 예산 계산
+        val historySection = buildHistorySection(conversationHistory)
+        val historyTokens = estimateTokens(historySection)
+        val productIds = searchResults.take(MAX_ARTICLES).map { it.productId }.distinct()
+        val supplementarySection = buildSupplementarySection(productIds, analysis)
+        val hasSupplementary = supplementarySection.isNotBlank()
+        val budgets = calculateBudgets(historyTokens, hasSupplementary)
+
         // 1. 검색된 약관 자료
         val articlesSection = buildArticlesSection(searchResults.take(MAX_ARTICLES), sources)
         val articlesTokens = estimateTokens(articlesSection)
-        if (articlesTokens <= ARTICLE_BUDGET) {
+        if (articlesTokens <= budgets.article) {
             contextParts.add(articlesSection)
             totalTokens += articlesTokens
         } else {
             // 토큰 예산 초과 시 낮은 유사도 조문부터 제거
-            val truncated = truncateArticles(searchResults, sources, ARTICLE_BUDGET)
+            val truncated = truncateArticles(searchResults, sources, budgets.article)
             contextParts.add(truncated)
             totalTokens += estimateTokens(truncated)
         }
 
         // 2. 보충 정형 데이터
-        val productIds = searchResults.take(MAX_ARTICLES).map { it.productId }.distinct()
-        val supplementarySection = buildSupplementarySection(productIds, analysis)
         val suppTokens = estimateTokens(supplementarySection)
-        if (supplementarySection.isNotBlank() && totalTokens + suppTokens <= TOKEN_BUDGET) {
-            if (suppTokens <= SUPPLEMENTARY_BUDGET) {
+        if (hasSupplementary && totalTokens + suppTokens <= TOKEN_BUDGET) {
+            if (suppTokens <= budgets.supplementary) {
                 contextParts.add(supplementarySection)
                 totalTokens += suppTokens
             } else {
-                val truncated = supplementarySection.take((SUPPLEMENTARY_BUDGET / 1.5).toInt())
+                val truncated = supplementarySection.take((budgets.supplementary / 1.5).toInt())
                 contextParts.add(truncated)
                 totalTokens += estimateTokens(truncated)
             }
         }
 
         // 3. 대화 이력
-        val historySection = buildHistorySection(conversationHistory)
-        val historyTokens = estimateTokens(historySection)
         if (historySection.isNotBlank() && totalTokens + historyTokens <= TOKEN_BUDGET) {
-            if (historyTokens <= HISTORY_BUDGET) {
+            if (historyTokens <= budgets.history) {
                 contextParts.add(historySection)
                 totalTokens += historyTokens
             } else {
                 // 오래된 메시지부터 제거
-                val truncated = truncateHistory(conversationHistory, HISTORY_BUDGET)
+                val truncated = truncateHistory(conversationHistory, budgets.history)
                 contextParts.add(truncated)
                 totalTokens += estimateTokens(truncated)
             }
@@ -99,7 +135,19 @@ class ContextBuilder(
             contextText = contextParts.joinToString("\n\n"),
             sources = sources,
             tokenEstimate = totalTokens,
+            searchQuality = assessSearchQuality(searchResults),
         )
+    }
+
+    /** 검색 결과 품질 평가 */
+    internal fun assessSearchQuality(results: List<FusedSearchResult>): SearchQuality {
+        if (results.isEmpty()) return SearchQuality.NO_RESULTS
+        val avgScore = results.take(5).map { it.relevanceScore.toDouble() }.average()
+        return when {
+            avgScore < 0.3 -> SearchQuality.LOW
+            avgScore < 0.6 -> SearchQuality.MEDIUM
+            else -> SearchQuality.HIGH
+        }
     }
 
     /** 검색된 약관 자료 섹션 구성 */

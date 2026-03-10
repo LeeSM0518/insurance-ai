@@ -74,11 +74,11 @@ class VectorSearchServiceTest {
 
             coEvery { embeddingService.embed(any()) } returns mockVector
             coEvery {
-                vectorSearchJooqRepository.searchSimilar(mockVector, filters, 30, 0.5f)
+                vectorSearchJooqRepository.searchSimilar(mockVector, filters, 50, 0.5f)
             } returns emptyList()
 
             val results = service.search("보험", filters)
             assertTrue(results.isEmpty())
-            coVerify { vectorSearchJooqRepository.searchSimilar(mockVector, filters, 30, 0.5f) }
+            coVerify { vectorSearchJooqRepository.searchSimilar(mockVector, filters, 50, 0.5f) }
         }
 }

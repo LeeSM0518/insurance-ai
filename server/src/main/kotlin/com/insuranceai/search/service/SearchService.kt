@@ -16,6 +16,7 @@ import com.insuranceai.search.dto.SearchResultItem
 import com.insuranceai.search.dto.SupplementaryInfo
 import com.insuranceai.search.error.SearchError
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
@@ -107,7 +108,7 @@ class SearchService(
         )
     }
 
-    /** RAG용 검색 (페이지네이션 없이 Top 10 반환) */
+    /** RAG용 검색 (페이지네이션 없이 Top 20 반환, 복합 질문 시 하위 질문별 검색 후 통합) */
     suspend fun searchForRag(
         query: String,
         analysis: QuestionAnalysis,
@@ -140,7 +141,31 @@ class SearchService(
                 contentTypes = contentTypes,
             )
 
-        return executeHybridSearch(query, filters, analysis.isComparison).take(10)
+        // 하위 질문이 있으면 각각 검색 후 통합 (중복 제거, 점수 기준 정렬)
+        val searchQueries =
+            if (analysis.subQuestions.isNotEmpty()) {
+                analysis.subQuestions
+            } else {
+                listOf(query)
+            }
+
+        val allResults =
+            coroutineScope {
+                searchQueries
+                    .map { q ->
+                        async { executeHybridSearch(q, filters, analysis.isComparison) }
+                    }.awaitAll()
+                    .flatten()
+            }
+
+        // articleId 기준 중복 제거 (최고 점수 유지)
+        val deduplicated =
+            allResults
+                .groupBy { it.articleId }
+                .map { (_, results) -> results.maxBy { it.relevanceScore } }
+                .sortedByDescending { it.relevanceScore }
+
+        return deduplicated.take(20)
     }
 
     /** 병렬 검색 + RRF 통합 공통 로직 */

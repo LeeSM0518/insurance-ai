@@ -82,7 +82,7 @@ class KeywordSearchServiceTest {
             val filters = SearchFilters(insuranceType = com.insuranceai.policy.domain.InsuranceType.LIFE)
 
             coEvery {
-                jooqRepository.searchByKeyword("보험", filters, 30)
+                jooqRepository.searchByKeyword("보험", filters, 50)
             } returns emptyList()
 
             val results = service.search("보험", filters)
