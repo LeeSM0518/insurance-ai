@@ -389,8 +389,8 @@ class RunPipelineUseCase(
                     embeddedCount = embedByValidatedProducts(validatedProducts, errors)
                 } else {
                     // batchId 없이 EMBED 단독 실행: 전체 active products 대상
-                    logger.info("배치 기반 상품 없음 → 전체 active products 대상 임베딩 실행 (type=$insuranceType)")
-                    embeddedCount = embedAllActiveProducts(insuranceType, errors)
+                    logger.info("배치 기반 상품 없음 → 전체 active products 대상 임베딩 실행 (type=$insuranceType, categories=$categoryFilter)")
+                    embeddedCount = embedAllActiveProducts(insuranceType, categoryFilter, errors)
                 }
                 logger.info("EMBED 완료: batchId=$batchId, ${embeddedCount}건")
             }
@@ -463,6 +463,7 @@ class RunPipelineUseCase(
     /** 전체 active products 대상 임베딩 (batchId 없이 EMBED 단독 실행 시) */
     private suspend fun embedAllActiveProducts(
         insuranceType: InsuranceType,
+        categoryFilter: List<String> = emptyList(),
         errors: MutableList<String>,
     ): Int {
         val typePrefix =
@@ -484,8 +485,15 @@ class RunPipelineUseCase(
                 .findByIsActiveTrue()
                 .toList()
                 .filter { it.insuranceCompanyId in companyIds }
+                .let { products ->
+                    if (categoryFilter.isEmpty()) {
+                        products
+                    } else {
+                        products.filter { it.category in categoryFilter }
+                    }
+                }
 
-        logger.info("전체 임베딩 대상: ${allProducts.size}개 상품 (type=$insuranceType)")
+        logger.info("전체 임베딩 대상: ${allProducts.size}개 상품 (type=$insuranceType, categories=$categoryFilter)")
 
         var count = 0
         for (product in allProducts) {

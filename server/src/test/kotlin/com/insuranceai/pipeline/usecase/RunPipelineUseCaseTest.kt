@@ -383,6 +383,135 @@ class RunPipelineUseCaseTest {
         }
 
     @Test
+    fun `steps=EMBED + categories 필터로 해당 카테고리 상품만 임베딩`() =
+        runTest {
+            val healthProductId = UUID.randomUUID()
+            val otherProductId = UUID.randomUUID()
+            val articleId = UUID.randomUUID()
+
+            val healthProduct =
+                ProductEntity(
+                    id = healthProductId,
+                    insuranceCompanyId = companyId,
+                    name = "실손의료비보험",
+                    category = "HEALTH",
+                )
+            val otherProduct =
+                ProductEntity(
+                    id = otherProductId,
+                    insuranceCompanyId = companyId,
+                    name = "종신보험A",
+                    category = "종신보험",
+                )
+            val healthArticle =
+                PolicyArticleEntity(
+                    id = articleId,
+                    productId = healthProductId,
+                    content = "면책사항 내용",
+                    contentType = "EXEMPTION",
+                    isActive = true,
+                )
+
+            setupBatchMocks()
+            // batchId 없이 EMBED → embedAllActiveProducts 경로로 진입
+            coEvery { crawlStagingRepository.findByBatchIdAndValidationStatus(any(), "PASSED") } returns flowOf()
+            coEvery { insuranceCompanyRepository.findByIsActiveTrue() } returns flowOf(company)
+            // 두 상품 모두 반환 (HEALTH + 종신보험)
+            coEvery { productRepository.findByIsActiveTrue() } returns flowOf(healthProduct, otherProduct)
+            // HEALTH 상품에는 article이 있고
+            coEvery { policyArticleRepository.findByProductId(healthProductId) } returns flowOf(healthArticle)
+            // 종신보험 상품에도 article이 있지만
+            coEvery { policyArticleRepository.findByProductId(otherProductId) } returns
+                flowOf(
+                    PolicyArticleEntity(
+                        id = UUID.randomUUID(),
+                        productId = otherProductId,
+                        content = "보장",
+                        contentType = "COVERAGE",
+                        isActive = true,
+                    ),
+                )
+            coEvery { embeddingService.embedArticles(any()) } returns 1
+
+            val result =
+                useCase.runWithOptions(
+                    PipelineOptions(
+                        type = InsuranceType.LIFE,
+                        steps = setOf(PipelineStep.EMBED),
+                        categories = listOf("HEALTH"),
+                    ),
+                )
+
+            // HEALTH 상품만 임베딩됨
+            coVerify(exactly = 1) { policyArticleRepository.findByProductId(healthProductId) }
+            // 종신보험 상품은 임베딩되지 않음
+            coVerify(exactly = 0) { policyArticleRepository.findByProductId(otherProductId) }
+            assertEquals(1, result.life.embedded)
+        }
+
+    @Test
+    fun `steps=EMBED + categories 빈 리스트면 전체 상품 임베딩`() =
+        runTest {
+            val productId1 = UUID.randomUUID()
+            val productId2 = UUID.randomUUID()
+
+            val product1 =
+                ProductEntity(
+                    id = productId1,
+                    insuranceCompanyId = companyId,
+                    name = "실손의료비보험",
+                    category = "HEALTH",
+                )
+            val product2 =
+                ProductEntity(
+                    id = productId2,
+                    insuranceCompanyId = companyId,
+                    name = "종신보험B",
+                    category = "종신보험",
+                )
+
+            setupBatchMocks()
+            coEvery { crawlStagingRepository.findByBatchIdAndValidationStatus(any(), "PASSED") } returns flowOf()
+            coEvery { insuranceCompanyRepository.findByIsActiveTrue() } returns flowOf(company)
+            coEvery { productRepository.findByIsActiveTrue() } returns flowOf(product1, product2)
+            coEvery { policyArticleRepository.findByProductId(productId1) } returns
+                flowOf(
+                    PolicyArticleEntity(
+                        id = UUID.randomUUID(),
+                        productId = productId1,
+                        content = "내용1",
+                        contentType = "EXEMPTION",
+                        isActive = true,
+                    ),
+                )
+            coEvery { policyArticleRepository.findByProductId(productId2) } returns
+                flowOf(
+                    PolicyArticleEntity(
+                        id = UUID.randomUUID(),
+                        productId = productId2,
+                        content = "내용2",
+                        contentType = "COVERAGE",
+                        isActive = true,
+                    ),
+                )
+            coEvery { embeddingService.embedArticles(any()) } returns 1
+
+            val result =
+                useCase.runWithOptions(
+                    PipelineOptions(
+                        type = InsuranceType.LIFE,
+                        steps = setOf(PipelineStep.EMBED),
+                        categories = emptyList(),
+                    ),
+                )
+
+            // 두 상품 모두 임베딩
+            coVerify(exactly = 1) { policyArticleRepository.findByProductId(productId1) }
+            coVerify(exactly = 1) { policyArticleRepository.findByProductId(productId2) }
+            assertEquals(2, result.life.embedded)
+        }
+
+    @Test
     fun `steps 미지정이면 전체 실행 (하위 호환)`() =
         runTest {
             val crawlResult =
