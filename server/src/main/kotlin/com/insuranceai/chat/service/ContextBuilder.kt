@@ -13,6 +13,7 @@ import com.insuranceai.policy.repository.ProductYieldScenarioRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
 import com.insuranceai.search.dto.FusedSearchResult
 import kotlinx.coroutines.flow.toList
+import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
 import java.util.UUID
 
@@ -49,11 +50,12 @@ class ContextBuilder(
     private val productMetricRepository: ProductMetricRepository,
     private val insuranceCompanyRepository: InsuranceCompanyRepository,
 ) {
+    private val log = LoggerFactory.getLogger(javaClass)
+
     companion object {
         const val MAX_ARTICLES = 20
         const val MAX_MESSAGES = 20
-        const val TOKEN_BUDGET = 40_000
-        const val ARTICLE_BUDGET = 20_000
+        const val TOKEN_BUDGET = 45_000
         const val SUPPLEMENTARY_BUDGET = 5_000
         const val HISTORY_BUDGET = 8_000
     }
@@ -65,10 +67,10 @@ class ContextBuilder(
     ): Budgets {
         val usedByHistory = minOf(historyTokens, HISTORY_BUDGET)
         val usedBySupp = if (hasSupplementary) SUPPLEMENTARY_BUDGET else 0
-        // 남는 예산을 약관 자료에 재배분
+        // 남는 예산을 약관 자료에 전부 재배분 (상한 제거)
         val articleBudget = TOKEN_BUDGET - usedByHistory - usedBySupp
         return Budgets(
-            article = minOf(articleBudget, ARTICLE_BUDGET),
+            article = articleBudget,
             supplementary = usedBySupp,
             history = usedByHistory,
         )
@@ -99,6 +101,13 @@ class ContextBuilder(
         val supplementarySection = buildSupplementarySection(productIds, analysis, productSourceMap)
         val hasSupplementary = supplementarySection.isNotBlank()
         val budgets = calculateBudgets(historyTokens, hasSupplementary)
+        log.info(
+            "토큰 예산 배분: article={}, supplementary={}, history={}, 약관 원본 토큰={}",
+            budgets.article,
+            budgets.supplementary,
+            budgets.history,
+            historyTokens,
+        )
 
         // 1. 검색된 약관 자료
         val articlesSection = buildArticlesSection(searchResults.take(MAX_ARTICLES), sources)
@@ -108,6 +117,11 @@ class ContextBuilder(
             totalTokens += articlesTokens
         } else {
             // 토큰 예산 초과 시 낮은 유사도 조문부터 제거
+            log.warn(
+                "약관 토큰 예산 초과: 원본={} > 예산={}, 약관 축소 실행",
+                articlesTokens,
+                budgets.article,
+            )
             val truncated = truncateArticles(searchResults, sources, budgets.article)
             contextParts.add(truncated)
             totalTokens += estimateTokens(truncated)
@@ -193,6 +207,7 @@ class ContextBuilder(
                     articleTitle = result.articleTitle,
                     relevanceScore = result.relevanceScore,
                     dataSource = result.dataSource ?: "",
+                    dataSourceId = result.dataSourceId,
                 ),
             )
         }
@@ -418,6 +433,6 @@ class ContextBuilder(
         return buildHistorySection(messages.takeLast(2))
     }
 
-    /** 토큰 추정: 한글 기준 글자 수 * 1.5 */
-    internal fun estimateTokens(text: String): Int = (text.length * 1.5).toInt()
+    /** 토큰 추정: 한글+Markdown 혼합 기준 글자 수 * 1.3 */
+    internal fun estimateTokens(text: String): Int = (text.length * 1.3).toInt()
 }

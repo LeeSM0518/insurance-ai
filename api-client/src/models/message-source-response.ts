@@ -23,5 +23,8 @@ export interface MessageSourceResponse {
     'articleTitle'?: string;
     'relevanceScore': number;
     'dataSourceId'?: string;
+    'dataSource'?: string;
+    'hasPdfSource': boolean;
+    'linkedPdfDataSourceId'?: string;
 }
 

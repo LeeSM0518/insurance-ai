@@ -21,4 +21,7 @@ data class MessageSourceResponse(
     val articleTitle: String?,
     val relevanceScore: Float,
     val dataSourceId: UUID? = null,
+    val dataSource: String? = null,
+    val hasPdfSource: Boolean = false,
+    val linkedPdfDataSourceId: UUID? = null,
 )

@@ -941,6 +941,12 @@
               "type": "string"
             }
           },
+          "subcategories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "contentTypes": {
             "type": "array",
             "items": {
@@ -1740,6 +1746,10 @@
           "hasPdfSource": {
             "type": "boolean"
           },
+          "linkedPdfDataSourceId": {
+            "type": "string",
+            "format": "uuid"
+          },
           "relatedArticles": {
             "type": "array",
             "items": {
@@ -1946,11 +1956,22 @@
           "dataSourceId": {
             "type": "string",
             "format": "uuid"
+          },
+          "dataSource": {
+            "type": "string"
+          },
+          "hasPdfSource": {
+            "type": "boolean"
+          },
+          "linkedPdfDataSourceId": {
+            "type": "string",
+            "format": "uuid"
           }
         },
         "required": [
           "articleId",
           "contentType",
+          "hasPdfSource",
           "insuranceCompany",
           "productName",
           "relevanceScore"

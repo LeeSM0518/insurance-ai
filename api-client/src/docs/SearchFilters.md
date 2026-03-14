@@ -8,6 +8,7 @@ Name | Type | Description | Notes
 **companyIds** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **insuranceType** | **string** |  | [optional] [default to undefined]
 **categories** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
+**subcategories** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 **contentTypes** | **Array&lt;string&gt;** |  | [optional] [default to undefined]
 
 ## Example
@@ -19,6 +20,7 @@ const instance: SearchFilters = {
     companyIds,
     insuranceType,
     categories,
+    subcategories,
     contentTypes,
 };
 ```

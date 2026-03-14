@@ -9,7 +9,7 @@ import java.util.UUID
 @Service
 class RankFusionService {
     companion object {
-        const val SINGLE_MATCH_SCALE = 0.8f // 한쪽 retriever만 매칭 시 최대 80%
+        const val SINGLE_MATCH_SCALE = 0.9f // 한쪽 retriever만 매칭 시 최대 90%
     }
 
     /**
@@ -99,6 +99,7 @@ class RankFusionService {
                     articleTitle = keyword?.articleTitle ?: vector?.articleTitle,
                     content = keyword?.content ?: vector!!.content,
                     dataSource = keyword?.dataSource ?: vector?.dataSource,
+                    dataSourceId = keyword?.dataSourceId ?: vector?.dataSourceId,
                     relevanceScore = finalScore,
                     keywordRank = entry.keywordRank,
                     vectorRank = entry.vectorRank,

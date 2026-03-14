@@ -18,6 +18,7 @@ Name | Type | Description | Notes
 **dataSource** | **string** |  | [optional] [default to undefined]
 **dataSourceId** | **string** |  | [optional] [default to undefined]
 **hasPdfSource** | **boolean** |  | [default to undefined]
+**linkedPdfDataSourceId** | **string** |  | [optional] [default to undefined]
 **relatedArticles** | [**Array&lt;RelatedArticleResponse&gt;**](RelatedArticleResponse.md) |  | [default to undefined]
 
 ## Example
@@ -39,6 +40,7 @@ const instance: PolicyArticleResponse = {
     dataSource,
     dataSourceId,
     hasPdfSource,
+    linkedPdfDataSourceId,
     relatedArticles,
 };
 ```

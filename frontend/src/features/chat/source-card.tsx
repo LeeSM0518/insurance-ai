@@ -44,9 +44,9 @@ export function SourceCard({ source, index, isActive, onSourceClick }: SourceCar
           source.contentType}
       </p>
       <div className="mt-1 flex items-center justify-end">
-        {source.dataSourceId && (
+        {(source.linkedPdfDataSourceId || source.dataSourceId) && (
           <a
-            href={`/api/v1/policies/pdf/${source.dataSourceId}`}
+            href={`/api/v1/policies/pdf/${source.linkedPdfDataSourceId || source.dataSourceId}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-0.5 text-xs text-primary hover:no-underline"

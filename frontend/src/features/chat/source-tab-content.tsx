@@ -34,14 +34,16 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
     );
   }
 
-  const isPdfTab = activeTab === 'pdf' && article.dataSourceId;
+  const pdfDataSourceId = article.linkedPdfDataSourceId || article.dataSourceId;
+  const showPdfTab = article.hasPdfSource && !!pdfDataSourceId;
+  const isPdfTab = activeTab === 'pdf' && pdfDataSourceId;
 
   return (
     <div className={isPdfTab ? 'flex-1 flex flex-col p-4 gap-4 min-h-0' : 'flex-1 overflow-y-auto p-4 space-y-4'}>
       <PolicyMeta article={article} />
 
       {/* PDF 탭 전환 */}
-      {article.hasPdfSource && article.dataSourceId && (
+      {showPdfTab && (
         <div className="flex gap-1 border-b" role="tablist">
           <button
             role="tab"
@@ -87,9 +89,9 @@ export function SourceTabContent({ articleId }: SourceTabContentProps) {
           />
         </>
       ) : (
-        article.dataSourceId && (
+        pdfDataSourceId && (
           <div className="flex-1 min-h-0">
-            <PdfViewer dataSourceId={article.dataSourceId} mode="panel" />
+            <PdfViewer dataSourceId={pdfDataSourceId} mode="panel" />
           </div>
         )
       )}

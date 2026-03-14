@@ -13,6 +13,9 @@ Name | Type | Description | Notes
 **articleTitle** | **string** |  | [optional] [default to undefined]
 **relevanceScore** | **number** |  | [default to undefined]
 **dataSourceId** | **string** |  | [optional] [default to undefined]
+**dataSource** | **string** |  | [optional] [default to undefined]
+**hasPdfSource** | **boolean** |  | [default to undefined]
+**linkedPdfDataSourceId** | **string** |  | [optional] [default to undefined]
 
 ## Example
 
@@ -28,6 +31,9 @@ const instance: MessageSourceResponse = {
     articleTitle,
     relevanceScore,
     dataSourceId,
+    dataSource,
+    hasPdfSource,
+    linkedPdfDataSourceId,
 };
 ```
 

@@ -34,6 +34,7 @@ export interface PolicyArticleResponse {
     'dataSource'?: string;
     'dataSourceId'?: string;
     'hasPdfSource': boolean;
+    'linkedPdfDataSourceId'?: string;
     'relatedArticles': Array<RelatedArticleResponse>;
 }
 

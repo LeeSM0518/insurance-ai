@@ -20,6 +20,7 @@ data class PolicyArticleResponse(
     val dataSource: String?,
     val dataSourceId: UUID?,
     val hasPdfSource: Boolean,
+    val linkedPdfDataSourceId: UUID? = null,
     val relatedArticles: List<RelatedArticleResponse>,
 )
 

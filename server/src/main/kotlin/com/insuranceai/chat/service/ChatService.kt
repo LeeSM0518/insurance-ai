@@ -208,6 +208,25 @@ class ChatService(
         val pa = DSL.table("policy_articles")
         val p = DSL.table("products")
         val ic = DSL.table("insurance_companies")
+        val ds = DSL.table("data_sources")
+
+        // 서브쿼리: 같은 상품의 PRODUCT_SUMMARY PDF dataSourceId
+        val linkedPdfSubquery =
+            DSL
+                .field(
+                    dsl
+                        .select(DSL.field("ds2.id", UUID::class.java))
+                        .from(DSL.table("data_sources").`as`("ds2"))
+                        .join(DSL.table("policy_articles").`as`("pa2"))
+                        .on(DSL.field("pa2.data_source_id").eq(DSL.field("ds2.id")))
+                        .where(
+                            DSL
+                                .field("pa2.product_id")
+                                .eq(DSL.field("$pa.product_id"))
+                                .and(DSL.field("ds2.source_type").eq("PRODUCT_SUMMARY"))
+                                .and(DSL.field("ds2.file_path").isNotNull),
+                        ).limit(1),
+                ).`as`("linked_pdf_data_source_id")
 
         val query =
             dsl
@@ -219,6 +238,10 @@ class ChatService(
                     DSL.field("$pa.article_number").`as`("article_number"),
                     DSL.field("$pa.article_title").`as`("article_title"),
                     DSL.field("$cms.relevance_score").`as`("relevance_score"),
+                    DSL.field("$ds.id").`as`("data_source_id"),
+                    DSL.field("$ds.source_type").`as`("source_type"),
+                    DSL.field("$ds.file_path").`as`("file_path"),
+                    linkedPdfSubquery,
                 ).from(cms)
                 .join(pa)
                 .on(DSL.field("$cms.policy_article_id").eq(DSL.field("$pa.id")))
@@ -226,6 +249,8 @@ class ChatService(
                 .on(DSL.field("$pa.product_id").eq(DSL.field("$p.id")))
                 .join(ic)
                 .on(DSL.field("$p.insurance_company_id").eq(DSL.field("$ic.id")))
+                .leftJoin(ds)
+                .on(DSL.field("$pa.data_source_id").eq(DSL.field("$ds.id")))
                 .where(DSL.field("$cms.chat_message_id").eq(messageId))
 
         return Flux
@@ -241,6 +266,12 @@ class ChatService(
                     articleNumber = record.get("article_number", String::class.java),
                     articleTitle = record.get("article_title", String::class.java),
                     relevanceScore = record.get("relevance_score", Float::class.java),
+                    dataSourceId = record.get("data_source_id", UUID::class.java),
+                    dataSource = record.get("source_type", String::class.java),
+                    hasPdfSource =
+                        record.get("file_path", String::class.java) != null ||
+                            record.get("linked_pdf_data_source_id", UUID::class.java) != null,
+                    linkedPdfDataSourceId = record.get("linked_pdf_data_source_id", UUID::class.java),
                 )
             }
     }

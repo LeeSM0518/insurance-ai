@@ -104,6 +104,7 @@ class PolicyArticleJooqRepository(
                         paArticleTitle,
                         paContent,
                         dsSourceType,
+                        dsId,
                         matchQualityField.`as`("match_quality"),
                     ).from(policyArticles)
                     .join(products)
@@ -141,6 +142,7 @@ class PolicyArticleJooqRepository(
                         articleTitle = record.get(paArticleTitle),
                         content = record.get(paContent)!!,
                         dataSource = record.get(dsSourceType),
+                        dataSourceId = record.get(dsId),
                         rank = index + 1,
                         matchQuality = record.get("match_quality", Float::class.java) ?: 0.3f,
                     )
@@ -200,6 +202,7 @@ class PolicyArticleJooqRepository(
                         paArticleTitle,
                         paContent,
                         dsSourceType,
+                        dsId,
                         matchQualityField.`as`("match_quality"),
                     ).from(policyArticles)
                     .join(products)
@@ -240,6 +243,7 @@ class PolicyArticleJooqRepository(
                         articleTitle = record.get(paArticleTitle),
                         content = record.get(paContent)!!,
                         dataSource = record.get(dsSourceType),
+                        dataSourceId = record.get(dsId),
                         rank = index + 1,
                         matchQuality = record.get("match_quality", Float::class.java) ?: 0.3f,
                     )

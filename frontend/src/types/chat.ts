@@ -28,6 +28,8 @@ export interface Source {
   relevanceScore: number;
   dataSource: DataSource;
   dataSourceId?: string;
+  hasPdfSource?: boolean;
+  linkedPdfDataSourceId?: string;
 }
 
 // 채팅 세션

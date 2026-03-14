@@ -26,6 +26,7 @@ data class KeywordSearchResult(
     val articleTitle: String?,
     val content: String,
     val dataSource: String?,
+    val dataSourceId: UUID? = null,
     val rank: Int,
     val matchQuality: Float = 0f,
 )
@@ -43,6 +44,7 @@ data class VectorSearchResult(
     val articleTitle: String?,
     val content: String,
     val dataSource: String?,
+    val dataSourceId: UUID? = null,
     val similarity: Float,
 )
 
@@ -59,6 +61,7 @@ data class FusedSearchResult(
     val articleTitle: String?,
     val content: String,
     val dataSource: String?,
+    val dataSourceId: UUID? = null,
     val relevanceScore: Float,
     val keywordRank: Int?,
     val vectorRank: Int?,

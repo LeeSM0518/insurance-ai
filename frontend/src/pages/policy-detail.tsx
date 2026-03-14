@@ -80,7 +80,8 @@ export default function PolicyDetailPage() {
     );
   }
 
-  const hasPdfSource = article.hasPdfSource && !!article.dataSourceId;
+  const pdfDataSourceId = article.linkedPdfDataSourceId || article.dataSourceId;
+  const hasPdfSource = article.hasPdfSource && !!pdfDataSourceId;
 
   return (
     <div className="flex-1 flex flex-col">
@@ -101,15 +102,20 @@ export default function PolicyDetailPage() {
 
             {/* 원문 PDF 보기 버튼 (PDF 소스가 있을 때만) */}
             {hasPdfSource && (
-              <Button
-                variant={pdfOpen ? 'default' : 'outline'}
-                size="sm"
-                className="gap-2"
-                onClick={() => { if (!pdfOpen) trackEvent('policy', 'open_pdf', articleId); setPdfOpen(!pdfOpen); }}
-              >
-                <FileText className="size-4" />
-                {pdfOpen ? '원문 PDF 닫기' : '원문 PDF 보기'}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={pdfOpen ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => { if (!pdfOpen) trackEvent('policy', 'open_pdf', articleId); setPdfOpen(!pdfOpen); }}
+                >
+                  <FileText className="size-4" />
+                  {pdfOpen ? '원문 PDF 닫기' : '원문 PDF 보기'}
+                </Button>
+                {article.dataSource === 'ASSOCIATION' && article.linkedPdfDataSourceId && (
+                  <span className="text-xs text-muted-foreground">(상품요약서 PDF)</span>
+                )}
+              </div>
             )}
           </div>
 
@@ -156,7 +162,7 @@ export default function PolicyDetailPage() {
         </div>
 
         {/* 우측 PDF 사이드바 (데스크톱, PDF 열렸을 때만) */}
-        {isDesktop && pdfOpen && article.dataSourceId && (
+        {isDesktop && pdfOpen && pdfDataSourceId && (
           <aside
             className="relative shrink-0 flex flex-col border-l pl-6"
             style={{ width: pdfPanelWidth }}
@@ -184,7 +190,7 @@ export default function PolicyDetailPage() {
                 </Button>
               </div>
               <div className="flex-1">
-                <PdfViewer dataSourceId={article.dataSourceId} mode="panel" />
+                <PdfViewer dataSourceId={pdfDataSourceId} mode="panel" />
               </div>
             </div>
           </aside>
@@ -197,8 +203,8 @@ export default function PolicyDetailPage() {
               <SheetHeader>
                 <SheetTitle>원본 PDF</SheetTitle>
               </SheetHeader>
-              {article.dataSourceId && (
-                <PdfViewer dataSourceId={article.dataSourceId} />
+              {pdfDataSourceId && (
+                <PdfViewer dataSourceId={pdfDataSourceId} />
               )}
             </SheetContent>
           </Sheet>

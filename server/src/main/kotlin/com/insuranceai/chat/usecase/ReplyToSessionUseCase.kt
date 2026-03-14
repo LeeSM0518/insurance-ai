@@ -75,6 +75,7 @@ class ReplyToSessionUseCase(
                             articleTitle = result.articleTitle,
                             relevanceScore = result.relevanceScore,
                             dataSource = result.dataSource ?: "",
+                            dataSourceId = result.dataSourceId,
                         )
                     }
                 sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))

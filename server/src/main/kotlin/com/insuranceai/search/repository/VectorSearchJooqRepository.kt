@@ -88,6 +88,7 @@ class VectorSearchJooqRepository(
                         paArticleTitle,
                         paContent,
                         dsSourceType,
+                        dsId,
                         similarityField.`as`("similarity"),
                     ).from(policyEmbeddings)
                     .join(policyArticles)
@@ -131,6 +132,7 @@ class VectorSearchJooqRepository(
                         articleTitle = record.get(paArticleTitle),
                         content = record.get(paContent)!!,
                         dataSource = record.get(dsSourceType),
+                        dataSourceId = record.get(dsId),
                         similarity = record.get("similarity", Float::class.java) ?: 0f,
                     )
                 }

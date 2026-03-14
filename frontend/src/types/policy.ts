@@ -20,6 +20,7 @@ export interface PolicyArticle {
   dataSource: DataSource;
   dataSourceId?: string;
   hasPdfSource: boolean;
+  linkedPdfDataSourceId?: string;
   relatedArticles: {
     id: string;
     articleNumber: string;

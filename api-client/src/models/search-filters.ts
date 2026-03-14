@@ -18,6 +18,7 @@ export interface SearchFilters {
     'companyIds'?: Array<string>;
     'insuranceType'?: SearchFiltersInsuranceTypeEnum;
     'categories'?: Array<string>;
+    'subcategories'?: Array<string>;
     'contentTypes'?: Array<SearchFiltersContentTypesEnum>;
 }
 

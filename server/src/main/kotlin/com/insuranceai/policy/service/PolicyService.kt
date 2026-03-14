@@ -2,6 +2,7 @@ package com.insuranceai.policy.service
 
 import com.insuranceai.chat.dto.SupplementaryData
 import com.insuranceai.chat.dto.SupplementaryNeeds
+import com.insuranceai.policy.domain.SourceType
 import com.insuranceai.policy.dto.PolicyArticleResponse
 import com.insuranceai.policy.dto.PremiumExampleItem
 import com.insuranceai.policy.dto.PremiumExampleResponse
@@ -68,6 +69,16 @@ class PolicyService(
 
         val relatedArticles = getRelatedArticles(articleId, article.productId)
 
+        val hasPdfSource = dataSource?.filePath != null
+
+        // ASSOCIATION인데 PDF 없으면 같은 상품의 PRODUCT_SUMMARY PDF 찾기
+        val linkedPdfDataSourceId =
+            if (!hasPdfSource && dataSource?.sourceType == SourceType.ASSOCIATION.name) {
+                dataSourceRepository.findProductSummaryByProductId(article.productId)?.id
+            } else {
+                null
+            }
+
         return PolicyArticleResponse(
             id = article.id!!,
             insuranceCompany =
@@ -86,7 +97,8 @@ class PolicyService(
             effectiveDate = article.effectiveDate,
             dataSource = dataSource?.sourceType,
             dataSourceId = dataSource?.id,
-            hasPdfSource = dataSource?.filePath != null,
+            hasPdfSource = hasPdfSource || linkedPdfDataSourceId != null,
+            linkedPdfDataSourceId = linkedPdfDataSourceId,
             relatedArticles = relatedArticles,
         )
     }
