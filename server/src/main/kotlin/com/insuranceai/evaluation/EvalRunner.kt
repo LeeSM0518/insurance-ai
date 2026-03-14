@@ -43,23 +43,35 @@ class EvalRunner(
     /** Silver 데이터셋 생성 */
     private suspend fun runGenerate() {
         val datasetName = config.datasetName ?: error("--app.eval.dataset-name 필수")
-
-        logger.info("데이터셋 '{}' 생성 시작 (목표: {}개)", datasetName, config.count)
+        val totalTarget = config.count
 
         val dataset = goldenDatasetService.createDataset(datasetName)
+        val existingCount = goldenDatasetService.getQaPairCount(dataset.id!!)
 
-        // 거절 QA 10개 생성
-        val rejectionCount = silverGeneratorService.generateRejectionQaPairs(dataset.id!!)
+        if (existingCount > 0) {
+            logger.info("데이터셋 '{}' 재개 (기존: {}개, 목표: {}개)", datasetName, existingCount, totalTarget)
+        } else {
+            logger.info("데이터셋 '{}' 새로 생성 시작 (목표: {}개)", datasetName, totalTarget)
+        }
+
+        // count를 거절/Silver 비례 배분 (거절 10%, Silver 90%)
+        val rejectionTarget = (totalTarget * 10) / 100 // count=1~9 → 0, count=10 → 1
+        val silverTarget = totalTarget - rejectionTarget
+
+        logger.info("배분: 거절 {}개 + Silver {}개 = 총 {}개", rejectionTarget, silverTarget, totalTarget)
+
+        // 거절 QA 생성 (목표 수만큼)
+        val rejectionCount = silverGeneratorService.generateRejectionQaPairs(dataset.id!!, rejectionTarget)
         logger.info("거절 QA {}개 생성 완료", rejectionCount)
 
-        // LLM 기반 QA 생성
-        val generatedCount = silverGeneratorService.generateSilverDataset(dataset.id, config.count)
-        logger.info("LLM QA {}개 생성 완료", generatedCount)
+        // Silver QA 생성
+        val generatedCount = silverGeneratorService.generateSilverDataset(dataset.id, silverTarget)
+        logger.info("Silver QA {}개 생성 완료", generatedCount)
 
         // total_count 갱신
         goldenDatasetService.updateTotalCount(dataset.id)
 
-        logger.info("Silver 데이터셋 생성 완료: 총 {}개 (거절 {} + LLM {})", rejectionCount + generatedCount, rejectionCount, generatedCount)
+        logger.info("데이터셋 생성 완료: 총 {}개 (거절 {} + Silver {})", rejectionCount + generatedCount, rejectionCount, generatedCount)
     }
 
     /** 자동 검증 + Gold 승격 */

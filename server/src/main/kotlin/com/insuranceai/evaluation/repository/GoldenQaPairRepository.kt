@@ -19,4 +19,14 @@ interface GoldenQaPairRepository : CoroutineCrudRepository<GoldenQaPairEntity, U
         datasetId: UUID,
         status: String,
     ): Long
+
+    suspend fun countByDatasetIdAndQuestionType(
+        datasetId: UUID,
+        questionType: String,
+    ): Long
+
+    suspend fun countByDatasetIdAndCategory(
+        datasetId: UUID,
+        category: String,
+    ): Long
 }

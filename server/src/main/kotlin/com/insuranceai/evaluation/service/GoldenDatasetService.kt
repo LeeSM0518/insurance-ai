@@ -84,6 +84,9 @@ class GoldenDatasetService(
         datasetRepository.findById(datasetId)
             ?: error("데이터셋을 찾을 수 없습니다: $datasetId")
 
+    /** QA 쌍 수 조회 */
+    suspend fun getQaPairCount(datasetId: UUID): Long = qaPairRepository.countByDatasetId(datasetId)
+
     /** 데이터셋 total_count 갱신 */
     suspend fun updateTotalCount(datasetId: UUID) {
         val count = qaPairRepository.countByDatasetId(datasetId)
