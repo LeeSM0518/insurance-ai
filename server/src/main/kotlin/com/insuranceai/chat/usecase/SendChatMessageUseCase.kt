@@ -11,6 +11,7 @@ import com.insuranceai.chat.service.ContextBuilder
 import com.insuranceai.chat.service.QuestionAnalyzer
 import com.insuranceai.chat.service.StreamingService
 import com.insuranceai.common.ai.SuspendingChatClient
+import com.insuranceai.evaluation.service.SourceVerificationService
 import com.insuranceai.search.service.SearchService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,7 @@ class SendChatMessageUseCase(
     private val chatPromptBuilder: ChatPromptBuilder,
     private val streamingService: StreamingService,
     private val suspendingChatClient: SuspendingChatClient,
+    private val sourceVerificationService: SourceVerificationService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -114,7 +116,17 @@ class SendChatMessageUseCase(
                                 log.error("AI 응답 메시지 저장 실패", e)
                             }
 
-                            // 11. 세션 제목 DB 저장
+                            // 11. 출처 자동 검증 (비차단)
+                            try {
+                                val verification = sourceVerificationService.verify(fullResponse, sources)
+                                if (!verification.isValid) {
+                                    log.warn("출처 불일치 감지: sessionId={}, mismatches={}", sessionId, verification.mismatches)
+                                }
+                            } catch (e: Exception) {
+                                log.warn("출처 검증 실패 (비차단): {}", e.message)
+                            }
+
+                            // 12. 세션 제목 DB 저장
                             if (title != null) {
                                 chatService.updateSessionTitle(sessionId, title)
                             }

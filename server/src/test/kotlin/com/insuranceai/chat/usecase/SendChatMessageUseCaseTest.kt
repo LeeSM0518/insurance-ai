@@ -19,6 +19,7 @@ import com.insuranceai.chat.service.ContextResult
 import com.insuranceai.chat.service.QuestionAnalyzer
 import com.insuranceai.chat.service.StreamingService
 import com.insuranceai.common.ai.SuspendingChatClient
+import com.insuranceai.evaluation.service.SourceVerificationService
 import com.insuranceai.search.dto.FusedSearchResult
 import com.insuranceai.search.service.SearchService
 import io.mockk.coEvery
@@ -39,6 +40,7 @@ class SendChatMessageUseCaseTest {
     private val chatPromptBuilder = mockk<ChatPromptBuilder>()
     private val streamingService = mockk<StreamingService>()
     private val suspendingChatClient = mockk<SuspendingChatClient>()
+    private val sourceVerificationService = mockk<SourceVerificationService>(relaxed = true)
 
     private val useCase =
         SendChatMessageUseCase(
@@ -49,6 +51,7 @@ class SendChatMessageUseCaseTest {
             chatPromptBuilder,
             streamingService,
             suspendingChatClient,
+            sourceVerificationService,
         )
 
     private val sessionId = UUID.randomUUID()
