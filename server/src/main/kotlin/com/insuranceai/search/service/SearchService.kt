@@ -190,7 +190,25 @@ class SearchService(
 
         // 1차: 원본 필터
         val results = executeHybridSearch(query, filters, isComparison, searchKeywords)
-        if (results.isNotEmpty()) return results
+        val keywordCoverage = calculateKeywordCoverage(searchKeywords, results)
+        val hasGoodCoverage = keywordCoverage >= KEYWORD_COVERAGE_THRESHOLD
+        val topScore = results.firstOrNull()?.relevanceScore ?: 0f
+        if (results.isNotEmpty() && (hasGoodCoverage || topScore >= 0.5f)) return results
+
+        if (results.isNotEmpty()) {
+            log.info("검색 품질 부족으로 폴백 진행: keywordCoverage={}, topScore={}", keywordCoverage, topScore)
+        }
+
+        // 1.5차: 커버리지 부족 시 subcategories 먼저 완화
+        if (!hasGoodCoverage && results.isNotEmpty() && filters.subcategories != null) {
+            log.info("키워드 커버리지 부족 (coverage={}): subcategories 필터 완화", keywordCoverage)
+            val relaxedSub = filters.copy(subcategories = null)
+            val relaxedResults = executeHybridSearch(query, relaxedSub, isComparison, searchKeywords)
+            val newCoverage = calculateKeywordCoverage(searchKeywords, relaxedResults)
+            if (newCoverage > keywordCoverage && relaxedResults.isNotEmpty()) {
+                return relaxedResults
+            }
+        }
 
         // 2차: contentTypes 제거
         val relaxed1 = filters.copy(contentTypes = null)
@@ -221,6 +239,26 @@ class SearchService(
         val results4 = executeHybridSearch(query, noFilters, isComparison, searchKeywords)
         log.info("검색 폴백: 전체 검색 {} 건 발견", results4.size)
         return results4
+    }
+
+    /** 검색 결과에서 각 키워드가 얼마나 커버되는지 비율 계산 */
+    private fun calculateKeywordCoverage(
+        searchKeywords: List<String>?,
+        results: List<FusedSearchResult>,
+    ): Float {
+        if (searchKeywords.isNullOrEmpty()) return 1.0f
+        val topResults = results.take(10)
+        val coveredKeywords =
+            searchKeywords.count { keyword ->
+                topResults.any { result ->
+                    result.articleTitle?.contains(keyword) == true || result.content.contains(keyword)
+                }
+            }
+        return coveredKeywords.toFloat() / searchKeywords.size
+    }
+
+    companion object {
+        const val KEYWORD_COVERAGE_THRESHOLD = 0.5f
     }
 
     /** 병렬 검색 + RRF 통합 공통 로직 */

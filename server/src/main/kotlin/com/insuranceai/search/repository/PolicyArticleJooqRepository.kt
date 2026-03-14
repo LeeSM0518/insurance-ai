@@ -159,33 +159,28 @@ class PolicyArticleJooqRepository(
         limit: Int = 30,
     ): List<KeywordSearchResult> =
         withContext(Dispatchers.IO) {
-            val primaryKeyword = keywords.first()
-            val primaryLower = primaryKeyword.lowercase()
+            // match_quality: 모든 키워드의 매칭 여부를 합산하여 정규화 (0~1)
+            val keywordCount = keywords.size
+            val matchCountParts =
+                keywords.joinToString(" + ") { keyword ->
+                    "CASE WHEN ${paContent.name} ILIKE '%${keyword.replace("'", "''")}%' THEN 1 ELSE 0 END"
+                }
+            val titleMatchParts =
+                keywords.joinToString(" + ") { keyword ->
+                    "CASE WHEN ${paArticleTitle.name} ILIKE '%${keyword.replace("'", "''")}%' THEN 1 ELSE 0 END"
+                }
 
-            // match_quality: 첫 번째 키워드 기준 계산
             val matchQualityField =
                 DSL
                     .field(
                         """
                         (
-                            CASE WHEN {0} ILIKE {1} THEN 0.4 ELSE 0.0 END
+                            ($titleMatchParts)::float / $keywordCount * 0.4
                             + 0.3
-                            + LEAST(
-                                (LENGTH(LOWER({2})) - LENGTH(REPLACE(LOWER({2}), {3}, '')))::float
-                                / NULLIF(LENGTH({3}), 0) * 0.04,
-                                0.2
-                              )
-                            + CASE WHEN POSITION({4} IN {2}) > 0
-                                   AND POSITION({4} IN {2}) < LENGTH({2}) * 0.2
-                                   THEN 0.1 ELSE 0.0 END
+                            + ($matchCountParts)::float / $keywordCount * 0.3
                         )
                         """.trimIndent(),
                         Float::class.java,
-                        paArticleTitle,
-                        DSL.inline("%$primaryKeyword%"),
-                        paContent,
-                        DSL.inline(primaryLower),
-                        DSL.inline(primaryKeyword),
                     )
 
             var step =
@@ -213,10 +208,12 @@ class PolicyArticleJooqRepository(
                     .on(paDataSourceId.eq(dsId))
                     .where(paIsActive.eq(true))
 
-            // 각 키워드에 대해 AND 조건 추가
-            for (keyword in keywords) {
-                step = step.and(paContent.likeIgnoreCase("%$keyword%"))
-            }
+            // OR 기반 검색: 1개 이상의 키워드가 매칭되면 결과에 포함
+            val orCondition =
+                keywords
+                    .map { DSL.condition(paContent.likeIgnoreCase("%$it%")) }
+                    .reduce { acc, cond -> acc.or(cond) }
+            step = step.and(orCondition)
 
             // 동적 필터 적용
             step = applyFilters(step, filters)

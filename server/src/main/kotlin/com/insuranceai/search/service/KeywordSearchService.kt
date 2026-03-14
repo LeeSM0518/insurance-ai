@@ -66,11 +66,17 @@ class KeywordSearchService(
 
         log.debug("키워드 리스트 검색 결과: {} 건", results.size)
 
-        // 스니펫 + 하이라이트 적용 (첫 번째 키워드 기준)
-        val primaryKeyword = sanitizedKeywords.first()
+        // 스니펫 + 하이라이트 적용 (매칭된 키워드 기준)
         return results.map { result ->
-            val snippet = TextUtil.createSnippet(result.content, primaryKeyword)
-            val highlighted = TextUtil.highlightKeyword(snippet, primaryKeyword)
+            // 본문에 포함된 첫 번째 키워드를 기준으로 스니펫 생성
+            val matchedKeyword =
+                sanitizedKeywords.firstOrNull { result.content.contains(it, ignoreCase = true) }
+                    ?: sanitizedKeywords.first()
+            val snippet = TextUtil.createSnippet(result.content, matchedKeyword)
+            var highlighted = snippet
+            for (keyword in sanitizedKeywords) {
+                highlighted = TextUtil.highlightKeyword(highlighted, keyword)
+            }
             result.copy(content = highlighted)
         }
     }
