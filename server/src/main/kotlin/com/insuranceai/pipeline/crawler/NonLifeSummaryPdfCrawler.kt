@@ -74,6 +74,16 @@ class NonLifeSummaryPdfCrawler(
                 page.waitForLoadState()
             }
 
+            // AJAX 데이터 로딩 대기: tbody.tbodyClass가 나타날 때까지 최대 15초
+            try {
+                page.waitForSelector(
+                    "#list tbody.tbodyClass",
+                    com.microsoft.playwright.Page.WaitForSelectorOptions().setTimeout(15000.0),
+                )
+            } catch (e: Exception) {
+                logger.warn("${category.categoryName} 데이터 로딩 대기 타임아웃: ${e.message}")
+            }
+
             extractSummaryInfos(page, category)
         } finally {
             page.close()
