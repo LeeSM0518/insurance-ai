@@ -177,11 +177,16 @@ export default function ChatPage() {
     }
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleOpenSource = (source: Source, index: number) => {
+  const handleOpenSource = (source: Source, index: number, defaultTab?: 'content' | 'pdf') => {
     trackEvent('chat', 'source_click', source.articleId);
 
-    // 이미 열린 탭이면 활성화만
+    // 이미 열린 탭이면 활성화 (+ defaultTab 변경 시 업데이트)
     if (openTabs.some((tab) => tab.articleId === source.articleId)) {
+      if (defaultTab) {
+        setOpenTabs((prev) =>
+          prev.map((tab) => tab.articleId === source.articleId ? { ...tab, defaultTab } : tab),
+        );
+      }
       setActiveTabId(source.articleId);
       return;
     }
@@ -192,6 +197,7 @@ export default function ChatPage() {
       articleTitle: source.articleTitle,
       insuranceCompany: source.insuranceCompany,
       sourceIndex: index + 1,
+      defaultTab,
     };
 
     // 최대 탭 초과 시 가장 오래된 탭 제거
@@ -200,6 +206,10 @@ export default function ChatPage() {
 
     setOpenTabs(updated);
     setActiveTabId(source.articleId);
+  };
+
+  const handleOpenPdf = (source: Source, index: number) => {
+    handleOpenSource(source, index, 'pdf');
   };
 
   const handleCloseTab = (articleId: string) => {
@@ -321,6 +331,7 @@ export default function ChatPage() {
                   <SourceCards
                     sources={message.sources}
                     onSourceClick={isDesktop ? handleOpenSource : undefined}
+                    onPdfClick={isDesktop ? handleOpenPdf : undefined}
                     activeArticleId={isDesktop ? activeTabId : undefined}
                   />
                 )}
@@ -368,6 +379,7 @@ export default function ChatPage() {
                   <SourceCards
                     sources={streamingState.sources}
                     onSourceClick={isDesktop ? handleOpenSource : undefined}
+                    onPdfClick={isDesktop ? handleOpenPdf : undefined}
                     activeArticleId={isDesktop ? activeTabId : undefined}
                   />
                 )}

@@ -8,9 +8,10 @@ interface SourceCardProps {
   index: number;
   isActive?: boolean;
   onSourceClick?: (source: Source, index: number) => void;
+  onPdfClick?: (source: Source, index: number) => void;
 }
 
-export function SourceCard({ source, index, isActive, onSourceClick }: SourceCardProps) {
+export function SourceCard({ source, index, isActive, onSourceClick, onPdfClick }: SourceCardProps) {
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -45,17 +46,30 @@ export function SourceCard({ source, index, isActive, onSourceClick }: SourceCar
       </p>
       <div className="mt-1 flex items-center justify-end">
         {(source.linkedPdfDataSourceId || source.dataSourceId) && (
-          <a
-            href={`/api/v1/policies/pdf/${source.linkedPdfDataSourceId || source.dataSourceId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-0.5 text-xs text-primary hover:no-underline"
-            onClick={(e) => e.stopPropagation()}
+          <span
+            role="button"
+            tabIndex={0}
+            className="flex items-center gap-0.5 text-xs text-primary hover:text-primary/80 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onPdfClick) {
+                onPdfClick(source, index);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.stopPropagation();
+                e.preventDefault();
+                if (onPdfClick) {
+                  onPdfClick(source, index);
+                }
+              }
+            }}
             title="원본 PDF"
           >
             <FileText className="size-3" />
             PDF
-          </a>
+          </span>
         )}
       </div>
     </button>

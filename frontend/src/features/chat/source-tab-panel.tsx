@@ -5,6 +5,7 @@ import { SourceTabContent } from './source-tab-content';
 // 열린 탭 정보 - Source에서 필요한 필드만 추출 + sourceIndex 추가
 export type SourceTab = Pick<Source, 'articleId' | 'articleNumber' | 'articleTitle' | 'insuranceCompany'> & {
   sourceIndex?: number;
+  defaultTab?: 'content' | 'pdf';
 };
 
 interface SourceTabPanelProps {
@@ -35,7 +36,16 @@ export function SourceTabPanel({ tabs, activeTabId, onSelectTab, onCloseTab }: S
         onSelectTab={onSelectTab}
         onCloseTab={onCloseTab}
       />
-      {activeTabId && <SourceTabContent articleId={activeTabId} />}
+      {activeTabId && (() => {
+        const activeDefaultTab = tabs.find((t) => t.articleId === activeTabId)?.defaultTab;
+        return (
+          <SourceTabContent
+            key={`${activeTabId}-${activeDefaultTab ?? 'content'}`}
+            articleId={activeTabId}
+            defaultTab={activeDefaultTab}
+          />
+        );
+      })()}
     </div>
   );
 }

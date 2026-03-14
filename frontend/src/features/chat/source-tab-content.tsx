@@ -11,12 +11,13 @@ type TabType = 'content' | 'pdf';
 
 interface SourceTabContentProps {
   articleId: string;
+  defaultTab?: TabType;
 }
 
-export function SourceTabContent({ articleId }: SourceTabContentProps) {
+export function SourceTabContent({ articleId, defaultTab }: SourceTabContentProps) {
   const { article, isLoading } = usePolicyDetail(articleId);
   const { surrenderValues, premiumExamples, priceIndices } = useSupplementaryData(article?.productId ?? null);
-  const [activeTab, setActiveTab] = useState<TabType>('content');
+  const [activeTab, setActiveTab] = useState<TabType>(defaultTab ?? 'content');
 
   if (isLoading) {
     return (

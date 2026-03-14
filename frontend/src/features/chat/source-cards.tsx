@@ -4,10 +4,11 @@ import type { Source } from '@/types/chat';
 interface SourceCardsProps {
   sources: Source[];
   onSourceClick?: (source: Source, index: number) => void;
+  onPdfClick?: (source: Source, index: number) => void;
   activeArticleId?: string | null;
 }
 
-export function SourceCards({ sources, onSourceClick, activeArticleId }: SourceCardsProps) {
+export function SourceCards({ sources, onSourceClick, onPdfClick, activeArticleId }: SourceCardsProps) {
   if (sources.length === 0) return null;
 
   return (
@@ -21,6 +22,7 @@ export function SourceCards({ sources, onSourceClick, activeArticleId }: SourceC
             index={index}
             isActive={activeArticleId === source.articleId}
             onSourceClick={onSourceClick}
+            onPdfClick={onPdfClick}
           />
         ))}
       </div>
