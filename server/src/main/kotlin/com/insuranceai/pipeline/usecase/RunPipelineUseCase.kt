@@ -1,9 +1,11 @@
 package com.insuranceai.pipeline.usecase
 
+import com.insuranceai.pipeline.crawler.CrawlerCommon
 import com.insuranceai.pipeline.crawler.LifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.LifeSummaryPdfCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.NonLifeSummaryPdfCrawler
+import com.insuranceai.pipeline.crawler.NonLifeWebScraper
 import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.pipeline.domain.ValidationStatus
 import com.insuranceai.pipeline.dto.ProductRawData
@@ -45,7 +47,7 @@ data class PipelineOptions(
         when {
             steps.isNotEmpty() -> steps
             dryRun -> setOf(PipelineStep.CRAWL, PipelineStep.VALIDATE)
-            else -> PipelineStep.entries.toSet() - setOf(PipelineStep.SUMMARY_PDF, PipelineStep.PARSE_PDF)
+            else -> PipelineStep.entries.toSet() - setOf(PipelineStep.SUMMARY_PDF, PipelineStep.PARSE_PDF, PipelineStep.LINK_PDF)
         }
 }
 
@@ -67,10 +69,12 @@ data class TypePipelineResult(
 
 @Component
 class RunPipelineUseCase(
+    private val crawlerCommon: CrawlerCommon,
     private val lifeInsuranceCrawler: LifeInsuranceCrawler,
     private val nonLifeInsuranceCrawler: NonLifeInsuranceCrawler,
     private val lifeSummaryPdfCrawler: LifeSummaryPdfCrawler,
     private val nonLifeSummaryPdfCrawler: NonLifeSummaryPdfCrawler,
+    private val nonLifeWebScraper: NonLifeWebScraper,
     private val changeDetectionService: ChangeDetectionService,
     private val validationService: ValidationService,
     private val crossValidator: CrossValidator,
@@ -166,10 +170,33 @@ class RunPipelineUseCase(
             if (PipelineStep.CRAWL in activeSteps) {
                 pipelineService.startBatch(insuranceType, batchId)
 
-                val crawlResult =
+                val baseCrawlResult =
                     when (insuranceType) {
                         InsuranceType.LIFE -> lifeInsuranceCrawler.crawlAll(categoryFilter)
                         InsuranceType.NON_LIFE -> nonLifeInsuranceCrawler.crawlAll(categoryFilter)
+                    }
+
+                // 손보 웹 보완: CRAWL 결과에 누락된 신버전 상품을 웹에서 보완 수집
+                val crawlResult =
+                    if (insuranceType == InsuranceType.NON_LIFE) {
+                        try {
+                            val supplemented = nonLifeWebScraper.supplementMissing(categoryFilter, baseCrawlResult)
+                            if (supplemented.isNotEmpty()) {
+                                logger.info("웹 보완: ${supplemented.size}건 추가 수집")
+                                baseCrawlResult.copy(
+                                    products = baseCrawlResult.products + supplemented,
+                                    totalProducts = baseCrawlResult.totalProducts + supplemented.size,
+                                    successCount = baseCrawlResult.successCount + supplemented.size,
+                                )
+                            } else {
+                                baseCrawlResult
+                            }
+                        } catch (e: Exception) {
+                            logger.warn("웹 보완 실패 (기존 CRAWL 결과로 진행): ${e.message}")
+                            baseCrawlResult
+                        }
+                    } else {
+                        baseCrawlResult
                     }
 
                 // 보험사 필터 적용
@@ -400,6 +427,12 @@ class RunPipelineUseCase(
                 logger.info("PARSE_PDF 완료: batchId=$batchId, PDF 파싱 대상 ${productsWithPdf.size}건")
             }
 
+            // LINK_PDF 단계 (PDF 파싱 없이 data_sources 연결만)
+            if (PipelineStep.LINK_PDF in activeSteps) {
+                val linkedCount = linkPdfToProducts(insuranceType, categoryFilter, companyFilter, errors)
+                logger.info("LINK_PDF 완료: ${linkedCount}건 data_sources 연결")
+            }
+
             // EMBED 단계
             if (PipelineStep.EMBED in activeSteps) {
                 // 검증 통과 목록이 없으면 스테이징에서 PASSED 레코드 복원
@@ -539,6 +572,235 @@ class RunPipelineUseCase(
         }
         return count
     }
+
+    /** 다운로드된 PDF 파일을 data_sources에 연결 (파싱 없이) */
+    private suspend fun linkPdfToProducts(
+        insuranceType: InsuranceType,
+        categoryFilter: List<String>,
+        companyFilter: List<String>,
+        errors: MutableList<String>,
+    ): Int {
+        val typeDir =
+            when (insuranceType) {
+                InsuranceType.LIFE -> "life"
+                InsuranceType.NON_LIFE -> "non-life"
+            }
+
+        val categoryDirNames = resolveCategoryDirNames(insuranceType, categoryFilter)
+        if (categoryDirNames.isEmpty()) {
+            logger.warn("LINK_PDF: 매칭되는 카테고리 디렉토리 없음 (filter=$categoryFilter)")
+            return 0
+        }
+
+        val companyMap = buildCompanyMap()
+        val companySet = if (companyFilter.isNotEmpty()) companyFilter.map { it.lowercase() }.toSet() else null
+
+        val dbCategories =
+            when (insuranceType) {
+                InsuranceType.NON_LIFE ->
+                    NonLifeInsuranceCrawler.CATEGORIES
+                        .filter { cat ->
+                            categoryFilter.isEmpty() ||
+                                categoryFilter.any { cat.categoryName.contains(it) || cat.tptyCode == it || cat.tabName == it }
+                        }.map { NonLifeInsuranceCrawler.resolveParserCategory(it) }
+                        .toSet()
+                InsuranceType.LIFE -> categoryFilter.toSet().ifEmpty { setOf("LIFE") }
+            }
+
+        // data_sources 미보유 활성 상품 조회
+        val productsWithoutPdf =
+            productRepository
+                .findByIsActiveTrue()
+                .toList()
+                .filter { it.category in dbCategories }
+                .filter { product ->
+                    val companyName = companyMap.entries.firstOrNull { it.value == product.insuranceCompanyId }?.key
+                    companyName != null && (companySet == null || companyName.lowercase() in companySet)
+                }.filter { dataSourceRepository.findProductSummaryByProductId(it.id!!) == null }
+
+        if (productsWithoutPdf.isEmpty()) {
+            logger.info("LINK_PDF: data_sources 미보유 상품 없음")
+            return 0
+        }
+
+        logger.info("LINK_PDF: data_sources 미보유 상품 ${productsWithoutPdf.size}건, 매칭 시도...")
+
+        val companyNameMap = companyMap.entries.associate { (name, id) -> id to name }
+
+        // 1단계: 정방향 매칭 (DB 상품명 → 정확한 파일 경로, 디렉토리 생성 없이)
+        var linkedCount = 0
+        val unmatched = mutableListOf<com.insuranceai.policy.entity.ProductEntity>()
+        for (product in productsWithoutPdf) {
+            val companyName = companyNameMap[product.insuranceCompanyId] ?: continue
+            val sanitizedDirName =
+                crawlerCommon.truncateToBytes(
+                    "${crawlerCommon.sanitize(companyName)}_${crawlerCommon.sanitize(product.name)}",
+                    200,
+                )
+            val pdfPath =
+                categoryDirNames.firstNotNullOfOrNull { catDir ->
+                    val date =
+                        java.time.YearMonth
+                            .now()
+                            .toString()
+                    val path =
+                        java.nio.file.Path.of(
+                            crawlerCommon.config.crawl.downloadDir,
+                            typeDir,
+                            crawlerCommon.sanitize(catDir),
+                            date,
+                            sanitizedDirName,
+                            "summary.pdf",
+                        )
+                    if (java.nio.file.Files
+                            .exists(path) &&
+                        java.nio.file.Files
+                            .size(path) > 0
+                    ) {
+                        path
+                    } else {
+                        null
+                    }
+                }
+            if (pdfPath != null) {
+                dataSourceRepository.save(
+                    com.insuranceai.policy.entity.DataSourceEntity(
+                        sourceType = "PRODUCT_SUMMARY",
+                        filePath = pdfPath.toString(),
+                        productId = product.id,
+                    ),
+                )
+                linkedCount++
+                logger.debug("LINK_PDF(정방향): $companyName/${product.name}")
+            } else {
+                unmatched.add(product)
+            }
+        }
+
+        if (unmatched.isEmpty()) return linkedCount
+
+        // 2단계: 역방향 매칭 (파일시스템 스캔 → 유사도 기반 비교)
+        logger.info("LINK_PDF: 정방향 매칭 ${linkedCount}건, 미매칭 ${unmatched.size}건 → 역방향 매칭 시도")
+        for (catDir in categoryDirNames) {
+            val date =
+                java.time.YearMonth
+                    .now()
+                    .toString()
+            val catPath =
+                java.nio.file.Path.of(
+                    crawlerCommon.config.crawl.downloadDir,
+                    typeDir,
+                    crawlerCommon.sanitize(catDir),
+                    date,
+                )
+            if (!java.nio.file.Files
+                    .exists(catPath)
+            ) {
+                continue
+            }
+
+            // summary.pdf가 있는 디렉토리 목록 수집
+            val pdfDirs =
+                java.nio.file.Files
+                    .list(catPath)
+                    .filter {
+                        java.nio.file.Files
+                            .isDirectory(it)
+                    }.filter {
+                        java.nio.file.Files
+                            .exists(it.resolve("summary.pdf"))
+                    }.toList()
+
+            for (product in unmatched.toList()) {
+                val companyName = companyNameMap[product.insuranceCompanyId] ?: continue
+                val sanitizedCompany = crawlerCommon.sanitize(companyName)
+
+                // 해당 보험사의 디렉토리만 필터링
+                val companyDirs = pdfDirs.filter { it.fileName.toString().startsWith("${sanitizedCompany}_") }
+
+                // 상품명에서 버전/종 정보를 제거한 핵심 이름으로 매칭
+                val sanitizedProductName = crawlerCommon.sanitize(product.name)
+                val productCore = extractProductCore(sanitizedProductName)
+                val matchedDir =
+                    companyDirs.firstOrNull { dir ->
+                        val dirProductName = dir.fileName.toString().removePrefix("${sanitizedCompany}_")
+                        val dirCore = extractProductCore(dirProductName)
+                        productCore == dirCore
+                    }
+
+                if (matchedDir != null) {
+                    val pdfPath = matchedDir.resolve("summary.pdf")
+                    dataSourceRepository.save(
+                        com.insuranceai.policy.entity.DataSourceEntity(
+                            sourceType = "PRODUCT_SUMMARY",
+                            filePath = pdfPath.toString(),
+                            productId = product.id,
+                        ),
+                    )
+                    linkedCount++
+                    unmatched.remove(product)
+                    logger.info("LINK_PDF(역방향): $companyName/${product.name} → ${matchedDir.fileName}")
+                }
+            }
+        }
+
+        if (unmatched.isNotEmpty()) {
+            logger.warn("LINK_PDF: 매칭 실패 ${unmatched.size}건")
+            for (product in unmatched) {
+                val companyName = companyNameMap[product.insuranceCompanyId] ?: "?"
+                logger.warn("  미매칭: $companyName/${product.name}")
+            }
+        }
+
+        return linkedCount
+    }
+
+    /**
+     * 상품명에서 버전 번호만 제거한 핵심 이름 추출.
+     * 예: "무배당_삼성화재_건강보험_마이헬스_파트너(2601.13)_1종(납입면제형)"
+     *   → "무배당_삼성화재_건강보험_마이헬스_파트너_1종(납입면제형)"
+     *
+     * 버전 번호(2601.13, 2603.8 등)만 제거하고, 상품명 자체("New" 접두사 등)나
+     * 종 구분(1종, 4종 등)은 유지하여 다른 상품과의 오매칭을 방지합니다.
+     */
+    internal fun extractProductCore(name: String): String =
+        name
+            .replace(Regex("""\(?2[0-9]{3}\.\d{1,2}\)?"""), "") // (2601.13), (2603.8) 등 버전 번호만 제거 (2x로 시작 + 소수점 필수)
+            .replace(Regex("""_+"""), "_") // 연속 _ 정리
+            .replace(Regex("""^_|_$"""), "") // 앞뒤 _ 제거
+            .trim()
+
+    /** categoryFilter → 파일시스템 디렉토리명 목록 결정 */
+    private fun resolveCategoryDirNames(
+        insuranceType: InsuranceType,
+        categoryFilter: List<String>,
+    ): List<String> =
+        when (insuranceType) {
+            InsuranceType.NON_LIFE -> {
+                val categories =
+                    if (categoryFilter.isEmpty()) {
+                        NonLifeInsuranceCrawler.CATEGORIES
+                    } else {
+                        NonLifeInsuranceCrawler.CATEGORIES.filter { cat ->
+                            categoryFilter.any { filter ->
+                                cat.categoryName.contains(filter) || cat.tptyCode == filter || cat.tabName == filter
+                            }
+                        }
+                    }
+                categories.map { it.categoryName }
+            }
+            InsuranceType.LIFE -> {
+                val categories =
+                    if (categoryFilter.isEmpty()) {
+                        LifeInsuranceCrawler.CATEGORIES
+                    } else {
+                        LifeInsuranceCrawler.CATEGORIES.filter { cat ->
+                            categoryFilter.any { it == cat.displayName || it == cat.category }
+                        }
+                    }
+                categories.map { it.displayName }
+            }
+        }
 
     private suspend fun buildCompanyMap(): Map<String, UUID> {
         val companies = insuranceCompanyRepository.findByIsActiveTrue().toList()

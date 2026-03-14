@@ -4,6 +4,7 @@ import com.insuranceai.pipeline.crawler.LifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.LifeSummaryPdfCrawler
 import com.insuranceai.pipeline.crawler.NonLifeInsuranceCrawler
 import com.insuranceai.pipeline.crawler.NonLifeSummaryPdfCrawler
+import com.insuranceai.pipeline.crawler.NonLifeWebScraper
 import com.insuranceai.pipeline.domain.PipelineStep
 import com.insuranceai.pipeline.dto.CoverageData
 import com.insuranceai.pipeline.dto.CrawlResult
@@ -50,6 +51,7 @@ class RunPipelineUseCaseTest {
     private val lifeSummaryPdfCrawler = mockk<LifeSummaryPdfCrawler>()
     private val nonLifeInsuranceCrawler = mockk<NonLifeInsuranceCrawler>()
     private val nonLifeSummaryPdfCrawler = mockk<NonLifeSummaryPdfCrawler>()
+    private val nonLifeWebScraper = mockk<NonLifeWebScraper>()
     private val changeDetectionService = mockk<ChangeDetectionService>()
     private val validationService = mockk<ValidationService>()
     private val crossValidator = mockk<CrossValidator>()
@@ -64,25 +66,29 @@ class RunPipelineUseCaseTest {
     private val policyArticleRepository = mockk<PolicyArticleRepository>()
     private val productRepository = mockk<ProductRepository>()
 
+    private val crawlerCommon = mockk<com.insuranceai.pipeline.crawler.CrawlerCommon>()
+
     private val useCase =
         RunPipelineUseCase(
-            lifeInsuranceCrawler,
-            nonLifeInsuranceCrawler,
-            lifeSummaryPdfCrawler,
-            nonLifeSummaryPdfCrawler,
-            changeDetectionService,
-            validationService,
-            crossValidator,
-            stagingPublisher,
-            embeddingService,
-            pipelineService,
-            pdfParsingService,
-            dataSourceRepository,
-            crawlStagingRepository,
-            crawlStagingMapper,
-            insuranceCompanyRepository,
-            policyArticleRepository,
-            productRepository,
+            crawlerCommon = crawlerCommon,
+            lifeInsuranceCrawler = lifeInsuranceCrawler,
+            nonLifeInsuranceCrawler = nonLifeInsuranceCrawler,
+            lifeSummaryPdfCrawler = lifeSummaryPdfCrawler,
+            nonLifeSummaryPdfCrawler = nonLifeSummaryPdfCrawler,
+            nonLifeWebScraper = nonLifeWebScraper,
+            changeDetectionService = changeDetectionService,
+            validationService = validationService,
+            crossValidator = crossValidator,
+            stagingPublisher = stagingPublisher,
+            embeddingService = embeddingService,
+            pipelineService = pipelineService,
+            pdfParsingService = pdfParsingService,
+            dataSourceRepository = dataSourceRepository,
+            crawlStagingRepository = crawlStagingRepository,
+            crawlStagingMapper = crawlStagingMapper,
+            insuranceCompanyRepository = insuranceCompanyRepository,
+            policyArticleRepository = policyArticleRepository,
+            productRepository = productRepository,
         )
 
     private val companyId = UUID.randomUUID()
@@ -661,10 +667,10 @@ class RunPipelineUseCaseTest {
     }
 
     @Test
-    fun `resolveSteps - 둘 다 미지정이면 SUMMARY_PDF와 PARSE_PDF 제외 전체 단계`() {
+    fun `resolveSteps - 둘 다 미지정이면 SUMMARY_PDF와 PARSE_PDF와 LINK_PDF 제외 전체 단계`() {
         val options = PipelineOptions()
         assertEquals(
-            PipelineStep.entries.toSet() - setOf(PipelineStep.SUMMARY_PDF, PipelineStep.PARSE_PDF),
+            PipelineStep.entries.toSet() - setOf(PipelineStep.SUMMARY_PDF, PipelineStep.PARSE_PDF, PipelineStep.LINK_PDF),
             options.resolveSteps(),
         )
     }

@@ -78,7 +78,9 @@ class NonLifeSummaryPdfCrawler(
             try {
                 page.waitForSelector(
                     "#list tbody.tbodyClass",
-                    com.microsoft.playwright.Page.WaitForSelectorOptions().setTimeout(15000.0),
+                    com.microsoft.playwright.Page
+                        .WaitForSelectorOptions()
+                        .setTimeout(15000.0),
                 )
             } catch (e: Exception) {
                 logger.warn("${category.categoryName} 데이터 로딩 대기 타임아웃: ${e.message}")

@@ -21,7 +21,7 @@ import java.time.YearMonth
 
 @Component
 class CrawlerCommon(
-    private val config: PipelineConfig,
+    internal val config: PipelineConfig,
     private val insuranceCompanyRepository: InsuranceCompanyRepository,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -108,7 +108,7 @@ class CrawlerCommon(
     }
 
     /** UTF-8 바이트 기준으로 문자열을 maxBytes 이내로 자름 */
-    private fun truncateToBytes(
+    internal fun truncateToBytes(
         str: String,
         maxBytes: Int,
     ): String {

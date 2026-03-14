@@ -7,5 +7,6 @@ enum class PipelineStep {
     PUBLISH,
     SUMMARY_PDF,
     PARSE_PDF,
+    LINK_PDF,
     EMBED,
 }
