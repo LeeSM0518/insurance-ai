@@ -78,6 +78,7 @@ class PipelineRunner(
                 PipelineOptions(
                     type = config.type,
                     categories = config.categories,
+                    companies = config.companies,
                     incremental = config.incremental,
                     dryRun = config.dryRun,
                     steps = config.steps.toSet(),
@@ -89,6 +90,7 @@ class PipelineRunner(
             logger.info(
                 "파이프라인 시작: type=${options.type ?: "ALL"}, " +
                     "categories=${options.categories.ifEmpty { listOf("ALL") }}, " +
+                    "companies=${options.companies.ifEmpty { listOf("ALL") }}, " +
                     "steps=$activeSteps, " +
                     "batchId=${options.batchId ?: "(신규 생성)"}, " +
                     "incremental=${options.incremental}",

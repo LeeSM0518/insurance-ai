@@ -33,6 +33,7 @@ import kotlin.time.measureTimedValue
 data class PipelineOptions(
     val type: InsuranceType? = null,
     val categories: List<String> = emptyList(),
+    val companies: List<String> = emptyList(),
     val incremental: Boolean = false,
     val dryRun: Boolean = false,
     val steps: Set<PipelineStep> = emptySet(),
@@ -108,7 +109,15 @@ class RunPipelineUseCase(
         val (results, duration) =
             measureTimedValue {
                 typesToRun.associateWith { type ->
-                    runForInsuranceType(type, options.incremental, options.categories, activeSteps, options.batchId, options.force)
+                    runForInsuranceType(
+                        type,
+                        options.incremental,
+                        options.categories,
+                        options.companies,
+                        activeSteps,
+                        options.batchId,
+                        options.force,
+                    )
                 }
             }
 
@@ -139,6 +148,7 @@ class RunPipelineUseCase(
         insuranceType: InsuranceType,
         incremental: Boolean,
         categoryFilter: List<String> = emptyList(),
+        companyFilter: List<String> = emptyList(),
         activeSteps: Set<PipelineStep>,
         existingBatchId: String? = null,
         force: Boolean = false,
@@ -162,8 +172,20 @@ class RunPipelineUseCase(
                         InsuranceType.NON_LIFE -> nonLifeInsuranceCrawler.crawlAll(categoryFilter)
                     }
 
-                crawledCount = crawlResult.totalProducts
-                if (crawlResult.products.isEmpty()) {
+                // 보험사 필터 적용
+                val filteredProducts =
+                    if (companyFilter.isNotEmpty()) {
+                        val companySet = companyFilter.map { it.lowercase() }.toSet()
+                        crawlResult.products.filter { it.companyName.lowercase() in companySet }
+                    } else {
+                        crawlResult.products
+                    }
+                if (companyFilter.isNotEmpty()) {
+                    logger.info("보험사 필터 적용: $companyFilter, 크롤링 ${crawlResult.totalProducts}건 → 필터 후 ${filteredProducts.size}건")
+                }
+
+                crawledCount = filteredProducts.size
+                if (filteredProducts.isEmpty()) {
                     pipelineService.failBatch(batchId, "수집된 상품 0건")
                     return TypePipelineResult(0, 0, 0, 0, 0, listOf("수집된 상품 0건"), batchId)
                 }
@@ -192,13 +214,13 @@ class RunPipelineUseCase(
                 // 변경 감지 (증분 모드)
                 productsToProcess =
                     if (incremental) {
-                        val changes = changeDetectionService.detectChanges(crawlResult.products, insuranceType)
+                        val changes = changeDetectionService.detectChanges(filteredProducts, insuranceType)
                         if (changes.deletedProductIds.isNotEmpty()) {
                             stagingPublisher.deactivateProducts(changes.deletedProductIds)
                         }
                         changes.newProducts + changes.changedProducts
                     } else {
-                        crawlResult.products
+                        filteredProducts
                     }
 
                 if (productsToProcess.isEmpty()) {

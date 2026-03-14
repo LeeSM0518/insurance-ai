@@ -10,6 +10,7 @@ data class PipelineConfig(
     val pdf: PdfConfig = PdfConfig(),
     val type: InsuranceType? = null,
     val categories: List<String> = emptyList(),
+    val companies: List<String> = emptyList(),
     val incremental: Boolean = false,
     val dryRun: Boolean = false,
     val steps: List<PipelineStep> = emptyList(),
