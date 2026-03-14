@@ -16,6 +16,7 @@ import com.insuranceai.chat.service.ChatPromptBuilder
 import com.insuranceai.chat.service.ChatService
 import com.insuranceai.chat.service.ContextBuilder
 import com.insuranceai.chat.service.ContextResult
+import com.insuranceai.chat.service.QueryRewriter
 import com.insuranceai.chat.service.QuestionAnalyzer
 import com.insuranceai.chat.service.StreamingService
 import com.insuranceai.common.ai.SuspendingChatClient
@@ -34,6 +35,7 @@ import kotlin.test.assertTrue
 
 class SendChatMessageUseCaseTest {
     private val chatService = mockk<ChatService>(relaxed = true)
+    private val queryRewriter = mockk<QueryRewriter>()
     private val questionAnalyzer = mockk<QuestionAnalyzer>()
     private val searchService = mockk<SearchService>()
     private val contextBuilder = mockk<ContextBuilder>()
@@ -45,6 +47,7 @@ class SendChatMessageUseCaseTest {
     private val useCase =
         SendChatMessageUseCase(
             chatService,
+            queryRewriter,
             questionAnalyzer,
             searchService,
             contextBuilder,
@@ -124,9 +127,10 @@ class SendChatMessageUseCaseTest {
                 role = "USER",
                 content = message,
             )
+        coEvery { chatService.getRecentMessages(sessionId) } returns emptyList()
+        coEvery { queryRewriter.rewrite(message, emptyList()) } returns message
         coEvery { questionAnalyzer.analyze(message) } returns defaultAnalysis
         coEvery { searchService.searchForRag(message, defaultAnalysis) } returns listOf(defaultSearchResult)
-        coEvery { chatService.getRecentMessages(sessionId) } returns emptyList()
         coEvery { chatService.isFirstUserMessage(sessionId) } returns false
         coEvery { contextBuilder.build(any(), any(), any()) } returns defaultContextResult
         every { chatPromptBuilder.build(message, defaultContextResult, false) } returns defaultChatPrompt

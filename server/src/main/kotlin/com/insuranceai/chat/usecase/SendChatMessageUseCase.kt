@@ -7,6 +7,7 @@ import com.insuranceai.chat.entity.ChatMessageSourceEntity
 import com.insuranceai.chat.service.ChatPromptBuilder
 import com.insuranceai.chat.service.ChatService
 import com.insuranceai.chat.service.ContextBuilder
+import com.insuranceai.chat.service.QueryRewriter
 import com.insuranceai.chat.service.QuestionAnalyzer
 import com.insuranceai.chat.service.StreamingService
 import com.insuranceai.common.ai.SuspendingChatClient
@@ -24,6 +25,7 @@ import java.util.UUID
 @Component
 class SendChatMessageUseCase(
     private val chatService: ChatService,
+    private val queryRewriter: QueryRewriter,
     private val questionAnalyzer: QuestionAnalyzer,
     private val searchService: SearchService,
     private val contextBuilder: ContextBuilder,
@@ -49,11 +51,17 @@ class SendChatMessageUseCase(
                 // 2. 사용자 메시지 저장
                 chatService.saveUserMessage(sessionId, message)
 
-                // 3. 질문 분석
-                val analysis = questionAnalyzer.analyze(message)
+                // 3. 대화 이력 조회 (rewriter + contextBuilder에서 공유)
+                val recentMessages = chatService.getRecentMessages(sessionId)
+
+                // 4. 질문 재작성 (대화 맥락 반영)
+                val rewrittenQuery = queryRewriter.rewrite(message, recentMessages)
+
+                // 5. 질문 분석
+                val analysis = questionAnalyzer.analyze(rewrittenQuery)
                 log.info(
                     "질문 분석 결과: companies={}, categories={}, subcategories={}, contentTypes={}, " +
-                        "isComparison={}, subQuestions={}, searchKeywords={}",
+                        "isComparison={}, subQuestions={}, searchKeywords={}, rewritten={}",
                     analysis.companies,
                     analysis.categories,
                     analysis.subcategories,
@@ -61,22 +69,20 @@ class SendChatMessageUseCase(
                     analysis.isComparison,
                     analysis.subQuestions,
                     analysis.searchKeywords,
+                    rewrittenQuery != message,
                 )
 
-                // 4. 하이브리드 검색
+                // 6. 하이브리드 검색 + LLM Reranking
                 sink.tryEmitNext(ChatStreamEvent("searching", SearchingEvent("검색 중...")))
-                val searchResults = searchService.searchForRag(message, analysis)
+                val searchResults = searchService.searchForRag(rewrittenQuery, analysis)
                 log.info(
                     "RAG 검색 결과: {} 건, 상위 3개 점수: {}",
                     searchResults.size,
                     searchResults.take(3).map { "${it.companyName}/${it.articleTitle}: ${it.relevanceScore}" },
                 )
 
-                // 5. 대화 이력
-                val history = chatService.getRecentMessages(sessionId)
-
-                // 6. 컨텍스트 구성 (실제 LLM에 전달되는 약관 기반으로 출처 결정)
-                val contextResult = contextBuilder.build(searchResults, analysis, history)
+                // 7. 컨텍스트 구성 (실제 LLM에 전달되는 약관 기반으로 출처 결정)
+                val contextResult = contextBuilder.build(searchResults, analysis, recentMessages)
                 log.info(
                     "컨텍스트 구성: quality={}, tokenEstimate={}, sources={} 건, contextLength={} 자",
                     contextResult.searchQuality,
@@ -89,13 +95,13 @@ class SendChatMessageUseCase(
                 val sources = contextResult.sources
                 sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))
 
-                // 7. 프롬프트 구성
+                // 8. 프롬프트 구성
                 val chatPrompt = chatPromptBuilder.build(message, contextResult, analysis.isComparison)
 
-                // 8. 첫 메시지 여부 확인
+                // 9. 첫 메시지 여부 확인
                 val isFirstMessage = chatService.isFirstUserMessage(sessionId)
 
-                // 9. 스트리밍
+                // 10. 스트리밍
                 streamingService
                     .stream(
                         chatPrompt = chatPrompt,
@@ -107,7 +113,7 @@ class SendChatMessageUseCase(
                                 null
                             },
                         onComplete = { fullResponse, messageId, title ->
-                            // 10. AI 응답 메시지 저장
+                            // 11. AI 응답 메시지 저장
                             try {
                                 chatService.saveAssistantMessage(
                                     sessionId = sessionId,
@@ -125,7 +131,7 @@ class SendChatMessageUseCase(
                                 log.error("AI 응답 메시지 저장 실패", e)
                             }
 
-                            // 11. 출처 자동 검증 (비차단)
+                            // 12. 출처 자동 검증 (비차단)
                             try {
                                 val verification = sourceVerificationService.verify(fullResponse, sources)
                                 if (!verification.isValid) {
@@ -135,7 +141,7 @@ class SendChatMessageUseCase(
                                 log.warn("출처 검증 실패 (비차단): {}", e.message)
                             }
 
-                            // 12. 세션 제목 DB 저장
+                            // 13. 세션 제목 DB 저장
                             if (title != null) {
                                 chatService.updateSessionTitle(sessionId, title)
                             }
