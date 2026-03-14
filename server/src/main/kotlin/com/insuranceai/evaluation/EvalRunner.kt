@@ -80,7 +80,10 @@ class EvalRunner(
 
         logger.info("자동 검증 시작: {}", datasetId)
 
-        val results = validationService.validateAndPromote(datasetId)
+        val limit = if (config.count > 0) config.count else null
+        logger.info("검증 제한: {}개", limit ?: "전체")
+
+        val results = validationService.validateAndPromote(datasetId, limit)
         val passed = results.count { it.passed }
         val failed = results.count { !it.passed }
 
@@ -109,7 +112,10 @@ class EvalRunner(
 
         logger.info("오프라인 평가 시작: {}", datasetId)
 
-        val report = offlineEvalService.evaluate(datasetId)
+        val limit = if (config.count > 0) config.count else null
+        logger.info("평가 제한: {}개", limit ?: "전체")
+
+        val report = offlineEvalService.evaluate(datasetId, limit)
         offlineEvalService.printReport(report)
     }
 }

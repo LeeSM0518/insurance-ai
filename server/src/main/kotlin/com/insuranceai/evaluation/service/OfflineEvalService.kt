@@ -62,10 +62,16 @@ class OfflineEvalService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 오프라인 평가 실행 */
-    suspend fun evaluate(datasetId: UUID): EvalReport {
+    /** 오프라인 평가 실행 (limit=null이면 전체) */
+    suspend fun evaluate(
+        datasetId: UUID,
+        limit: Int? = null,
+    ): EvalReport {
         val dataset = goldenDatasetService.getDataset(datasetId)
-        val qaPairs = qaPairRepository.findByDatasetIdAndStatus(datasetId, QaPairStatus.GOLD.name).toList()
+        val allPairs = qaPairRepository.findByDatasetIdAndStatus(datasetId, QaPairStatus.GOLD.name).toList()
+        val qaPairs = if (limit != null) allPairs.take(limit) else allPairs
+
+        log.info("평가 대상: {}개 (전체 GOLD: {}개)", qaPairs.size, allPairs.size)
 
         val evalRunId = "EVAL-${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))}"
         log.info("오프라인 평가 시작: {} ({}개 QA 쌍, runId={})", dataset.name, qaPairs.size, evalRunId)

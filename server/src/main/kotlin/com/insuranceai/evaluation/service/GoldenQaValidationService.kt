@@ -25,10 +25,16 @@ class GoldenQaValidationService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    /** 데이터셋 전체 자동 검증 + Gold 승격 */
-    suspend fun validateAndPromote(datasetId: UUID): List<ValidationResult> {
-        val qaPairs = qaPairRepository.findByDatasetIdAndStatus(datasetId, QaPairStatus.SILVER.name).toList()
+    /** 자동 검증 + Gold 승격 (limit=null이면 전체) */
+    suspend fun validateAndPromote(
+        datasetId: UUID,
+        limit: Int? = null,
+    ): List<ValidationResult> {
+        val allPairs = qaPairRepository.findByDatasetIdAndStatus(datasetId, QaPairStatus.SILVER.name).toList()
+        val qaPairs = if (limit != null) allPairs.take(limit) else allPairs
         val results = mutableListOf<ValidationResult>()
+
+        log.info("검증 대상: {}개 (전체 SILVER: {}개)", qaPairs.size, allPairs.size)
 
         for (pair in qaPairs) {
             val result = validateSinglePair(pair)
