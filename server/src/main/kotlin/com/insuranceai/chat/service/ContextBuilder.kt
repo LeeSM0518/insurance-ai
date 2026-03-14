@@ -164,10 +164,17 @@ class ContextBuilder(
     /** 검색 결과 품질 평가 */
     internal fun assessSearchQuality(results: List<FusedSearchResult>): SearchQuality {
         if (results.isEmpty()) return SearchQuality.NO_RESULTS
-        val avgScore = results.take(5).map { it.relevanceScore.toDouble() }.average()
+
+        val top5 = results.take(5)
+        val avgScore = top5.map { it.relevanceScore.toDouble() }.average()
+        val keywordMatchRatio = top5.count { it.keywordRank != null }.toDouble() / top5.size
+
+        // 키워드 매칭이 있으면 품질 상향 조정
+        val adjustedScore = avgScore + (keywordMatchRatio * 0.2)
+
         return when {
-            avgScore < 0.3 -> SearchQuality.LOW
-            avgScore < 0.6 -> SearchQuality.MEDIUM
+            adjustedScore < 0.3 -> SearchQuality.LOW
+            adjustedScore < 0.6 -> SearchQuality.MEDIUM
             else -> SearchQuality.HIGH
         }
     }

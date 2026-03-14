@@ -351,13 +351,22 @@ class ContextBuilderTest {
 
     @Test
     fun `검색 품질 평가 - 낮은 점수면 LOW`() {
-        val results = listOf(fusedResult().copy(relevanceScore = 0.1f))
+        // 키워드 매칭 없는 벡터 전용 결과 (keywordRank=null)
+        val results = listOf(fusedResult().copy(relevanceScore = 0.1f, keywordRank = null))
         assertEquals(SearchQuality.LOW, builder.assessSearchQuality(results))
     }
 
     @Test
     fun `검색 품질 평가 - 중간 점수면 MEDIUM`() {
-        val results = listOf(fusedResult().copy(relevanceScore = 0.45f))
+        // 키워드 매칭 없는 벡터 전용 결과 (keywordRank=null)
+        val results = listOf(fusedResult().copy(relevanceScore = 0.45f, keywordRank = null))
+        assertEquals(SearchQuality.MEDIUM, builder.assessSearchQuality(results))
+    }
+
+    @Test
+    fun `검색 품질 평가 - 키워드 매칭 시 품질 상향 조정`() {
+        // 벡터만이면 LOW이지만 (0.2), 키워드 매칭(+0.2)으로 MEDIUM
+        val results = listOf(fusedResult().copy(relevanceScore = 0.2f, keywordRank = 1))
         assertEquals(SearchQuality.MEDIUM, builder.assessSearchQuality(results))
     }
 }
