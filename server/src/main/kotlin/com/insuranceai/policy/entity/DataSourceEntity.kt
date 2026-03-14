@@ -19,6 +19,7 @@ data class DataSourceEntity(
     val crawledAt: Instant = Instant.now(),
     val checksum: String? = null,
     val extractedTextPath: String? = null,
+    val productId: UUID? = null,
 ) : Persistable<UUID> {
     override fun getId(): UUID? = id
 

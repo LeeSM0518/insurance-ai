@@ -210,18 +210,16 @@ class ChatService(
         val ic = DSL.table("insurance_companies")
         val ds = DSL.table("data_sources")
 
-        // 서브쿼리: 같은 상품의 PRODUCT_SUMMARY PDF dataSourceId
+        // 서브쿼리: 같은 상품의 PRODUCT_SUMMARY PDF dataSourceId (data_sources.product_id 직접 조회)
         val linkedPdfSubquery =
             DSL
                 .field(
                     dsl
                         .select(DSL.field("ds2.id", UUID::class.java))
                         .from(DSL.table("data_sources").`as`("ds2"))
-                        .join(DSL.table("policy_articles").`as`("pa2"))
-                        .on(DSL.field("pa2.data_source_id").eq(DSL.field("ds2.id")))
                         .where(
                             DSL
-                                .field("pa2.product_id")
+                                .field("ds2.product_id")
                                 .eq(DSL.field("$pa.product_id"))
                                 .and(DSL.field("ds2.source_type").eq("PRODUCT_SUMMARY"))
                                 .and(DSL.field("ds2.file_path").isNotNull),

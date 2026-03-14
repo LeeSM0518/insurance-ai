@@ -335,8 +335,11 @@ class RunPipelineUseCase(
                         val parsingResult =
                             pdfParsingService.parse(file, productId, product.companyName, product.productName, forceExtract = force)
 
-                        // DataSource 저장
-                        val savedDataSource = dataSourceRepository.save(parsingResult.dataSource)
+                        // DataSource 저장 (product_id 직접 연결)
+                        val savedDataSource =
+                            dataSourceRepository.save(
+                                parsingResult.dataSource.copy(productId = productId),
+                            )
 
                         // articles에 dataSourceId 연결 후 저장 (PDF 기반 contentType만 비활성화)
                         val articlesWithDataSource =

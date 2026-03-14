@@ -144,6 +144,7 @@ class PolicyServiceTest {
             coEvery { productRepository.findById(productId) } returns product
             coEvery { insuranceCompanyRepository.findById(companyId) } returns company
             coEvery { dataSourceRepository.findById(dataSourceId) } returns null
+            coEvery { dataSourceRepository.findProductSummaryByProductId(productId) } returns null
             every { policyArticleRepository.findByProductId(productId) } returns
                 flowOf(article, relatedArticle)
 

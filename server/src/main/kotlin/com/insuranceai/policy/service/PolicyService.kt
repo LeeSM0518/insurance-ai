@@ -2,7 +2,6 @@ package com.insuranceai.policy.service
 
 import com.insuranceai.chat.dto.SupplementaryData
 import com.insuranceai.chat.dto.SupplementaryNeeds
-import com.insuranceai.policy.domain.SourceType
 import com.insuranceai.policy.dto.PolicyArticleResponse
 import com.insuranceai.policy.dto.PremiumExampleItem
 import com.insuranceai.policy.dto.PremiumExampleResponse
@@ -71,9 +70,9 @@ class PolicyService(
 
         val hasPdfSource = dataSource?.filePath != null
 
-        // ASSOCIATION인데 PDF 없으면 같은 상품의 PRODUCT_SUMMARY PDF 찾기
+        // 직접 PDF가 없으면 항상 상품 기반으로 PRODUCT_SUMMARY PDF 검색
         val linkedPdfDataSourceId =
-            if (!hasPdfSource && dataSource?.sourceType == SourceType.ASSOCIATION.name) {
+            if (!hasPdfSource) {
                 dataSourceRepository.findProductSummaryByProductId(article.productId)?.id
             } else {
                 null
