@@ -1,5 +1,10 @@
 package com.insuranceai.search.service
 
+import com.insuranceai.common.config.AppProperties
+import com.insuranceai.common.config.ChatProperties
+import com.insuranceai.common.config.KakaoProperties
+import com.insuranceai.common.config.RateLimitProperties
+import com.insuranceai.common.config.SearchProperties
 import com.insuranceai.search.dto.KeywordSearchResult
 import com.insuranceai.search.dto.VectorSearchResult
 import java.util.UUID
@@ -10,7 +15,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RankFusionServiceTest {
-    private val service = RankFusionService()
+    private val appProperties =
+        AppProperties(
+            kakao = KakaoProperties(),
+            search = SearchProperties(),
+            chat = ChatProperties(),
+            rateLimit = RateLimitProperties(),
+        )
+    private val service = RankFusionService(appProperties)
 
     private val companyId1 = UUID.randomUUID()
     private val companyId2 = UUID.randomUUID()
@@ -76,7 +88,7 @@ class RankFusionServiceTest {
         assertNotNull(result[0].keywordRank)
         assertNull(result[0].vectorRank)
         // 한쪽만 매칭: SINGLE_MATCH_SCALE(0.8) × 정규화 점수
-        assertEquals(RankFusionService.SINGLE_MATCH_SCALE, result[0].relevanceScore, 0.001f)
+        assertEquals(appProperties.search.singleMatchScale, result[0].relevanceScore, 0.001f)
     }
 
     @Test
@@ -91,7 +103,7 @@ class RankFusionServiceTest {
         assertNull(result[0].keywordRank)
         assertNotNull(result[0].vectorRank)
         // 한쪽만 매칭: SINGLE_MATCH_SCALE(0.8) × 정규화 점수
-        assertEquals(RankFusionService.SINGLE_MATCH_SCALE, result[0].relevanceScore, 0.001f)
+        assertEquals(appProperties.search.singleMatchScale, result[0].relevanceScore, 0.001f)
     }
 
     @Test

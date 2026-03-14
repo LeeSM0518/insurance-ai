@@ -2,6 +2,12 @@ package com.insuranceai.search.service
 
 import com.insuranceai.chat.dto.QuestionAnalysis
 import com.insuranceai.chat.dto.SupplementaryNeeds
+import com.insuranceai.chat.service.LlmRerankerService
+import com.insuranceai.common.config.AppProperties
+import com.insuranceai.common.config.ChatProperties
+import com.insuranceai.common.config.KakaoProperties
+import com.insuranceai.common.config.RateLimitProperties
+import com.insuranceai.common.config.SearchProperties
 import com.insuranceai.policy.entity.InsuranceCompanyEntity
 import com.insuranceai.policy.entity.ProductIndexEntity
 import com.insuranceai.policy.entity.SurrenderValueEntity
@@ -31,7 +37,14 @@ import kotlin.test.assertTrue
 class SearchServiceTest {
     private val keywordSearchService = mockk<KeywordSearchService>()
     private val vectorSearchService = mockk<VectorSearchService>()
-    private val rankFusionService = RankFusionService()
+    private val appProperties =
+        AppProperties(
+            kakao = KakaoProperties(),
+            search = SearchProperties(),
+            chat = ChatProperties(),
+            rateLimit = RateLimitProperties(),
+        )
+    private val rankFusionService = RankFusionService(appProperties)
     private val surrenderValueRepository = mockk<SurrenderValueRepository>()
     private val premiumExampleRepository = mockk<PremiumExampleRepository>()
     private val productIndexRepository = mockk<ProductIndexRepository>()
@@ -40,6 +53,15 @@ class SearchServiceTest {
     private val policyArticleRepository =
         mockk<PolicyArticleRepository> {
             every { findByProductIdInAndContentTypeAndIsActive(any(), any(), any()) } returns emptyFlow()
+        }
+
+    private val llmRerankerService =
+        mockk<LlmRerankerService> {
+            coEvery { rerank(any(), any(), any()) } answers {
+                val docs = secondArg<List<Any>>()
+                @Suppress("UNCHECKED_CAST")
+                (docs as List<com.insuranceai.search.dto.FusedSearchResult>).take(thirdArg<Int>())
+            }
         }
 
     private val service =
@@ -52,6 +74,8 @@ class SearchServiceTest {
             productIndexRepository,
             insuranceCompanyRepository,
             policyArticleRepository,
+            appProperties,
+            llmRerankerService,
         )
 
     private val userId = UUID.randomUUID()
@@ -484,7 +508,7 @@ class SearchServiceTest {
         }
 
     @Test
-    fun `searchForRag - 최대 20개만 반환한다`() =
+    fun `searchForRag - 하이브리드 Top 20 후 Reranking TopN으로 제한된다`() =
         runTest {
             val analysis =
                 QuestionAnalysis(
@@ -518,7 +542,8 @@ class SearchServiceTest {
 
             val results = service.searchForRag("보험", analysis)
 
-            assertEquals(20, results.size)
+            // 하이브리드 Top 20 → Reranking TopN(기본 10)으로 제한
+            assertEquals(appProperties.search.reranking.topN, results.size)
         }
 
     @Test

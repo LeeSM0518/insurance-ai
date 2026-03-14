@@ -1,5 +1,6 @@
 package com.insuranceai.search.service
 
+import com.insuranceai.common.config.AppProperties
 import com.insuranceai.search.dto.FusedSearchResult
 import com.insuranceai.search.dto.KeywordSearchResult
 import com.insuranceai.search.dto.VectorSearchResult
@@ -7,21 +8,19 @@ import org.springframework.stereotype.Service
 import java.util.UUID
 
 @Service
-class RankFusionService {
-    companion object {
-        const val SINGLE_MATCH_SCALE = 0.9f // 한쪽 retriever만 매칭 시 최대 90%
-    }
-
+class RankFusionService(
+    private val appProperties: AppProperties,
+) {
     /**
      * Convex Combination 기반 하이브리드 검색 결합.
      * 업계 표준 (Weaviate relativeScoreFusion, Elasticsearch linear retriever)과 동일한 방식.
      *
-     * @param alpha 벡터 비중 (0=키워드만, 1=벡터만, 기본값 0.5)
+     * @param alpha 벡터 비중 (0=키워드만, 1=벡터만, 기본값은 설정값)
      */
     fun fuse(
         keywordResults: List<KeywordSearchResult>,
         vectorResults: List<VectorSearchResult>,
-        alpha: Float = 0.5f,
+        alpha: Float = appProperties.search.hybridAlpha,
     ): List<FusedSearchResult> {
         if (keywordResults.isEmpty() && vectorResults.isEmpty()) return emptyList()
 
@@ -74,12 +73,12 @@ class RankFusionService {
                         entry.keywordNormScore != null && entry.vectorNormScore != null ->
                             alpha * entry.vectorNormScore + (1f - alpha) * entry.keywordNormScore
 
-                        // 한쪽만 매칭: SINGLE_MATCH_SCALE 적용 (alpha 값과 무관)
+                        // 한쪽만 매칭: appProperties.search.singleMatchScale 적용 (alpha 값과 무관)
                         entry.keywordNormScore != null ->
-                            SINGLE_MATCH_SCALE * entry.keywordNormScore
+                            appProperties.search.singleMatchScale * entry.keywordNormScore
 
                         entry.vectorNormScore != null ->
-                            SINGLE_MATCH_SCALE * entry.vectorNormScore
+                            appProperties.search.singleMatchScale * entry.vectorNormScore
 
                         else -> 0f
                     }

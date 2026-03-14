@@ -66,6 +66,14 @@ app:
     max-size: 50
     min-similarity: 0.5
     rrf-k: 60
+    hybrid-alpha: 0.5
+    single-match-scale: 0.9
+    keyword-coverage-threshold: 0.5
+    max-exemption-enrichment: 3
+    max-coverage-enrichment: 3
+    reranking:
+      enabled: true
+      top-n: 10
   chat:
     max-history-messages: 20
     max-context-tokens: 16500

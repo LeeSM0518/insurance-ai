@@ -1,6 +1,8 @@
 package com.insuranceai.search.service
 
 import com.insuranceai.chat.dto.QuestionAnalysis
+import com.insuranceai.chat.service.LlmRerankerService
+import com.insuranceai.common.config.AppProperties
 import com.insuranceai.common.util.TextUtil
 import com.insuranceai.policy.domain.ContentType
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
@@ -36,6 +38,8 @@ class SearchService(
     private val productIndexRepository: ProductIndexRepository,
     private val insuranceCompanyRepository: InsuranceCompanyRepository,
     private val policyArticleRepository: PolicyArticleRepository,
+    private val appProperties: AppProperties,
+    private val llmRerankerService: LlmRerankerService,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -187,7 +191,11 @@ class SearchService(
             }
 
         val top20 = sorted.take(20)
-        val enrichedWithCoverages = enrichWithRelatedCoverages(top20, analysis.searchKeywords)
+
+        // LLM Reranking (하이브리드 검색 결과를 질문 관련성 기준으로 재정렬)
+        val reranked = llmRerankerService.rerank(query, top20, searchConfig.reranking.topN)
+
+        val enrichedWithCoverages = enrichWithRelatedCoverages(reranked, analysis.searchKeywords)
         return enrichWithExemptions(enrichedWithCoverages, analysis.searchKeywords)
     }
 
@@ -203,7 +211,7 @@ class SearchService(
         // 1차: 원본 필터
         val results = executeHybridSearch(query, filters, isComparison, searchKeywords)
         val keywordCoverage = calculateKeywordCoverage(searchKeywords, results)
-        val hasGoodCoverage = keywordCoverage >= KEYWORD_COVERAGE_THRESHOLD
+        val hasGoodCoverage = keywordCoverage >= appProperties.search.keywordCoverageThreshold
         val topScore = results.firstOrNull()?.relevanceScore ?: 0f
         // 키워드가 있으면 커버리지 기반 판단, 없으면 topScore 기반 판단
         val hasKeywords = !searchKeywords.isNullOrEmpty()
@@ -314,7 +322,7 @@ class SearchService(
                             article.content.contains(keyword, ignoreCase = true) ||
                                 article.articleTitle?.contains(keyword, ignoreCase = true) == true
                         }
-                }.take(MAX_EXEMPTION_ENRICHMENT)
+                }.take(appProperties.search.maxExemptionEnrichment)
 
         if (matchingExemptions.isEmpty()) return results
 
@@ -417,7 +425,7 @@ class SearchService(
                         searchKeywords.any { kw ->
                             article.articleTitle?.contains(kw, ignoreCase = true) == true
                         }
-                }.take(MAX_COVERAGE_ENRICHMENT)
+                }.take(appProperties.search.maxCoverageEnrichment)
 
         if (relatedArticles.isEmpty()) return results
 
@@ -452,11 +460,7 @@ class SearchService(
         return results + enrichedResults
     }
 
-    companion object {
-        const val KEYWORD_COVERAGE_THRESHOLD = 0.5f
-        const val MAX_EXEMPTION_ENRICHMENT = 3
-        const val MAX_COVERAGE_ENRICHMENT = 3
-    }
+    private val searchConfig get() = appProperties.search
 
     /** 병렬 검색 + RRF 통합 공통 로직 */
     private suspend fun executeHybridSearch(

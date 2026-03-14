@@ -22,6 +22,20 @@ data class SearchProperties(
     val maxSize: Int = 50,
     val minSimilarity: Float = 0.5f,
     val rrfK: Int = 60,
+    // RankFusion 파라미터
+    val hybridAlpha: Float = 0.5f,
+    val singleMatchScale: Float = 0.9f,
+    // RAG 검색 파라미터
+    val keywordCoverageThreshold: Float = 0.5f,
+    val maxExemptionEnrichment: Int = 3,
+    val maxCoverageEnrichment: Int = 3,
+    // Reranking
+    val reranking: RerankingProperties = RerankingProperties(),
+)
+
+data class RerankingProperties(
+    val enabled: Boolean = true,
+    val topN: Int = 10,
 )
 
 data class ChatProperties(
