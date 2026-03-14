@@ -23,7 +23,10 @@ class SpringAiConfig(
             .build()
 
     @Bean
-    fun suspendingChatClient(chatClient: ChatClient): SuspendingChatClient = SuspendingChatClient(chatClient)
+    fun suspendingChatClient(
+        chatClient: ChatClient,
+        retryConfig: LlmRetryConfig,
+    ): SuspendingChatClient = SuspendingChatClient(chatClient, retryConfig)
 
     /** 파이프라인 전용 ChatClient (Haiku 모델, 짧은 응답) */
     @Bean

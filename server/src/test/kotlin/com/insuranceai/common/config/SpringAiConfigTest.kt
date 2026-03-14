@@ -30,7 +30,8 @@ class SpringAiConfigTest {
 
         val chatClient = mockk<ChatClient>()
         val config = SpringAiConfig(promptLoader)
-        val result = config.suspendingChatClient(chatClient)
+        val retryConfig = LlmRetryConfig()
+        val result = config.suspendingChatClient(chatClient, retryConfig)
         assertNotNull(result)
     }
 }
