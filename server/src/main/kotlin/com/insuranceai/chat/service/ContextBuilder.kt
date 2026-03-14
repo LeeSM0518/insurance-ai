@@ -3,6 +3,7 @@ package com.insuranceai.chat.service
 import com.insuranceai.chat.dto.QuestionAnalysis
 import com.insuranceai.chat.dto.SourceInfo
 import com.insuranceai.chat.entity.ChatMessageEntity
+import com.insuranceai.policy.domain.ContentType
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductFeatureRepository
@@ -89,7 +90,23 @@ class ContextBuilder(
         // 동적 예산 계산
         val historySection = buildHistorySection(conversationHistory)
         val historyTokens = estimateTokens(historySection)
-        val topResults = searchResults.take(MAX_ARTICLES)
+        // 상품별 그룹핑 후 그룹 내 contentType 순 정렬 (보장→특약→면책 순서로 인접 배치)
+        val contentTypeOrder =
+            mapOf(
+                ContentType.COVERAGE.name to 0,
+                ContentType.SPECIAL_TERMS.name to 1,
+                ContentType.EXEMPTION.name to 2,
+                ContentType.REDUCTION.name to 3,
+            )
+        val topResults =
+            searchResults
+                .take(MAX_ARTICLES)
+                .groupBy { it.productId }
+                .entries
+                .sortedByDescending { (_, group) -> group.maxOf { it.relevanceScore } }
+                .flatMap { (_, group) ->
+                    group.sortedBy { contentTypeOrder[it.contentType] ?: 99 }
+                }
         val productIds = topResults.map { it.productId }.distinct()
 
         // productId → 첫 번째 출처 번호 매핑 (보충 데이터 출처 연결용)

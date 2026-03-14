@@ -4,6 +4,7 @@ import com.insuranceai.chat.dto.QuestionAnalysis
 import com.insuranceai.common.util.TextUtil
 import com.insuranceai.policy.domain.ContentType
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
+import com.insuranceai.policy.repository.PolicyArticleRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
@@ -34,6 +35,7 @@ class SearchService(
     private val premiumExampleRepository: PremiumExampleRepository,
     private val productIndexRepository: ProductIndexRepository,
     private val insuranceCompanyRepository: InsuranceCompanyRepository,
+    private val policyArticleRepository: PolicyArticleRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -176,7 +178,8 @@ class SearchService(
                 .map { (_, results) -> results.maxBy { it.relevanceScore } }
                 .sortedByDescending { it.relevanceScore }
 
-        return deduplicated.take(20)
+        val top20 = deduplicated.take(20)
+        return enrichWithExemptions(top20, analysis.searchKeywords)
     }
 
     /** 단계적 필터 완화를 통한 폴백 검색 (RAG 전용) */
@@ -261,8 +264,88 @@ class SearchService(
         return coveredKeywords.toFloat() / searchKeywords.size
     }
 
+    /**
+     * 검색된 보장내용(COVERAGE/SPECIAL_TERMS) 조문과 동일 상품의 면책/제외(EXEMPTION) 조문을 보강
+     * - Top 결과에서 COVERAGE/SPECIAL_TERMS 타입 조문의 productId를 수집
+     * - 동일 productId의 EXEMPTION 조문 중, 질문 키워드를 포함하는 조문을 추가
+     * - 기존 결과 뒤에 면책 조문을 최대 3개 추가
+     */
+    private suspend fun enrichWithExemptions(
+        results: List<FusedSearchResult>,
+        searchKeywords: List<String>,
+    ): List<FusedSearchResult> {
+        if (searchKeywords.isEmpty()) return results
+
+        // COVERAGE 또는 SPECIAL_TERMS 조문의 productId 수집
+        val coverageProductIds =
+            results
+                .filter { it.contentType == ContentType.COVERAGE.name || it.contentType == ContentType.SPECIAL_TERMS.name }
+                .map { it.productId }
+                .distinct()
+
+        if (coverageProductIds.isEmpty()) return results
+
+        val existingArticleIds = results.map { it.articleId }.toSet()
+
+        // 해당 상품들의 EXEMPTION 조문 조회
+        val exemptionArticles =
+            policyArticleRepository
+                .findByProductIdInAndContentTypeAndIsActive(
+                    productIds = coverageProductIds,
+                    contentType = ContentType.EXEMPTION.name,
+                    isActive = true,
+                ).toList()
+
+        // 키워드 포함 여부로 필터링 + 기존 결과와 중복 제거
+        val matchingExemptions =
+            exemptionArticles
+                .filter { article ->
+                    article.id !in existingArticleIds &&
+                        searchKeywords.any { keyword ->
+                            article.content.contains(keyword, ignoreCase = true) ||
+                                article.articleTitle?.contains(keyword, ignoreCase = true) == true
+                        }
+                }.take(MAX_EXEMPTION_ENRICHMENT)
+
+        if (matchingExemptions.isEmpty()) return results
+
+        // 기존 결과에서 동일 productId의 보험사 정보 복사
+        val productInfoMap =
+            results
+                .associateBy { it.productId }
+
+        val enrichedResults =
+            matchingExemptions.mapNotNull { article ->
+                val refResult = productInfoMap[article.productId] ?: return@mapNotNull null
+                FusedSearchResult(
+                    articleId = article.id!!,
+                    productId = article.productId,
+                    productName = refResult.productName,
+                    companyId = refResult.companyId,
+                    companyName = refResult.companyName,
+                    insuranceType = refResult.insuranceType,
+                    contentType = article.contentType,
+                    articleNumber = article.articleNumber,
+                    articleTitle = article.articleTitle,
+                    content = article.content,
+                    dataSource = refResult.dataSource,
+                    dataSourceId = article.dataSourceId,
+                    relevanceScore = 0f,
+                    keywordRank = null,
+                    vectorRank = null,
+                )
+            }
+
+        if (enrichedResults.isNotEmpty()) {
+            log.info("면책 조문 보강: {}개 추가 (productIds={})", enrichedResults.size, coverageProductIds)
+        }
+
+        return results + enrichedResults
+    }
+
     companion object {
         const val KEYWORD_COVERAGE_THRESHOLD = 0.5f
+        const val MAX_EXEMPTION_ENRICHMENT = 3
     }
 
     /** 병렬 검색 + RRF 통합 공통 로직 */

@@ -6,6 +6,7 @@ import com.insuranceai.policy.entity.InsuranceCompanyEntity
 import com.insuranceai.policy.entity.ProductIndexEntity
 import com.insuranceai.policy.entity.SurrenderValueEntity
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
+import com.insuranceai.policy.repository.PolicyArticleRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductIndexRepository
 import com.insuranceai.policy.repository.SurrenderValueRepository
@@ -36,6 +37,10 @@ class SearchServiceTest {
     private val productIndexRepository = mockk<ProductIndexRepository>()
 
     private val insuranceCompanyRepository = mockk<InsuranceCompanyRepository>()
+    private val policyArticleRepository =
+        mockk<PolicyArticleRepository> {
+            every { findByProductIdInAndContentTypeAndIsActive(any(), any(), any()) } returns emptyFlow()
+        }
 
     private val service =
         SearchService(
@@ -46,6 +51,7 @@ class SearchServiceTest {
             premiumExampleRepository,
             productIndexRepository,
             insuranceCompanyRepository,
+            policyArticleRepository,
         )
 
     private val userId = UUID.randomUUID()

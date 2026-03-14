@@ -12,4 +12,11 @@ interface PolicyArticleRepository : CoroutineCrudRepository<PolicyArticleEntity,
         productId: UUID,
         contentType: String,
     ): Flow<PolicyArticleEntity>
+
+    /** 여러 상품의 특정 contentType 조문 일괄 조회 (면책 조문 보강용) */
+    fun findByProductIdInAndContentTypeAndIsActive(
+        productIds: Collection<UUID>,
+        contentType: String,
+        isActive: Boolean = true,
+    ): Flow<PolicyArticleEntity>
 }
