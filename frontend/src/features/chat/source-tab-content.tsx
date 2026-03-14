@@ -75,7 +75,7 @@ export function SourceTabContent({ articleId, defaultTab }: SourceTabContentProp
         </div>
       )}
 
-      {activeTab === 'content' ? (
+      {activeTab === 'content' || !showPdfTab ? (
         <>
           <PolicyContent
             articleNumber={article.articleNumber}

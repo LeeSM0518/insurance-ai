@@ -68,7 +68,7 @@ class PolicyService(
 
         val relatedArticles = getRelatedArticles(articleId, article.productId)
 
-        val hasPdfSource = dataSource?.filePath != null
+        val hasPdfSource = !dataSource?.filePath.isNullOrBlank()
 
         // 직접 PDF가 없으면 항상 상품 기반으로 PRODUCT_SUMMARY PDF 검색
         val linkedPdfDataSourceId =
@@ -109,7 +109,7 @@ class PolicyService(
                 ?: throw PolicyError.DataSourceNotFound
 
         val filePath =
-            dataSource.filePath
+            dataSource.filePath?.takeIf { it.isNotBlank() }
                 ?: throw PolicyError.PdfFileNotFound
 
         // Path Traversal 방지: 허용 디렉토리 내인지 검증

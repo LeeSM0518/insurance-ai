@@ -4,6 +4,7 @@ import com.insuranceai.chat.dto.QuestionAnalysis
 import com.insuranceai.chat.dto.SourceInfo
 import com.insuranceai.chat.entity.ChatMessageEntity
 import com.insuranceai.policy.domain.ContentType
+import com.insuranceai.policy.repository.DataSourceRepository
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductFeatureRepository
@@ -50,6 +51,7 @@ class ContextBuilder(
     private val productYieldScenarioRepository: ProductYieldScenarioRepository,
     private val productMetricRepository: ProductMetricRepository,
     private val insuranceCompanyRepository: InsuranceCompanyRepository,
+    private val dataSourceRepository: DataSourceRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -197,11 +199,33 @@ class ContextBuilder(
     }
 
     /** 검색된 약관 자료 섹션 구성 */
-    private fun buildArticlesSection(
+    private suspend fun buildArticlesSection(
         results: List<FusedSearchResult>,
         sources: MutableList<SourceInfo>,
     ): String {
         if (results.isEmpty()) return ""
+
+        // dataSourceId별 직접 PDF 여부 캐시
+        val directPdfCache = mutableMapOf<UUID, Boolean>()
+        // productId별 PRODUCT_SUMMARY PDF 캐시
+        val productPdfCache = mutableMapOf<UUID, UUID?>()
+
+        for (result in results) {
+            // 직접 PDF 여부 확인 (중복 조회 방지)
+            val hasDirect =
+                result.dataSourceId?.let { dsId ->
+                    directPdfCache.getOrPut(dsId) {
+                        val ds = dataSourceRepository.findById(dsId)
+                        !ds?.filePath.isNullOrBlank()
+                    }
+                } ?: false
+
+            // 직접 PDF가 없으면 상품 기반 PRODUCT_SUMMARY 조회
+            if (!hasDirect && result.productId !in productPdfCache) {
+                productPdfCache[result.productId] =
+                    dataSourceRepository.findProductSummaryByProductId(result.productId)?.id
+            }
+        }
 
         val sb = StringBuilder("## 검색된 약관 자료\n\n")
         results.forEachIndexed { index, result ->
@@ -220,6 +244,9 @@ class ContextBuilder(
             sb.appendLine(result.content)
             sb.appendLine()
 
+            val hasDirect = result.dataSourceId?.let { directPdfCache[it] } ?: false
+            val linkedPdfId = if (!hasDirect) productPdfCache[result.productId] else null
+
             sources.add(
                 SourceInfo(
                     articleId = result.articleId,
@@ -232,6 +259,8 @@ class ContextBuilder(
                     relevanceScore = result.relevanceScore,
                     dataSource = result.dataSource ?: "",
                     dataSourceId = result.dataSourceId,
+                    hasPdfSource = hasDirect || linkedPdfId != null,
+                    linkedPdfDataSourceId = linkedPdfId,
                 ),
             )
         }
@@ -239,7 +268,7 @@ class ContextBuilder(
     }
 
     /** 약관 자료 토큰 예산 초과 시 하위 유사도 결과 제거 */
-    private fun truncateArticles(
+    private suspend fun truncateArticles(
         results: List<FusedSearchResult>,
         sources: MutableList<SourceInfo>,
         budget: Int,

@@ -45,7 +45,7 @@ export function SourceCard({ source, index, isActive, onSourceClick, onPdfClick 
           source.contentType}
       </p>
       <div className="mt-1 flex items-center justify-end">
-        {(source.linkedPdfDataSourceId || source.dataSourceId) && (
+        {source.hasPdfSource && (source.linkedPdfDataSourceId || source.dataSourceId) && (
           <span
             role="button"
             tabIndex={0}

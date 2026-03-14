@@ -32,6 +32,9 @@ function toArticle(raw: Record<string, unknown>): PolicyArticle {
     dataSource: (raw.dataSource as PolicyArticle['dataSource']) ?? 'ASSOCIATION',
     dataSourceId: raw.dataSourceId ? String(raw.dataSourceId) : undefined,
     hasPdfSource: Boolean(raw.hasPdfSource),
+    linkedPdfDataSourceId: raw.linkedPdfDataSourceId
+      ? String(raw.linkedPdfDataSourceId)
+      : undefined,
     relatedArticles: relatedArticles.map((a) => ({
       id: String(a.id),
       articleNumber: String(a.articleNumber ?? ''),

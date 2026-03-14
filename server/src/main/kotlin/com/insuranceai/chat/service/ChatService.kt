@@ -267,7 +267,7 @@ class ChatService(
                     dataSourceId = record.get("data_source_id", UUID::class.java),
                     dataSource = record.get("source_type", String::class.java),
                     hasPdfSource =
-                        record.get("file_path", String::class.java) != null ||
+                        !record.get("file_path", String::class.java).isNullOrBlank() ||
                             record.get("linked_pdf_data_source_id", UUID::class.java) != null,
                     linkedPdfDataSourceId = record.get("linked_pdf_data_source_id", UUID::class.java),
                 )

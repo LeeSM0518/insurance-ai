@@ -2,7 +2,6 @@ package com.insuranceai.chat.usecase
 
 import com.insuranceai.chat.dto.ChatStreamEvent
 import com.insuranceai.chat.dto.SearchingEvent
-import com.insuranceai.chat.dto.SourceInfo
 import com.insuranceai.chat.dto.SourcesFoundEvent
 import com.insuranceai.chat.entity.ChatMessageSourceEntity
 import com.insuranceai.chat.service.ChatPromptBuilder
@@ -62,29 +61,15 @@ class ReplyToSessionUseCase(
                 sink.tryEmitNext(ChatStreamEvent("searching", SearchingEvent("검색 중...")))
                 val searchResults = searchService.searchForRag(message, analysis)
 
-                // 검색 결과에서 SourceInfo 추출
-                val sources =
-                    searchResults.map { result ->
-                        SourceInfo(
-                            articleId = result.articleId,
-                            insuranceCompany = result.companyName,
-                            productId = result.productId,
-                            productName = result.productName,
-                            contentType = result.contentType,
-                            articleNumber = result.articleNumber,
-                            articleTitle = result.articleTitle,
-                            relevanceScore = result.relevanceScore,
-                            dataSource = result.dataSource ?: "",
-                            dataSourceId = result.dataSourceId,
-                        )
-                    }
-                sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))
-
                 // 5. 대화 이력 조회
                 val history = chatService.getRecentMessages(sessionId)
 
-                // 6. 컨텍스트 구성
+                // 6. 컨텍스트 구성 (PDF 연결 정보 포함)
                 val contextResult = contextBuilder.build(searchResults, analysis, history)
+
+                // ContextBuilder가 반환한 sources (실제 LLM에 전달된 약관만 포함)를 사용
+                val sources = contextResult.sources
+                sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))
 
                 // 7. 프롬프트 구성
                 val chatPrompt = chatPromptBuilder.build(message, contextResult, analysis.isComparison)

@@ -62,4 +62,6 @@ data class SourceInfo(
     val relevanceScore: Float,
     val dataSource: String,
     val dataSourceId: UUID? = null,
+    val hasPdfSource: Boolean = false,
+    val linkedPdfDataSourceId: UUID? = null,
 )

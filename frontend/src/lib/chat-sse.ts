@@ -36,6 +36,10 @@ function toSource(raw: Record<string, unknown>): Source {
     relevanceScore: Number(raw.relevanceScore ?? 0),
     dataSource: (raw.dataSource as DataSource) ?? 'ASSOCIATION',
     dataSourceId: raw.dataSourceId ? String(raw.dataSourceId) : undefined,
+    hasPdfSource: raw.hasPdfSource === true,
+    linkedPdfDataSourceId: raw.linkedPdfDataSourceId
+      ? String(raw.linkedPdfDataSourceId)
+      : undefined,
   };
 }
 

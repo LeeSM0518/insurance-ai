@@ -9,6 +9,7 @@ import com.insuranceai.policy.entity.ProductFeatureEntity
 import com.insuranceai.policy.entity.ProductMetricEntity
 import com.insuranceai.policy.entity.ProductYieldScenarioEntity
 import com.insuranceai.policy.entity.SurrenderValueEntity
+import com.insuranceai.policy.repository.DataSourceRepository
 import com.insuranceai.policy.repository.InsuranceCompanyRepository
 import com.insuranceai.policy.repository.PremiumExampleRepository
 import com.insuranceai.policy.repository.ProductFeatureRepository
@@ -40,6 +41,7 @@ class ContextBuilderTest {
     private val productYieldScenarioRepository = mockk<ProductYieldScenarioRepository>()
     private val productMetricRepository = mockk<ProductMetricRepository>()
     private val insuranceCompanyRepository = mockk<InsuranceCompanyRepository>()
+    private val dataSourceRepository = mockk<DataSourceRepository>()
 
     private val builder =
         ContextBuilder(
@@ -51,6 +53,7 @@ class ContextBuilderTest {
             productYieldScenarioRepository,
             productMetricRepository,
             insuranceCompanyRepository,
+            dataSourceRepository,
         )
 
     private val companyId = UUID.randomUUID()
@@ -114,6 +117,8 @@ class ContextBuilderTest {
         every { productMetricRepository.findByProductId(any()) } returns emptyFlow()
         coEvery { productRepository.findById(productId) } returns product
         coEvery { insuranceCompanyRepository.findById(companyId) } returns company
+        coEvery { dataSourceRepository.findById(any<UUID>()) } returns null
+        coEvery { dataSourceRepository.findProductSummaryByProductId(any()) } returns null
     }
 
     @Test
@@ -162,6 +167,8 @@ class ContextBuilderTest {
             every { productMetricRepository.findByProductId(any()) } returns emptyFlow()
             coEvery { productRepository.findById(productId) } returns product
             coEvery { insuranceCompanyRepository.findById(companyId) } returns company
+            coEvery { dataSourceRepository.findById(any<UUID>()) } returns null
+            coEvery { dataSourceRepository.findProductSummaryByProductId(any()) } returns null
 
             val result = builder.build(listOf(fusedResult()), analysisWithSupp, emptyList())
 
