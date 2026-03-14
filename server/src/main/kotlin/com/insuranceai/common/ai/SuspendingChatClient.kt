@@ -52,14 +52,12 @@ class SuspendingChatClient(
     ): T =
         withRateLimitRetry {
             withContext(Dispatchers.IO) {
-                val callResponse =
-                    chatClient
-                        .prompt()
-                        .apply { systemMessage?.let { system(it) } }
-                        .user(userMessage)
-                        .call()
-                logUsage("callEntity", callResponse.chatResponse()?.metadata?.usage)
-                callResponse.entity(responseType)!!
+                chatClient
+                    .prompt()
+                    .apply { systemMessage?.let { system(it) } }
+                    .user(userMessage)
+                    .call()
+                    .entity(responseType)!!
             }
         }
 
