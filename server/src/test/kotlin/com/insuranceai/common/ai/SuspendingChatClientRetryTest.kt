@@ -9,6 +9,11 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.chat.messages.AssistantMessage
+import org.springframework.ai.chat.metadata.ChatResponseMetadata
+import org.springframework.ai.chat.metadata.DefaultUsage
+import org.springframework.ai.chat.model.ChatResponse
+import org.springframework.ai.chat.model.Generation
 import reactor.core.publisher.Flux
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -28,6 +33,24 @@ class SuspendingChatClientRetryTest {
     private val requestSpec = mockk<ChatClient.ChatClientRequestSpec>(relaxed = true)
     private val callResponseSpec = mockk<ChatClient.CallResponseSpec>(relaxed = true)
     private val streamResponseSpec = mockk<ChatClient.StreamResponseSpec>(relaxed = true)
+
+    private fun mockChatResponse(text: String): ChatResponse {
+        val metadata =
+            ChatResponseMetadata
+                .builder()
+                .usage(DefaultUsage(10, 5))
+                .build()
+        return ChatResponse(listOf(Generation(AssistantMessage(text))), metadata)
+    }
+
+    private fun mockStreamChatResponse(text: String): ChatResponse {
+        val metadata =
+            ChatResponseMetadata
+                .builder()
+                .usage(DefaultUsage(0, 0))
+                .build()
+        return ChatResponse(listOf(Generation(AssistantMessage(text))), metadata)
+    }
 
     @Nested
     inner class IsRateLimitError {
@@ -66,12 +89,12 @@ class SuspendingChatClientRetryTest {
                 every { requestSpec.call() } returns callResponseSpec
 
                 var callCount = 0
-                every { callResponseSpec.content() } answers {
+                every { callResponseSpec.chatResponse() } answers {
                     callCount++
                     if (callCount < 3) {
                         throw RuntimeException("Response exception, Status: [429 TOO_MANY_REQUESTS]")
                     }
-                    "성공 응답"
+                    mockChatResponse("성공 응답")
                 }
 
                 val result = suspendingChatClient.call("질문")
@@ -85,7 +108,7 @@ class SuspendingChatClientRetryTest {
                 every { chatClient.prompt() } returns requestSpec
                 every { requestSpec.user(any<String>()) } returns requestSpec
                 every { requestSpec.call() } returns callResponseSpec
-                every { callResponseSpec.content() } throws
+                every { callResponseSpec.chatResponse() } throws
                     RuntimeException("Response exception, Status: [400 BAD_REQUEST]")
 
                 val exception =
@@ -93,8 +116,7 @@ class SuspendingChatClientRetryTest {
                         suspendingChatClient.call("질문")
                     }
                 assertTrue(exception.message!!.contains("400"))
-                // call()은 1번만 호출되어야 함 (재시도 없음)
-                verify(exactly = 1) { callResponseSpec.content() }
+                verify(exactly = 1) { callResponseSpec.chatResponse() }
             }
 
         @Test
@@ -103,7 +125,7 @@ class SuspendingChatClientRetryTest {
                 every { chatClient.prompt() } returns requestSpec
                 every { requestSpec.user(any<String>()) } returns requestSpec
                 every { requestSpec.call() } returns callResponseSpec
-                every { callResponseSpec.content() } throws
+                every { callResponseSpec.chatResponse() } throws
                     RuntimeException("Response exception, Status: [429 TOO_MANY_REQUESTS]")
 
                 val exception =
@@ -147,12 +169,15 @@ class SuspendingChatClientRetryTest {
             every { requestSpec.stream() } returns streamResponseSpec
 
             var callCount = 0
-            every { streamResponseSpec.content() } answers {
+            every { streamResponseSpec.chatResponse() } answers {
                 callCount++
                 if (callCount < 2) {
                     Flux.error(RuntimeException("Response exception, Status: [429 TOO_MANY_REQUESTS]"))
                 } else {
-                    Flux.just("토큰1", "토큰2")
+                    Flux.just(
+                        mockStreamChatResponse("토큰1"),
+                        mockStreamChatResponse("토큰2"),
+                    )
                 }
             }
 
@@ -166,7 +191,7 @@ class SuspendingChatClientRetryTest {
             every { chatClient.prompt() } returns requestSpec
             every { requestSpec.user(any<String>()) } returns requestSpec
             every { requestSpec.stream() } returns streamResponseSpec
-            every { streamResponseSpec.content() } returns
+            every { streamResponseSpec.chatResponse() } returns
                 Flux.error(RuntimeException("Response exception, Status: [500 INTERNAL_SERVER_ERROR]"))
 
             val flux = suspendingChatClient.stream("질문")

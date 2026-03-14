@@ -6,10 +6,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.client.ChatClient
+import org.springframework.ai.chat.metadata.Usage
 import org.springframework.ai.content.Media
 import reactor.core.publisher.Flux
 import reactor.util.retry.Retry
 import java.time.Duration
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.pow
 
 /**
@@ -30,12 +32,15 @@ class SuspendingChatClient(
     ): String =
         withRateLimitRetry {
             withContext(Dispatchers.IO) {
-                chatClient
-                    .prompt()
-                    .apply { systemMessage?.let { system(it) } }
-                    .user(userMessage)
-                    .call()
-                    .content() ?: ""
+                val response =
+                    chatClient
+                        .prompt()
+                        .apply { systemMessage?.let { system(it) } }
+                        .user(userMessage)
+                        .call()
+                        .chatResponse()
+                logUsage("call", response?.metadata?.usage)
+                response?.result?.output?.text ?: ""
             }
         }
 
@@ -47,12 +52,14 @@ class SuspendingChatClient(
     ): T =
         withRateLimitRetry {
             withContext(Dispatchers.IO) {
-                chatClient
-                    .prompt()
-                    .apply { systemMessage?.let { system(it) } }
-                    .user(userMessage)
-                    .call()
-                    .entity(responseType)!!
+                val callResponse =
+                    chatClient
+                        .prompt()
+                        .apply { systemMessage?.let { system(it) } }
+                        .user(userMessage)
+                        .call()
+                logUsage("callEntity", callResponse.chatResponse()?.metadata?.usage)
+                callResponse.entity(responseType)!!
             }
         }
 
@@ -64,12 +71,15 @@ class SuspendingChatClient(
     ): String =
         withRateLimitRetry {
             withContext(Dispatchers.IO) {
-                chatClient
-                    .prompt()
-                    .apply { systemMessage?.let { system(it) } }
-                    .user { u -> u.text(userMessage).media(*media.toTypedArray()) }
-                    .call()
-                    .content() ?: ""
+                val response =
+                    chatClient
+                        .prompt()
+                        .apply { systemMessage?.let { system(it) } }
+                        .user { u -> u.text(userMessage).media(*media.toTypedArray()) }
+                        .call()
+                        .chatResponse()
+                logUsage("callWithMedia", response?.metadata?.usage)
+                response?.result?.output?.text ?: ""
             }
         }
 
@@ -77,15 +87,26 @@ class SuspendingChatClient(
     fun stream(
         userMessage: String,
         systemMessage: String? = null,
-    ): Flux<String> =
-        Flux
+    ): Flux<String> {
+        val lastUsage = AtomicReference<Usage>()
+        return Flux
             .defer {
                 chatClient
                     .prompt()
                     .apply { systemMessage?.let { system(it) } }
                     .user(userMessage)
                     .stream()
-                    .content()
+                    .chatResponse()
+                    .doOnNext { response ->
+                        response.metadata?.usage?.let { usage ->
+                            if (usage.totalTokens > 0) {
+                                lastUsage.set(usage)
+                            }
+                        }
+                    }.map { it.result?.output?.text ?: "" }
+                    .filter { it.isNotEmpty() }
+            }.doOnComplete {
+                logUsage("stream", lastUsage.get())
             }.retryWhen(
                 Retry
                     .backoff(
@@ -103,6 +124,7 @@ class SuspendingChatClient(
                         )
                     },
             )
+    }
 
     /** 429 Rate Limit 에러 여부 판별 */
     internal fun isRateLimitError(e: Throwable): Boolean {
@@ -144,6 +166,21 @@ class SuspendingChatClient(
         return (exponentialDelay + jitter).coerceIn(
             retryConfig.initialDelayMs,
             retryConfig.maxDelayMs,
+        )
+    }
+
+    /** LLM 토큰 사용량 로깅 */
+    private fun logUsage(
+        method: String,
+        usage: Usage?,
+    ) {
+        if (usage == null) return
+        log.info(
+            "LLM 토큰 사용량 [{}]: input={}, output={}, total={}",
+            method,
+            usage.promptTokens,
+            usage.completionTokens,
+            usage.totalTokens,
         )
     }
 }
