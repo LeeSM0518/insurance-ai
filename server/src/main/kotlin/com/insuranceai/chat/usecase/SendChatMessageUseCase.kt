@@ -2,7 +2,6 @@ package com.insuranceai.chat.usecase
 
 import com.insuranceai.chat.dto.ChatStreamEvent
 import com.insuranceai.chat.dto.SearchingEvent
-import com.insuranceai.chat.dto.SourceInfo
 import com.insuranceai.chat.dto.SourcesFoundEvent
 import com.insuranceai.chat.entity.ChatMessageSourceEntity
 import com.insuranceai.chat.service.ChatPromptBuilder
@@ -52,33 +51,43 @@ class SendChatMessageUseCase(
 
                 // 3. 질문 분석
                 val analysis = questionAnalyzer.analyze(message)
+                log.info(
+                    "질문 분석 결과: companies={}, categories={}, subcategories={}, contentTypes={}, " +
+                        "isComparison={}, subQuestions={}, searchKeywords={}",
+                    analysis.companies,
+                    analysis.categories,
+                    analysis.subcategories,
+                    analysis.contentTypes,
+                    analysis.isComparison,
+                    analysis.subQuestions,
+                    analysis.searchKeywords,
+                )
 
                 // 4. 하이브리드 검색
                 sink.tryEmitNext(ChatStreamEvent("searching", SearchingEvent("검색 중...")))
                 val searchResults = searchService.searchForRag(message, analysis)
-
-                // 검색 결과에서 SourceInfo 추출
-                val sources =
-                    searchResults.map { result ->
-                        SourceInfo(
-                            articleId = result.articleId,
-                            insuranceCompany = result.companyName,
-                            productId = result.productId,
-                            productName = result.productName,
-                            contentType = result.contentType,
-                            articleNumber = result.articleNumber,
-                            articleTitle = result.articleTitle,
-                            relevanceScore = result.relevanceScore,
-                            dataSource = result.dataSource ?: "",
-                        )
-                    }
-                sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))
+                log.info(
+                    "RAG 검색 결과: {} 건, 상위 3개 점수: {}",
+                    searchResults.size,
+                    searchResults.take(3).map { "${it.companyName}/${it.articleTitle}: ${it.relevanceScore}" },
+                )
 
                 // 5. 대화 이력
                 val history = chatService.getRecentMessages(sessionId)
 
-                // 6. 컨텍스트 구성
+                // 6. 컨텍스트 구성 (실제 LLM에 전달되는 약관 기반으로 출처 결정)
                 val contextResult = contextBuilder.build(searchResults, analysis, history)
+                log.info(
+                    "컨텍스트 구성: quality={}, tokenEstimate={}, sources={} 건, contextLength={} 자",
+                    contextResult.searchQuality,
+                    contextResult.tokenEstimate,
+                    contextResult.sources.size,
+                    contextResult.contextText.length,
+                )
+
+                // ContextBuilder가 반환한 sources (실제 LLM에 전달된 약관만 포함)를 사용
+                val sources = contextResult.sources
+                sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))
 
                 // 7. 프롬프트 구성
                 val chatPrompt = chatPromptBuilder.build(message, contextResult, analysis.isComparison)

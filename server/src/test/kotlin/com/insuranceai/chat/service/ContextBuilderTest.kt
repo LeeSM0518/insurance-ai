@@ -189,8 +189,8 @@ class ContextBuilderTest {
 
     @Test
     fun `토큰 추정이 올바르게 계산된다`() {
-        val tokens = builder.estimateTokens("가나다") // 3글자 * 1.5 = 4
-        assertEquals(4, tokens)
+        val tokens = builder.estimateTokens("가나다") // 3글자 * 1.3 = 3
+        assertEquals(3, tokens)
     }
 
     @Test
@@ -316,8 +316,8 @@ class ContextBuilderTest {
     @Test
     fun `동적 예산 배분 - 이력 없고 보충 없으면 약관 예산이 최대로 할당된다`() {
         val budgets = builder.calculateBudgets(historyTokens = 0, hasSupplementary = false)
-        // TOKEN_BUDGET(40000) - 0 - 0 = 40000, but capped by ARTICLE_BUDGET(20000)
-        assertEquals(ContextBuilder.ARTICLE_BUDGET, budgets.article)
+        // TOKEN_BUDGET(45000) - 0 - 0 = 45000 (상한 제거로 전체 예산 할당)
+        assertEquals(ContextBuilder.TOKEN_BUDGET, budgets.article)
         assertEquals(0, budgets.supplementary)
         assertEquals(0, budgets.history)
     }
@@ -325,8 +325,8 @@ class ContextBuilderTest {
     @Test
     fun `동적 예산 배분 - 이력과 보충이 있으면 약관 예산이 줄어든다`() {
         val budgets = builder.calculateBudgets(historyTokens = 5_000, hasSupplementary = true)
-        // TOKEN_BUDGET(40000) - 5000 - SUPPLEMENTARY_BUDGET(5000) = 30000, capped by ARTICLE_BUDGET(20000)
-        assertEquals(ContextBuilder.ARTICLE_BUDGET, budgets.article)
+        // TOKEN_BUDGET(45000) - 5000 - SUPPLEMENTARY_BUDGET(5000) = 35000
+        assertEquals(35_000, budgets.article)
         assertEquals(ContextBuilder.SUPPLEMENTARY_BUDGET, budgets.supplementary)
         assertEquals(5_000, budgets.history)
     }

@@ -42,21 +42,42 @@ class QuestionAnalyzer(
                 "chat/question-analysis.st",
                 mapOf("companyNames" to companyNames.joinToString(", ")),
             )
-        return try {
-            suspendingChatClient.callEntity(
-                userMessage = message,
-                systemMessage = systemPrompt,
-                responseType = QuestionAnalysis::class.java,
-            )
-        } catch (e: Exception) {
-            log.warn("LLM 질문 분석 실패, 기본값 반환: ${e.message}")
-            QuestionAnalysis(
-                companies = emptyList(),
-                categories = emptyList(),
-                contentTypes = emptyList(),
-                isComparison = false,
-                needsSupplementary = SupplementaryNeeds(),
-            )
+        val analysis =
+            try {
+                suspendingChatClient.callEntity(
+                    userMessage = message,
+                    systemMessage = systemPrompt,
+                    responseType = QuestionAnalysis::class.java,
+                )
+            } catch (e: Exception) {
+                log.warn("LLM 질문 분석 실패, 기본값 반환: ${e.message}")
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = emptyList(),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                )
+            }
+
+        // 분석 결과 검증: searchKeywords가 비어있으면 원본 메시지에서 추출
+        return if (analysis.searchKeywords.isEmpty()) {
+            analysis.copy(searchKeywords = extractBasicKeywords(message))
+        } else {
+            analysis
         }
+    }
+
+    /** 기본 키워드 추출 (LLM 분석 실패 시 폴백) */
+    private fun extractBasicKeywords(message: String): List<String> {
+        val stopwords = setOf("것", "수", "등", "때", "중", "좀", "잘")
+        val particlePattern =
+            Regex("(은|는|이|가|을|를|에|에서|으로|로|와|과|의|도|만|까지|부터|보다|라고|이라고|처럼|에게|한테|께)$")
+        return message
+            .split(Regex("[\\s,?.!]+"))
+            .map { it.replace(particlePattern, "") }
+            .filter { it.length >= 2 && it !in stopwords }
+            .distinct()
+            .take(5)
     }
 }
