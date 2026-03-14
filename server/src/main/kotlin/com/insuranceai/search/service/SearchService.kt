@@ -178,8 +178,17 @@ class SearchService(
                 .map { (_, results) -> results.maxBy { it.relevanceScore } }
                 .sortedByDescending { it.relevanceScore }
 
-        val top20 = deduplicated.take(20)
-        return enrichWithExemptions(top20, analysis.searchKeywords)
+        // 비비교 + 보험사 미지정일 때, 동일 상품 키워드 커버리지 기반 우선 정렬
+        val sorted =
+            if (!analysis.isComparison && companyIds == null && analysis.searchKeywords.isNotEmpty()) {
+                prioritizeByProductKeywordCoverage(deduplicated, analysis.searchKeywords)
+            } else {
+                deduplicated
+            }
+
+        val top20 = sorted.take(20)
+        val enrichedWithCoverages = enrichWithRelatedCoverages(top20, analysis.searchKeywords)
+        return enrichWithExemptions(enrichedWithCoverages, analysis.searchKeywords)
     }
 
     /** 단계적 필터 완화를 통한 폴백 검색 (RAG 전용) */
@@ -343,9 +352,110 @@ class SearchService(
         return results + enrichedResults
     }
 
+    /**
+     * 상품별 키워드 커버리지를 계산하여 가장 많은 키워드를 커버하는 상품의 조문을 우선 배치
+     * - 동일 상품 내에서 여러 담보를 함께 설명할 수 있도록 유도
+     * - 커버리지가 같은 경우 기존 relevanceScore 기반 정렬 유지
+     */
+    private fun prioritizeByProductKeywordCoverage(
+        results: List<FusedSearchResult>,
+        searchKeywords: List<String>,
+    ): List<FusedSearchResult> {
+        val productKeywordCoverage =
+            results
+                .groupBy { it.productId }
+                .mapValues { (_, articles) ->
+                    val coveredKeywords =
+                        searchKeywords.count { kw ->
+                            articles.any {
+                                it.articleTitle?.contains(kw, ignoreCase = true) == true ||
+                                    it.content.contains(kw, ignoreCase = true)
+                            }
+                        }
+                    coveredKeywords.toFloat() / searchKeywords.size
+                }
+
+        val bestCoverage = productKeywordCoverage.values.maxOrNull() ?: 0f
+        if (bestCoverage <= 0f) return results
+
+        log.info(
+            "상품별 키워드 커버리지 우선 정렬: 최고 커버리지={}, 상품 수={}",
+            bestCoverage,
+            productKeywordCoverage.size,
+        )
+
+        return results.sortedWith(
+            compareByDescending<FusedSearchResult> { productKeywordCoverage[it.productId] ?: 0f }
+                .thenByDescending { it.relevanceScore },
+        )
+    }
+
+    /**
+     * 검색된 조문과 동일 상품에서, 질문 키워드에 해당하는 미포함 COVERAGE 조문 보강
+     * - 예: "상해수술비" 조문만 검색된 경우, 동일 상품의 "중환자실입원일당" 조문도 자동 포함
+     */
+    private suspend fun enrichWithRelatedCoverages(
+        results: List<FusedSearchResult>,
+        searchKeywords: List<String>,
+    ): List<FusedSearchResult> {
+        if (searchKeywords.isEmpty()) return results
+
+        val existingArticleIds = results.map { it.articleId }.toSet()
+        val productIds = results.map { it.productId }.distinct()
+
+        if (productIds.isEmpty()) return results
+
+        val relatedArticles =
+            policyArticleRepository
+                .findByProductIdInAndContentTypeAndIsActive(
+                    productIds = productIds,
+                    contentType = ContentType.COVERAGE.name,
+                    isActive = true,
+                ).toList()
+                .filter { article ->
+                    article.id !in existingArticleIds &&
+                        searchKeywords.any { kw ->
+                            article.articleTitle?.contains(kw, ignoreCase = true) == true
+                        }
+                }.take(MAX_COVERAGE_ENRICHMENT)
+
+        if (relatedArticles.isEmpty()) return results
+
+        val productInfoMap = results.associateBy { it.productId }
+
+        val enrichedResults =
+            relatedArticles.mapNotNull { article ->
+                val refResult = productInfoMap[article.productId] ?: return@mapNotNull null
+                FusedSearchResult(
+                    articleId = article.id!!,
+                    productId = article.productId,
+                    productName = refResult.productName,
+                    companyId = refResult.companyId,
+                    companyName = refResult.companyName,
+                    insuranceType = refResult.insuranceType,
+                    contentType = article.contentType,
+                    articleNumber = article.articleNumber,
+                    articleTitle = article.articleTitle,
+                    content = article.content,
+                    dataSource = refResult.dataSource,
+                    dataSourceId = article.dataSourceId,
+                    relevanceScore = 0f,
+                    keywordRank = null,
+                    vectorRank = null,
+                )
+            }
+
+        if (enrichedResults.isNotEmpty()) {
+            log.info("관련 COVERAGE 조문 보강: {}개 추가", enrichedResults.size)
+        }
+
+        return results + enrichedResults
+    }
+
     companion object {
         const val KEYWORD_COVERAGE_THRESHOLD = 0.5f
         const val MAX_EXEMPTION_ENRICHMENT = 3
+        const val MAX_COVERAGE_ENRICHMENT = 3
     }
 
     /** 병렬 검색 + RRF 통합 공통 로직 */
