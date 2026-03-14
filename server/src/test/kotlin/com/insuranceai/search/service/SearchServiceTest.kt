@@ -272,6 +272,7 @@ class SearchServiceTest {
                     contentTypes = listOf("EXEMPTION"),
                     isComparison = false,
                     needsSupplementary = SupplementaryNeeds(),
+                    searchKeywords = listOf("면책사항"),
                 )
 
             every { insuranceCompanyRepository.findByNameIn(listOf("삼성생명")) } returns
@@ -288,19 +289,19 @@ class SearchServiceTest {
                     contentType = "EXEMPTION",
                     articleNumber = "제5조",
                     articleTitle = "면책사항",
-                    content = "면책 내용",
+                    content = "면책사항 관련 내용",
                     dataSource = "ASSOCIATION",
                     rank = 1,
                 )
 
-            coEvery { keywordSearchService.search(any(), any(), any()) } returns listOf(keywordResult)
+            coEvery { keywordSearchService.searchByKeywords(listOf("면책사항"), any(), any()) } returns listOf(keywordResult)
             coEvery { vectorSearchService.search(any(), any(), any(), any()) } returns emptyList()
 
             val results = service.searchForRag("암보험 면책사항", analysis)
 
             assertEquals(1, results.size)
-            // executeHybridSearch 1회만 호출 (폴백 없음)
-            io.mockk.coVerify(exactly = 1) { keywordSearchService.search(any(), any(), any()) }
+            // executeHybridSearch 1회만 호출 (폴백 없음 — 키워드 커버리지 충분)
+            io.mockk.coVerify(exactly = 1) { keywordSearchService.searchByKeywords(any(), any(), any()) }
         }
 
     @Test
@@ -512,6 +513,148 @@ class SearchServiceTest {
             val results = service.searchForRag("보험", analysis)
 
             assertEquals(20, results.size)
+        }
+
+    @Test
+    fun `searchForRag - 키워드 커버리지 부족 시 subcategories 완화 폴백 수행`() =
+        runTest {
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = listOf("PROTECTION"),
+                    subcategories = listOf("ACCIDENT"),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                    searchKeywords = listOf("상해수술비", "중환자실입원일당", "중복지급"),
+                )
+
+            // 1차: subcategories=[ACCIDENT] → 상해수술비만 매칭 (커버리지 1/3 = 0.33 < 0.5)
+            val partialResult =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "상해보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = "제1조",
+                    articleTitle = "상해수술비",
+                    content = "상해수술비 보장 내용",
+                    dataSource = "ASSOCIATION",
+                    rank = 1,
+                )
+
+            coEvery {
+                keywordSearchService.searchByKeywords(any(), match { it.subcategories != null }, any())
+            } returns listOf(partialResult)
+            coEvery {
+                vectorSearchService.search(any(), match { it.subcategories != null }, any(), any())
+            } returns emptyList()
+
+            // 1.5차: subcategories 제거 → 두 키워드 모두 매칭
+            val fullResult1 =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "종합보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = "제1조",
+                    articleTitle = "상해수술비",
+                    content = "상해수술비 보장 내용",
+                    dataSource = "ASSOCIATION",
+                    rank = 1,
+                )
+            val fullResult2 =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "종합보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = "제2조",
+                    articleTitle = "중환자실입원일당",
+                    content = "중환자실입원일당 보장 내용",
+                    dataSource = "ASSOCIATION",
+                    rank = 2,
+                )
+
+            val fullResult3 =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "종합보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = "제3조",
+                    articleTitle = "중복지급",
+                    content = "중복지급 관련 규정",
+                    dataSource = "ASSOCIATION",
+                    rank = 3,
+                )
+
+            coEvery {
+                keywordSearchService.searchByKeywords(any(), match { it.subcategories == null }, any())
+            } returns listOf(fullResult1, fullResult2, fullResult3)
+            coEvery {
+                vectorSearchService.search(any(), match { it.subcategories == null }, any(), any())
+            } returns emptyList()
+
+            val results = service.searchForRag("상해수술비와 중환자실입원일당", analysis)
+
+            assertEquals(3, results.size)
+            // 1.5차 폴백에서 모든 키워드 커버됨
+            assertTrue(results.any { it.articleTitle == "상해수술비" })
+            assertTrue(results.any { it.articleTitle == "중환자실입원일당" })
+            assertTrue(results.any { it.articleTitle == "중복지급" })
+        }
+
+    @Test
+    fun `searchForRag - searchKeywords가 비어있으면 커버리지 1점0으로 판단`() =
+        runTest {
+            val analysis =
+                QuestionAnalysis(
+                    companies = emptyList(),
+                    categories = listOf("PROTECTION"),
+                    subcategories = listOf("CANCER"),
+                    contentTypes = emptyList(),
+                    isComparison = false,
+                    needsSupplementary = SupplementaryNeeds(),
+                    searchKeywords = emptyList(),
+                )
+
+            val keywordResult =
+                KeywordSearchResult(
+                    articleId = UUID.randomUUID(),
+                    productId = productId,
+                    productName = "암보험",
+                    companyId = UUID.randomUUID(),
+                    companyName = "삼성생명",
+                    insuranceType = "LIFE",
+                    contentType = "COVERAGE",
+                    articleNumber = null,
+                    articleTitle = null,
+                    content = "보장 내용",
+                    dataSource = null,
+                    rank = 1,
+                )
+
+            coEvery { keywordSearchService.search(any(), any(), any()) } returns listOf(keywordResult)
+            coEvery { vectorSearchService.search(any(), any(), any(), any()) } returns emptyList()
+
+            val results = service.searchForRag("암보험", analysis)
+
+            // searchKeywords가 비어있으므로 커버리지 1.0 → 폴백 없이 반환
+            assertEquals(1, results.size)
+            io.mockk.coVerify(exactly = 1) { keywordSearchService.search(any(), any(), any()) }
         }
 
     @Test

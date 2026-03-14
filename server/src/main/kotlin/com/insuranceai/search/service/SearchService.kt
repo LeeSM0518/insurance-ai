@@ -193,7 +193,11 @@ class SearchService(
         val keywordCoverage = calculateKeywordCoverage(searchKeywords, results)
         val hasGoodCoverage = keywordCoverage >= KEYWORD_COVERAGE_THRESHOLD
         val topScore = results.firstOrNull()?.relevanceScore ?: 0f
-        if (results.isNotEmpty() && (hasGoodCoverage || topScore >= 0.5f)) return results
+        // 키워드가 있으면 커버리지 기반 판단, 없으면 topScore 기반 판단
+        val hasKeywords = !searchKeywords.isNullOrEmpty()
+        val isFirstSearchSufficient =
+            if (hasKeywords) hasGoodCoverage else (results.any { it.keywordRank != null } || topScore >= 0.5f)
+        if (results.isNotEmpty() && isFirstSearchSufficient) return results
 
         if (results.isNotEmpty()) {
             log.info("검색 품질 부족으로 폴백 진행: keywordCoverage={}, topScore={}", keywordCoverage, topScore)

@@ -79,6 +79,17 @@
 - 예: "실손보험" → categories: ["NL_PROTECTION", "NL_HEALTH", "HEALTH"], subcategories: ["PB14"]
 - 예: "뇌혈관질환 진단비" → categories: ["PROTECTION", "NL_PROTECTION"], subcategories: [] (여러 소분류에 걸쳐 있으므로)
 
+⚠️ 질문에 2개 이상의 서로 다른 담보/보장이 언급될 때:
+   각 담보가 서로 다른 subcategory에 속할 수 있으므로, subcategories를 빈 배열 []로 둘 것
+   → 예: "상해수술비와 중환자실입원일당" → subcategories: []
+     (상해수술비는 ACCIDENT/PB24, 중환자실입원일당은 DISEASE/PB14/PB16에 분포)
+   → 예: "암진단비와 상해입원일당" → subcategories: []
+   → categories만으로 범위를 제한하고, subcategories 필터는 비워서 넓게 검색
+
+⚠️ "~수술비", "~입원일당", "~진단비" 등 특정 담보명이 포함된 질문은
+   해당 담보가 종합보험(PB14, PB11) 등 다양한 상품에 포함될 수 있으므로
+   subcategories를 좁게 설정하지 말 것
+
 ### contentTypes (검색 필터: 약관 내용 유형)
 질문이 약관의 어떤 내용을 찾고 있는지 판단합니다.
 
