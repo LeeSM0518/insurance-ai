@@ -8,7 +8,7 @@ test.describe('SourceTooltip', () => {
       await page.setViewportSize({ width: 1280, height: 800 });
       await page.goto('/');
       // 출처가 있는 세션 선택
-      await page.getByText('삼성생명 암보험 면책기간').click();
+      await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
     });
 
     test('인라인 [1] 호버 시 Tooltip 표시 확인', async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe('SourceTooltip', () => {
       await page.goto('/');
       // 모바일에서 세션 선택
       await page.getByRole('button', { name: '대화 목록' }).click();
-      await page.getByText('삼성생명 암보험 면책기간').click();
+      await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
     });
 
     test('모바일 인라인 [1] 탭 시 바텀시트 표시 확인', async ({ page }) => {

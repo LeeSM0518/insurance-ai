@@ -9,7 +9,7 @@ test.describe('SSE 스트리밍 UI', () => {
   });
 
   test('메시지 전송 후 AI 응답이 표시된다', async ({ page }) => {
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
     const input = page.getByLabel('메시지를 입력하세요');
     await input.fill('면책기간이 뭔가요?');
     await page.getByRole('button', { name: '메시지 전송' }).click();
@@ -19,7 +19,7 @@ test.describe('SSE 스트리밍 UI', () => {
   });
 
   test('스트리밍 완료 후 출처 카드가 표시된다', async ({ page }) => {
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
     const input = page.getByLabel('메시지를 입력하세요');
     await input.fill('면책기간이 뭔가요?');
     await page.getByRole('button', { name: '메시지 전송' }).click();
@@ -30,7 +30,7 @@ test.describe('SSE 스트리밍 UI', () => {
   });
 
   test('스트리밍 완료 후 인라인 출처 참조가 표시된다', async ({ page }) => {
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
     const input = page.getByLabel('메시지를 입력하세요');
     await input.fill('면책기간이 뭔가요?');
     await page.getByRole('button', { name: '메시지 전송' }).click();
@@ -43,7 +43,7 @@ test.describe('SSE 스트리밍 UI', () => {
   });
 
   test('스트리밍 완료 후 전송 버튼이 다시 활성화된다', async ({ page }) => {
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
     const input = page.getByLabel('메시지를 입력하세요');
     await input.fill('면책기간이 뭔가요?');
     await page.getByRole('button', { name: '메시지 전송' }).click();
@@ -80,7 +80,7 @@ test.describe('SSE 스트리밍 UI', () => {
   });
 
   test('새 메시지 전송 시 사용자 메시지가 즉시 표시된다', async ({ page }) => {
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
     const input = page.getByLabel('메시지를 입력하세요');
     await input.fill('이 보험의 특약도 알려주세요');
     await page.getByRole('button', { name: '메시지 전송' }).click();

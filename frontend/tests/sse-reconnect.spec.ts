@@ -6,7 +6,7 @@ test.describe('SSE 자동 재연결', () => {
     await mockAuthenticatedUser(page);
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
   });
 
   test('에러 발생 시 에러 메시지와 재시도 버튼이 표시된다', async ({ page }) => {

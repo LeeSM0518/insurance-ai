@@ -7,7 +7,7 @@ test.describe('ScrollToBottom + 자동 스크롤', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     // 기존 메시지가 있는 세션 선택
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
   });
 
   test('초기 진입 시 ScrollToBottom 버튼이 숨겨져 있다', async ({ page }) => {
