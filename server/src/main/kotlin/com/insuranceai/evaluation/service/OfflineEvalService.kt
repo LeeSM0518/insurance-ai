@@ -13,6 +13,7 @@ import com.insuranceai.evaluation.repository.GoldenEvalResultRepository
 import com.insuranceai.evaluation.repository.GoldenQaPairRepository
 import com.insuranceai.evaluation.repository.GoldenQaSourceRepository
 import com.insuranceai.search.service.SearchService
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Service
@@ -31,10 +32,17 @@ data class EvalReport(
     val avgContextRecall: BigDecimal,
     val avgMrr: BigDecimal,
     val avgNdcg: BigDecimal,
-    // 생성 지표
+    // 생성 지표 (규칙 기반)
     val mustIncludePassCount: Int,
     val mustNotIncludePassCount: Int,
     val sourceMatchPassCount: Int,
+    // 생성 지표 (LLM 평가)
+    val avgFaithfulness: BigDecimal = BigDecimal.ZERO,
+    val avgAccuracy: BigDecimal = BigDecimal.ZERO,
+    val avgCompleteness: BigDecimal = BigDecimal.ZERO,
+    val avgSourceCitation: BigDecimal = BigDecimal.ZERO,
+    val avgWeightedTotal: BigDecimal = BigDecimal.ZERO,
+    val hallucinationCount: Int = 0,
     // 리스크별
     val riskBreakdown: Map<String, Pair<Int, Int>>,
     // 실패 케이스
@@ -57,6 +65,7 @@ class OfflineEvalService(
     private val chatPromptBuilder: ChatPromptBuilder,
     private val suspendingChatClient: SuspendingChatClient,
     private val ruleBasedEvalService: RuleBasedEvalService,
+    private val llmEvalService: LlmEvalService,
     private val searchMetricsCalculator: SearchMetricsCalculator,
     private val goldenDatasetService: GoldenDatasetService,
 ) {
@@ -84,7 +93,11 @@ class OfflineEvalService(
         var overRejection = 0
         var nonRejectionTotal = 0
 
-        for (pair in qaPairs) {
+        for ((index, pair) in qaPairs.withIndex()) {
+            if (index > 0) {
+                delay(3000) // Rate Limit 방지
+            }
+
             try {
                 val sources = qaSourceRepository.findByQaPairId(pair.id!!).toList()
                 val isRejection = pair.questionType == QuestionType.REJECTION.name
@@ -136,13 +149,26 @@ class OfflineEvalService(
                 // 3단계: 규칙 기반 평가
                 val ruleResult = ruleBasedEvalService.evaluate(pair, actualAnswer, retrievedArticleIds, sources)
 
+                // 4단계: LLM 평가
+                val llmResult = llmEvalService.evaluate(pair, actualAnswer)
+                log.info(
+                    "{} LLM 평가: 정확성={}, 키워드={}, 완전성={}, 출처={}, 가중평점={} | {}",
+                    pair.qaCode,
+                    llmResult.faithfulnessScore,
+                    llmResult.accuracyScore,
+                    llmResult.completenessScore,
+                    llmResult.sourceCitationScore,
+                    llmResult.weightedTotal,
+                    llmResult.reasoning?.take(80) ?: "",
+                )
+
                 // 결과 저장
                 evalResultRepository.save(
                     GoldenEvalResultEntity(
                         datasetId = datasetId,
                         qaPairId = pair.id,
                         evalRunId = evalRunId,
-                        evalType = EvalType.RULE_BASED.name,
+                        evalType = EvalType.LLM_JUDGE.name,
                         retrievedArticleIds = retrievedArticleIds,
                         contextPrecision = searchMetrics.contextPrecision,
                         contextRecall = searchMetrics.contextRecall,
@@ -151,6 +177,13 @@ class OfflineEvalService(
                         mustIncludePass = ruleResult.mustIncludePass,
                         mustNotIncludePass = ruleResult.mustNotIncludePass,
                         sourceMatchPass = ruleResult.sourceMatchPass,
+                        faithfulnessScore = llmResult.faithfulnessScore,
+                        accuracyScore = llmResult.accuracyScore,
+                        completenessScore = llmResult.completenessScore,
+                        sourceCitationScore = llmResult.sourceCitationScore,
+                        weightedTotal = llmResult.weightedTotal,
+                        hallucinationDetected = llmResult.hallucinationDetected,
+                        hallucinationDetails = llmResult.hallucinationDetails,
                         actualAnswer = actualAnswer,
                         modelVersion = "claude-sonnet-4-6",
                     ),
@@ -191,6 +224,12 @@ class OfflineEvalService(
                 mustIncludePassCount = results.count { it.mustIncludePass == true },
                 mustNotIncludePassCount = results.count { it.mustNotIncludePass == true },
                 sourceMatchPassCount = results.count { it.sourceMatchPass == true },
+                avgFaithfulness = avg(nonRejectionResults.mapNotNull { it.faithfulnessScore }),
+                avgAccuracy = avg(nonRejectionResults.mapNotNull { it.accuracyScore }),
+                avgCompleteness = avg(nonRejectionResults.mapNotNull { it.completenessScore }),
+                avgSourceCitation = avg(nonRejectionResults.mapNotNull { it.sourceCitationScore }),
+                avgWeightedTotal = avg(nonRejectionResults.mapNotNull { it.weightedTotal }),
+                hallucinationCount = nonRejectionResults.count { it.hallucinationDetected == true },
                 riskBreakdown = riskBreakdown,
                 failedCases = failedCases,
                 rejectionAccuracy = rejectionCorrect,
@@ -217,10 +256,30 @@ class OfflineEvalService(
         )
     }
 
-    /** 거절 응답 판별 */
-    private fun isRejectionResponse(answer: String): Boolean {
-        val rejectionKeywords = listOf("죄송합니다", "답변드릴 수 없습니다", "할 수 없습니다", "제공해 드릴 수 없습니다")
-        return rejectionKeywords.any { answer.contains(it) }
+    /** 거절 응답 판별 (LLM 기반) */
+    private suspend fun isRejectionResponse(answer: String): Boolean {
+        val prompt =
+            """아래 AI 답변이 "거절 응답"인지 판별하세요.
+거절 응답이란: 약관 범위 밖의 질문(가입 추천, 수수료, 투자 조언 등)에 대해 답변을 거부하는 응답입니다.
+
+## AI 답변
+$answer
+
+## 판별 기준
+- 질문 자체를 거절하고 답변하지 않은 경우 → true
+- 약관 정보가 부족하다고 하면서도 검색된 내용으로 답변한 경우 → false
+- 부분적으로 답변하면서 한계를 언급한 경우 → false
+
+반드시 true 또는 false만 출력하세요. 다른 텍스트는 포함하지 마세요."""
+
+        return try {
+            val result = suspendingChatClient.call(userMessage = prompt)
+            result.trim().lowercase() == "true"
+        } catch (e: Exception) {
+            log.warn("거절 판별 LLM 호출 실패, 키워드 폴백 사용: {}", e.message)
+            val rejectionKeywords = listOf("죄송합니다", "답변드릴 수 없습니다", "할 수 없습니다", "제공해 드릴 수 없습니다")
+            rejectionKeywords.any { answer.contains(it) }
+        }
     }
 
     /** BigDecimal 평균 */
@@ -270,6 +329,56 @@ class OfflineEvalService(
         sb.appendLine("  must_include 통과율:     ${report.mustIncludePassCount}/${report.totalCount}")
         sb.appendLine("  must_not_include 통과율: ${report.mustNotIncludePassCount}/${report.totalCount}")
         sb.appendLine("  Source Accuracy:         ${report.sourceMatchPassCount}/${report.totalCount}")
+        sb.appendLine()
+        sb.appendLine("[생성 품질 — LLM 평가]")
+        sb.appendLine(
+            "  정확성 (Faithfulness):  ${report.avgFaithfulness} (목표: ≥0.80) ${if (report.avgFaithfulness >=
+                BigDecimal(
+                    "0.80",
+                )
+            ) {
+                "✅"
+            } else {
+                "⚠️"
+            }}",
+        )
+        sb.appendLine(
+            "  키워드 (Accuracy):      ${report.avgAccuracy} (목표: ≥0.80) ${if (report.avgAccuracy >= BigDecimal("0.80")) "✅" else "⚠️"}",
+        )
+        sb.appendLine(
+            "  완전성 (Completeness):  ${report.avgCompleteness} (목표: ≥0.70) ${if (report.avgCompleteness >=
+                BigDecimal(
+                    "0.70",
+                )
+            ) {
+                "✅"
+            } else {
+                "⚠️"
+            }}",
+        )
+        sb.appendLine(
+            "  출처인용 (Citation):    ${report.avgSourceCitation} (목표: ≥0.70) ${if (report.avgSourceCitation >=
+                BigDecimal(
+                    "0.70",
+                )
+            ) {
+                "✅"
+            } else {
+                "⚠️"
+            }}",
+        )
+        sb.appendLine(
+            "  가중 평점 (Total):      ${report.avgWeightedTotal} (목표: ≥0.75) ${if (report.avgWeightedTotal >=
+                BigDecimal(
+                    "0.75",
+                )
+            ) {
+                "✅"
+            } else {
+                "⚠️"
+            }}",
+        )
+        sb.appendLine("  할루시네이션 감지:      ${report.hallucinationCount}건")
         sb.appendLine()
         sb.appendLine("[리스크별 성적]")
         for ((risk, counts) in report.riskBreakdown) {
