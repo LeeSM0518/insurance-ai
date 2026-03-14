@@ -19,7 +19,7 @@ class VectorSearchService(
         query: String,
         filters: SearchFilters = SearchFilters(),
         limit: Int = 50,
-        minSimilarity: Float = 0.5f,
+        minSimilarity: Float = 0.4f,
     ): List<VectorSearchResult> {
         if (query.isBlank()) return emptyList()
 

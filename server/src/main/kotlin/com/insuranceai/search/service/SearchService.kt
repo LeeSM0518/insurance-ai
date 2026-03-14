@@ -145,9 +145,10 @@ class SearchService(
         val searchKeywords = analysis.searchKeywords.takeIf { it.isNotEmpty() }
 
         // 하위 질문이 있으면 각각 검색 후 통합 (중복 제거, 점수 기준 정렬)
+        // 원본 쿼리도 함께 검색하여 결과 확보
         val searchQueries =
             if (analysis.subQuestions.isNotEmpty()) {
-                analysis.subQuestions
+                analysis.subQuestions + query
             } else {
                 listOf(query)
             }
@@ -185,6 +186,8 @@ class SearchService(
         isComparison: Boolean,
         searchKeywords: List<String>? = null,
     ): List<FusedSearchResult> {
+        log.info("RAG 검색 시작: query='{}', filters={}", query, filters)
+
         // 1차: 원본 필터
         val results = executeHybridSearch(query, filters, isComparison, searchKeywords)
         if (results.isNotEmpty()) return results

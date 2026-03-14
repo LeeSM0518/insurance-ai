@@ -567,6 +567,10 @@ class SearchServiceTest {
                 )
             coEvery { vectorSearchService.search("납입면제 조건", any(), any(), any()) } returns emptyList()
 
+            // 원본 쿼리도 함께 검색 (subQuestions + query)
+            coEvery { keywordSearchService.search("면책사항과 납입면제 조건", any(), any()) } returns emptyList()
+            coEvery { vectorSearchService.search("면책사항과 납입면제 조건", any(), any(), any()) } returns emptyList()
+
             val results = service.searchForRag("면책사항과 납입면제 조건", analysis)
 
             assertEquals(2, results.size)
