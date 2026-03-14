@@ -161,6 +161,7 @@ class GoldenDatasetService(
             )
 
         val file = File(outputPath)
+        file.parentFile?.mkdirs()
         objectMapper.writerWithDefaultPrettyPrinter().writeValue(file, exportData)
         log.info("JSON export 완료: {} ({}개 QA 쌍)", outputPath, exportDtos.size)
     }

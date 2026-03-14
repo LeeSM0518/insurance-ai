@@ -9,7 +9,7 @@ data class EvalConfig(
     val datasetId: UUID? = null,
     val datasetName: String? = null,
     val count: Int = 90,
-    val outputPath: String = "golden-dataset-export.json",
+    val outputPath: String = "dataset/golden-dataset-export.json",
     val inputPath: String? = null,
 )
 

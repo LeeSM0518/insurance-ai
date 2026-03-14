@@ -204,6 +204,7 @@ db-test-worker-*
 .playwright-mcp
 
 server/data/
+server/dataset/
 ai-data/
 
 # PostgreSQL data (bind mount)
