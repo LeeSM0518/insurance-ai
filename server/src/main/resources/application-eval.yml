@@ -1,0 +1,12 @@
+spring:
+  main:
+    web-application-type: none
+
+app:
+  eval:
+    mode: evaluate
+    count: 90
+
+logging:
+  level:
+    com.insuranceai.evaluation: DEBUG
