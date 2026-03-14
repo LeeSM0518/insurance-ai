@@ -1,4 +1,4 @@
-import { Configuration, DefaultApi } from '@insurance-ai/api-client';
+import { Configuration, DefaultApi, AIApi } from '@insurance-ai/api-client';
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 
@@ -18,3 +18,6 @@ const sharedConfiguration = new Configuration({
 // API 팩토리 함수
 export const getApi = (): DefaultApi =>
   new DefaultApi(sharedConfiguration, undefined, axiosInstance);
+
+export const getAIApi = (): AIApi =>
+  new AIApi(sharedConfiguration, undefined, axiosInstance);

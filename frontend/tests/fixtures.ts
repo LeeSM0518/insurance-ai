@@ -421,6 +421,42 @@ export async function mockAuthenticatedUser(page: Page) {
     return route.continue();
   });
 
+  // 피드백 API (PUT/DELETE/GET)
+  await page.route('**/api/v1/chat/messages/*/feedback', (route) => {
+    if (route.request().method() === 'PUT') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          statusCode: 200,
+          data: {
+            messageId: 'msg-002',
+            feedbackType: 'POSITIVE',
+            category: null,
+            comment: null,
+            createdAt: new Date().toISOString(),
+          },
+        }),
+      });
+    }
+    if (route.request().method() === 'DELETE') {
+      return route.fulfill({ status: 204 });
+    }
+    if (route.request().method() === 'GET') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          statusCode: 200,
+          data: null,
+        }),
+      });
+    }
+    return route.continue();
+  });
+
   // 보험사 목록 API
   await page.route('**/api/v1/insurance-companies', (route) =>
     route.fulfill({

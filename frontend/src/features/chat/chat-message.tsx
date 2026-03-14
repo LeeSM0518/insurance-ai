@@ -112,7 +112,7 @@ export function ChatMessage({ message, onSourceClick, onMobileSourceTap, activeS
               {fixEmphasisParsing(message.content)}
             </Markdown>
           </div>
-          <MessageActions content={message.content} messageId={message.id} className="mt-2" />
+          <MessageActions content={message.content} messageId={message.id} initialFeedback={null} className="mt-2" />
         </div>
       ) : (
         <p className="text-base leading-relaxed">{message.content}</p>

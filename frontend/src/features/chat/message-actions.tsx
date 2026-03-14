@@ -3,17 +3,32 @@ import { Copy, Share2, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-
-type FeedbackType = 'up' | 'down' | null;
+import { useFeedback } from './use-feedback';
+import { FeedbackCategoryPopover } from './feedback-category-popover';
+import type { FeedbackCategory } from './use-feedback';
 
 interface MessageActionsProps {
   content: string;
   messageId: string;
   className?: string;
+  initialFeedback?: {
+    feedbackType: 'POSITIVE' | 'NEGATIVE';
+    category?: string;
+    comment?: string;
+  } | null;
 }
 
-export function MessageActions({ content, messageId, className }: MessageActionsProps) {
-  const [feedback, setFeedback] = useState<FeedbackType>(null);
+export function MessageActions({ content, messageId, className, initialFeedback = null }: MessageActionsProps) {
+  const { feedbackType, isLoading, submitPositive, submitNegative, removeFeedback } = useFeedback({
+    messageId,
+    initialFeedback: initialFeedback
+      ? {
+          ...initialFeedback,
+          category: initialFeedback.category as FeedbackCategory | undefined,
+        }
+      : null,
+  });
+  const [popoverOpen, setPopoverOpen] = useState(false);
 
   const handleCopy = async () => {
     try {
@@ -36,8 +51,25 @@ export function MessageActions({ content, messageId, className }: MessageActions
     }
   };
 
-  const handleFeedback = (type: 'up' | 'down') => {
-    setFeedback((prev) => (prev === type ? null : type));
+  const handleThumbsUp = () => {
+    if (isLoading) return;
+    submitPositive();
+  };
+
+  const handleThumbsDown = () => {
+    if (isLoading) return;
+    // 이미 NEGATIVE면 해제
+    if (feedbackType === 'NEGATIVE') {
+      removeFeedback();
+      return;
+    }
+    // Popover 열기
+    setPopoverOpen(true);
+  };
+
+  const handleCategorySubmit = (category: FeedbackCategory, comment?: string) => {
+    setPopoverOpen(false);
+    submitNegative(category, comment);
   };
 
   return (
@@ -51,23 +83,32 @@ export function MessageActions({ content, messageId, className }: MessageActions
       <Button
         variant="ghost"
         size="icon-xs"
-        onClick={() => handleFeedback('up')}
+        onClick={handleThumbsUp}
         aria-label="좋아요"
-        aria-pressed={feedback === 'up'}
-        className={cn(feedback === 'up' && 'text-primary bg-primary/10')}
+        aria-pressed={feedbackType === 'POSITIVE'}
+        disabled={isLoading}
+        className={cn(feedbackType === 'POSITIVE' && 'text-primary bg-primary/10')}
       >
         <ThumbsUp className="size-3.5" />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={() => handleFeedback('down')}
-        aria-label="싫어요"
-        aria-pressed={feedback === 'down'}
-        className={cn(feedback === 'down' && 'text-primary bg-primary/10')}
+      <FeedbackCategoryPopover
+        open={popoverOpen}
+        onOpenChange={setPopoverOpen}
+        onSubmit={handleCategorySubmit}
+        isLoading={isLoading}
       >
-        <ThumbsDown className="size-3.5" />
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={handleThumbsDown}
+          aria-label="싫어요"
+          aria-pressed={feedbackType === 'NEGATIVE'}
+          disabled={isLoading}
+          className={cn(feedbackType === 'NEGATIVE' && 'text-primary bg-primary/10')}
+        >
+          <ThumbsDown className="size-3.5" />
+        </Button>
+      </FeedbackCategoryPopover>
     </div>
   );
 }

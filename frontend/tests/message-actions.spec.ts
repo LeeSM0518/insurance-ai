@@ -7,7 +7,7 @@ test.describe('메시지 액션 버튼', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto('/');
     // 기존 메시지가 있는 세션 선택
-    await page.getByText('삼성생명 암보험 면책기간').click();
+    await page.getByRole('complementary').getByRole('heading', { name: '삼성생명 암보험 면책기간' }).click();
   });
 
   test('AI 메시지에 복사/공유/좋아요/싫어요 버튼이 표시된다', async ({ page }) => {
@@ -31,7 +31,7 @@ test.describe('메시지 액션 버튼', () => {
     await expect(thumbsUp).toHaveAttribute('aria-pressed', 'true');
   });
 
-  test('싫어요 클릭 시 좋아요가 해제된다', async ({ page }) => {
+  test('싫어요 클릭 시 카테고리 선택 후 좋아요가 해제된다', async ({ page }) => {
     const assistantMessage = page.locator('[class*="bg-chat-ai-bg"]').first();
     const thumbsUp = assistantMessage.getByLabel('좋아요');
     const thumbsDown = assistantMessage.getByLabel('싫어요');
@@ -40,8 +40,15 @@ test.describe('메시지 액션 버튼', () => {
     await thumbsUp.click();
     await expect(thumbsUp).toHaveAttribute('aria-pressed', 'true');
 
-    // 싫어요 클릭 → 좋아요 해제
+    // 싫어요 클릭 → 카테고리 Popover 열림
     await thumbsDown.click();
+    await expect(page.getByText('어떤 점이 불만족스러우셨나요?')).toBeVisible();
+
+    // 카테고리 선택 + 제출
+    await page.getByText('정보가 부정확해요').click();
+    await page.getByRole('button', { name: '제출' }).click();
+
+    // 싫어요 활성화, 좋아요 해제
     await expect(thumbsDown).toHaveAttribute('aria-pressed', 'true');
     await expect(thumbsUp).toHaveAttribute('aria-pressed', 'false');
   });
