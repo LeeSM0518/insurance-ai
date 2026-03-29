@@ -15,6 +15,7 @@ const TermsPage = lazy(() => import('@/pages/terms'));
 const PrivacyPage = lazy(() => import('@/pages/privacy'));
 const CheatsheetPage = lazy(() => import('@/pages/cheatsheet'));
 const ComparePage = lazy(() => import('@/pages/compare'));
+const SharedReportPage = lazy(() => import('@/pages/shared-report'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const router = createBrowserRouter([
@@ -38,6 +39,10 @@ export const router = createBrowserRouter([
       {
         path: '/privacy',
         Component: PrivacyPage,
+      },
+      {
+        path: '/shared/:shareToken',
+        Component: SharedReportPage,
       },
 
       // 인증 필요 (ProtectedRoute + AppLayout)

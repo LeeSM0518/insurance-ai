@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useBlocker, useSearchParams } from 'react-router';
-import { AlertTriangle, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, RefreshCw, FileText } from 'lucide-react';
 import { ChatHeader } from '@/features/chat/chat-header';
 import { ChatSidebar } from '@/features/chat/chat-sidebar';
 import { ChatMessage } from '@/features/chat/chat-message';
@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import type { Source } from '@/types/chat';
 import { CONTENT_TYPE_LABELS, type ContentType } from '@/types/search';
 import { trackEvent } from '@/lib/analytics';
+import { FollowupReportModal } from '@/features/report/followup-report-modal';
 
 const SOURCE_PANEL_MIN = 280;
 const SOURCE_PANEL_DEFAULT = 360;
@@ -47,6 +48,7 @@ export default function ChatPage() {
   const [mobileSourceSheet, setMobileSourceSheet] = useState<Source | null>(null);
   const initialQueryProcessed = useRef(false);
   const chatInputRef = useRef<ChatInputHandle>(null);
+  const [followupModalOpen, setFollowupModalOpen] = useState(false);
 
   // 스트리밍 채팅 Hook
   const { messages, streamingState, isStreaming, sendMessage, retryStreaming } =
@@ -272,6 +274,7 @@ export default function ChatPage() {
     return currentLocation.pathname !== nextLocation.pathname;
   });
 
+  const hasAssistantMessage = messages.some((m) => m.role === 'ASSISTANT');
   const showWelcome = !activeSessionId && messages.length === 0 && !isStreaming;
 
   const title = session?.title || '새 대화';
@@ -416,6 +419,21 @@ export default function ChatPage() {
                 </Button>
               </div>
             )}
+
+            {/* 팔로업 리포트 생성 버튼 */}
+            {activeSessionId && hasAssistantMessage && !isStreaming && (
+              <div className="flex justify-center pt-2 pb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { trackEvent('chat', 'followup_report'); setFollowupModalOpen(true); }}
+                  className="gap-1.5"
+                >
+                  <FileText className="size-4" />
+                  팔로업 리포트 만들기
+                </Button>
+              </div>
+            )}
           </div>
 
           {/* ScrollToBottom 버튼 */}
@@ -470,6 +488,15 @@ export default function ChatPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* 팔로업 리포트 생성 모달 */}
+      {activeSessionId && (
+        <FollowupReportModal
+          open={followupModalOpen}
+          onOpenChange={setFollowupModalOpen}
+          chatSessionId={activeSessionId}
+        />
+      )}
     </div>
   );
 }

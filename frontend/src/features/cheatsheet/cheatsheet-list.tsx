@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, Trash2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ShareButton } from '@/features/report/share-button';
 import { axiosInstance } from '@/lib/api';
 import type { ReportSummaryResponse, ReportResponse } from '@/types/report';
 
@@ -94,19 +95,22 @@ export function CheatsheetList({ onSelect, refreshKey }: CheatsheetListProps) {
               })}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={(e) => handleDelete(e, item.id)}
-            disabled={deletingId === item.id}
-            className="shrink-0 text-muted-foreground hover:text-destructive"
-          >
-            {deletingId === item.id ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Trash2 className="size-4" />
-            )}
-          </Button>
+          <div className="flex items-center gap-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+            <ShareButton reportId={item.id} variant="ghost" size="icon" />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => handleDelete(e, item.id)}
+              disabled={deletingId === item.id}
+              className="text-muted-foreground hover:text-destructive"
+            >
+              {deletingId === item.id ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Trash2 className="size-4" />
+              )}
+            </Button>
+          </div>
         </button>
       ))}
     </div>
