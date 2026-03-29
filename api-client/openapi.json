@@ -26,6 +26,10 @@
       "description": "보험 상품 보충 데이터 API"
     },
     {
+      "name": "SharedReport",
+      "description": "공유 리포트 공개 API (인증 불필요)"
+    },
+    {
       "name": "Comparison",
       "description": "보험 상품 비교 분석 API"
     },
@@ -187,6 +191,89 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ServiceResponseSearchResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/{reportId}/share": {
+      "post": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "리포트 공유 링크 생성",
+        "operationId": "createShareLink",
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShareLinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseShareLinkResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/followup": {
+      "post": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "팔로업 리포트 생성",
+        "operationId": "generateFollowupReport",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowupReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseReportResponse"
                 }
               }
             }
@@ -642,6 +729,42 @@
         ]
       }
     },
+    "/api/v1/shared/{shareToken}": {
+      "get": {
+        "tags": [
+          "SharedReport"
+        ],
+        "summary": "공유 리포트 조회 (공개)",
+        "operationId": "getSharedReportHtml",
+        "parameters": [
+          {
+            "name": "shareToken",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseSharedReportResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/search/suggestions": {
       "get": {
         "tags": [
@@ -661,6 +784,98 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "내 리포트 전체 목록 조회",
+        "operationId": "listReports",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseListReportSummaryResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/{reportId}": {
+      "get": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "리포트 상세 조회",
+        "operationId": "getReport",
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseReportResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "리포트 삭제",
+        "operationId": "deleteReport",
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
       }
     },
     "/api/v1/reports/cheatsheet": {
@@ -1387,6 +1602,167 @@
           "hasSurrenderValues"
         ]
       },
+      "ShareLinkRequest": {
+        "type": "object",
+        "properties": {
+          "expiresInDays": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "required": [
+          "expiresInDays"
+        ]
+      },
+      "ServiceResponseShareLinkResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ShareLinkResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ShareLinkResponse": {
+        "type": "object",
+        "properties": {
+          "shareToken": {
+            "type": "string"
+          },
+          "shareUrl": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "expiresAt",
+          "shareToken",
+          "shareUrl"
+        ]
+      },
+      "FollowupReportRequest": {
+        "type": "object",
+        "properties": {
+          "chatSessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "includeComparison": {
+            "type": "boolean"
+          },
+          "includeSources": {
+            "type": "boolean"
+          },
+          "agentName": {
+            "type": "string"
+          },
+          "agentContact": {
+            "type": "string",
+            "maxLength": 20,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "chatSessionId",
+          "includeComparison",
+          "includeSources"
+        ]
+      },
+      "ReportResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reportType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "shareToken": {
+            "type": "string"
+          },
+          "shareExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "chatSessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "content",
+          "createdAt",
+          "id",
+          "reportType",
+          "updatedAt"
+        ]
+      },
+      "ServiceResponseReportResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReportResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
       "CheatsheetRequest": {
         "type": "object",
         "properties": {
@@ -1980,6 +2356,58 @@
           "success"
         ]
       },
+      "ServiceResponseSharedReportResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SharedReportResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "SharedReportResponse": {
+        "type": "object",
+        "properties": {
+          "reportType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "content",
+          "createdAt",
+          "reportType"
+        ]
+      },
       "ServiceResponseListString": {
         "type": "object",
         "properties": {
@@ -2053,79 +2481,6 @@
             "items": {
               "$ref": "#/components/schemas/ReportSummaryResponse"
             }
-          }
-        },
-        "required": [
-          "statusCode",
-          "success"
-        ]
-      },
-      "ReportResponse": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "reportType": {
-            "type": "string"
-          },
-          "title": {
-            "type": "string"
-          },
-          "content": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object",
-            "additionalProperties": {}
-          },
-          "shareToken": {
-            "type": "string"
-          },
-          "shareExpiresAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "chatSessionId": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "updatedAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "content",
-          "createdAt",
-          "id",
-          "reportType",
-          "updatedAt"
-        ]
-      },
-      "ServiceResponseReportResponse": {
-        "type": "object",
-        "properties": {
-          "success": {
-            "type": "boolean"
-          },
-          "statusCode": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "code": {
-            "type": "string"
-          },
-          "message": {
-            "type": "string"
-          },
-          "data": {
-            "$ref": "#/components/schemas/ReportResponse"
           }
         },
         "required": [

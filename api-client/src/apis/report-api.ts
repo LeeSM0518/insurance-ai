@@ -24,14 +24,63 @@ import { BASE_PATH, COLLECTION_FORMATS, type RequestArgs, BaseAPI, RequiredError
 // @ts-ignore
 import type { CheatsheetRequest } from '../models';
 // @ts-ignore
+import type { FollowupReportRequest } from '../models';
+// @ts-ignore
 import type { ServiceResponseListReportSummaryResponse } from '../models';
 // @ts-ignore
 import type { ServiceResponseReportResponse } from '../models';
+// @ts-ignore
+import type { ServiceResponseShareLinkResponse } from '../models';
+// @ts-ignore
+import type { ShareLinkRequest } from '../models';
 /**
  * ReportApi - axios parameter creator
  */
 export const ReportApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
+        /**
+         * 
+         * @summary 리포트 공유 링크 생성
+         * @param {string} reportId 
+         * @param {ShareLinkRequest} shareLinkRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createShareLink: async (reportId: string, shareLinkRequest: ShareLinkRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'reportId' is not null or undefined
+            assertParamExists('createShareLink', 'reportId', reportId)
+            // verify required parameter 'shareLinkRequest' is not null or undefined
+            assertParamExists('createShareLink', 'shareLinkRequest', shareLinkRequest)
+            const localVarPath = `/api/v1/reports/{reportId}/share`
+                .replace(`{${"reportId"}}`, encodeURIComponent(String(reportId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(shareLinkRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
         /**
          * 
          * @summary 치트시트 삭제
@@ -43,6 +92,43 @@ export const ReportApiAxiosParamCreator = function (configuration?: Configuratio
             // verify required parameter 'reportId' is not null or undefined
             assertParamExists('deleteCheatsheet', 'reportId', reportId)
             const localVarPath = `/api/v1/reports/cheatsheet/{reportId}`
+                .replace(`{${"reportId"}}`, encodeURIComponent(String(reportId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'DELETE', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 리포트 삭제
+         * @param {string} reportId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteReport: async (reportId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'reportId' is not null or undefined
+            assertParamExists('deleteReport', 'reportId', reportId)
+            const localVarPath = `/api/v1/reports/{reportId}`
                 .replace(`{${"reportId"}}`, encodeURIComponent(String(reportId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -110,6 +196,45 @@ export const ReportApiAxiosParamCreator = function (configuration?: Configuratio
         },
         /**
          * 
+         * @summary 팔로업 리포트 생성
+         * @param {FollowupReportRequest} followupReportRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        generateFollowupReport: async (followupReportRequest: FollowupReportRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'followupReportRequest' is not null or undefined
+            assertParamExists('generateFollowupReport', 'followupReportRequest', followupReportRequest)
+            const localVarPath = `/api/v1/reports/followup`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(followupReportRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
          * @summary 치트시트 상세 조회
          * @param {string} reportId 
          * @param {*} [options] Override http request option.
@@ -119,6 +244,44 @@ export const ReportApiAxiosParamCreator = function (configuration?: Configuratio
             // verify required parameter 'reportId' is not null or undefined
             assertParamExists('getCheatsheet', 'reportId', reportId)
             const localVarPath = `/api/v1/reports/cheatsheet/{reportId}`
+                .replace(`{${"reportId"}}`, encodeURIComponent(String(reportId)));
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * 
+         * @summary 리포트 상세 조회
+         * @param {string} reportId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getReport: async (reportId: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'reportId' is not null or undefined
+            assertParamExists('getReport', 'reportId', reportId)
+            const localVarPath = `/api/v1/reports/{reportId}`
                 .replace(`{${"reportId"}}`, encodeURIComponent(String(reportId)));
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -180,6 +343,40 @@ export const ReportApiAxiosParamCreator = function (configuration?: Configuratio
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * 
+         * @summary 내 리포트 전체 목록 조회
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listReports: async (options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/api/v1/reports`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication bearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+            localVarHeaderParameter['Accept'] = '*/*';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -191,6 +388,20 @@ export const ReportApiFp = function(configuration?: Configuration) {
     return {
         /**
          * 
+         * @summary 리포트 공유 링크 생성
+         * @param {string} reportId 
+         * @param {ShareLinkRequest} shareLinkRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async createShareLink(reportId: string, shareLinkRequest: ShareLinkRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseShareLinkResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.createShareLink(reportId, shareLinkRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ReportApi.createShareLink']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary 치트시트 삭제
          * @param {string} reportId 
          * @param {*} [options] Override http request option.
@@ -200,6 +411,19 @@ export const ReportApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.deleteCheatsheet(reportId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ReportApi.deleteCheatsheet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 리포트 삭제
+         * @param {string} reportId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async deleteReport(reportId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<void>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.deleteReport(reportId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ReportApi.deleteReport']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -217,6 +441,19 @@ export const ReportApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
+         * @summary 팔로업 리포트 생성
+         * @param {FollowupReportRequest} followupReportRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async generateFollowupReport(followupReportRequest: FollowupReportRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseReportResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.generateFollowupReport(followupReportRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ReportApi.generateFollowupReport']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
          * @summary 치트시트 상세 조회
          * @param {string} reportId 
          * @param {*} [options] Override http request option.
@@ -226,6 +463,19 @@ export const ReportApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.getCheatsheet(reportId, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['ReportApi.getCheatsheet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * 
+         * @summary 리포트 상세 조회
+         * @param {string} reportId 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getReport(reportId: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseReportResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getReport(reportId, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ReportApi.getReport']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -240,6 +490,18 @@ export const ReportApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['ReportApi.listCheatsheets']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * 
+         * @summary 내 리포트 전체 목록 조회
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async listReports(options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseListReportSummaryResponse>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.listReports(options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['ReportApi.listReports']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -251,6 +513,16 @@ export const ReportApiFactory = function (configuration?: Configuration, basePat
     return {
         /**
          * 
+         * @summary 리포트 공유 링크 생성
+         * @param {ReportApiCreateShareLinkRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        createShareLink(requestParameters: ReportApiCreateShareLinkRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseShareLinkResponse> {
+            return localVarFp.createShareLink(requestParameters.reportId, requestParameters.shareLinkRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary 치트시트 삭제
          * @param {ReportApiDeleteCheatsheetRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
@@ -258,6 +530,16 @@ export const ReportApiFactory = function (configuration?: Configuration, basePat
          */
         deleteCheatsheet(requestParameters: ReportApiDeleteCheatsheetRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
             return localVarFp.deleteCheatsheet(requestParameters.reportId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
+         * @summary 리포트 삭제
+         * @param {ReportApiDeleteReportRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        deleteReport(requestParameters: ReportApiDeleteReportRequest, options?: RawAxiosRequestConfig): AxiosPromise<void> {
+            return localVarFp.deleteReport(requestParameters.reportId, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -271,6 +553,16 @@ export const ReportApiFactory = function (configuration?: Configuration, basePat
         },
         /**
          * 
+         * @summary 팔로업 리포트 생성
+         * @param {ReportApiGenerateFollowupReportRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        generateFollowupReport(requestParameters: ReportApiGenerateFollowupReportRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseReportResponse> {
+            return localVarFp.generateFollowupReport(requestParameters.followupReportRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary 치트시트 상세 조회
          * @param {ReportApiGetCheatsheetRequest} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
@@ -281,6 +573,16 @@ export const ReportApiFactory = function (configuration?: Configuration, basePat
         },
         /**
          * 
+         * @summary 리포트 상세 조회
+         * @param {ReportApiGetReportRequest} requestParameters Request parameters.
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getReport(requestParameters: ReportApiGetReportRequest, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseReportResponse> {
+            return localVarFp.getReport(requestParameters.reportId, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * 
          * @summary 내 치트시트 목록 조회
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
@@ -288,13 +590,38 @@ export const ReportApiFactory = function (configuration?: Configuration, basePat
         listCheatsheets(options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseListReportSummaryResponse> {
             return localVarFp.listCheatsheets(options).then((request) => request(axios, basePath));
         },
+        /**
+         * 
+         * @summary 내 리포트 전체 목록 조회
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        listReports(options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseListReportSummaryResponse> {
+            return localVarFp.listReports(options).then((request) => request(axios, basePath));
+        },
     };
 };
+
+/**
+ * Request parameters for createShareLink operation in ReportApi.
+ */
+export interface ReportApiCreateShareLinkRequest {
+    readonly reportId: string
+
+    readonly shareLinkRequest: ShareLinkRequest
+}
 
 /**
  * Request parameters for deleteCheatsheet operation in ReportApi.
  */
 export interface ReportApiDeleteCheatsheetRequest {
+    readonly reportId: string
+}
+
+/**
+ * Request parameters for deleteReport operation in ReportApi.
+ */
+export interface ReportApiDeleteReportRequest {
     readonly reportId: string
 }
 
@@ -306,9 +633,23 @@ export interface ReportApiGenerateCheatsheetRequest {
 }
 
 /**
+ * Request parameters for generateFollowupReport operation in ReportApi.
+ */
+export interface ReportApiGenerateFollowupReportRequest {
+    readonly followupReportRequest: FollowupReportRequest
+}
+
+/**
  * Request parameters for getCheatsheet operation in ReportApi.
  */
 export interface ReportApiGetCheatsheetRequest {
+    readonly reportId: string
+}
+
+/**
+ * Request parameters for getReport operation in ReportApi.
+ */
+export interface ReportApiGetReportRequest {
     readonly reportId: string
 }
 
@@ -318,6 +659,17 @@ export interface ReportApiGetCheatsheetRequest {
 export class ReportApi extends BaseAPI {
     /**
      * 
+     * @summary 리포트 공유 링크 생성
+     * @param {ReportApiCreateShareLinkRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public createShareLink(requestParameters: ReportApiCreateShareLinkRequest, options?: RawAxiosRequestConfig) {
+        return ReportApiFp(this.configuration).createShareLink(requestParameters.reportId, requestParameters.shareLinkRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary 치트시트 삭제
      * @param {ReportApiDeleteCheatsheetRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
@@ -325,6 +677,17 @@ export class ReportApi extends BaseAPI {
      */
     public deleteCheatsheet(requestParameters: ReportApiDeleteCheatsheetRequest, options?: RawAxiosRequestConfig) {
         return ReportApiFp(this.configuration).deleteCheatsheet(requestParameters.reportId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 리포트 삭제
+     * @param {ReportApiDeleteReportRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public deleteReport(requestParameters: ReportApiDeleteReportRequest, options?: RawAxiosRequestConfig) {
+        return ReportApiFp(this.configuration).deleteReport(requestParameters.reportId, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -340,6 +703,17 @@ export class ReportApi extends BaseAPI {
 
     /**
      * 
+     * @summary 팔로업 리포트 생성
+     * @param {ReportApiGenerateFollowupReportRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public generateFollowupReport(requestParameters: ReportApiGenerateFollowupReportRequest, options?: RawAxiosRequestConfig) {
+        return ReportApiFp(this.configuration).generateFollowupReport(requestParameters.followupReportRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary 치트시트 상세 조회
      * @param {ReportApiGetCheatsheetRequest} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
@@ -351,12 +725,33 @@ export class ReportApi extends BaseAPI {
 
     /**
      * 
+     * @summary 리포트 상세 조회
+     * @param {ReportApiGetReportRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public getReport(requestParameters: ReportApiGetReportRequest, options?: RawAxiosRequestConfig) {
+        return ReportApiFp(this.configuration).getReport(requestParameters.reportId, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
      * @summary 내 치트시트 목록 조회
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
     public listCheatsheets(options?: RawAxiosRequestConfig) {
         return ReportApiFp(this.configuration).listCheatsheets(options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * 
+     * @summary 내 리포트 전체 목록 조회
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    public listReports(options?: RawAxiosRequestConfig) {
+        return ReportApiFp(this.configuration).listReports(options).then((request) => request(this.axios, this.basePath));
     }
 }
 
