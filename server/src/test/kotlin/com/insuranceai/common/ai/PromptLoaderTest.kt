@@ -14,7 +14,7 @@ class PromptLoaderTest {
         @Test
         fun `존재하는 파일 로드 성공`() {
             val content = promptLoader.load("chat/system-prompt.st")
-            assertTrue(content.contains("보험 설계사를 위한 약관 검색·분석 AI 어시스턴트"))
+            assertTrue(content.contains("보험 설계사를 위한 AI 영업 비서"))
         }
 
         @Test

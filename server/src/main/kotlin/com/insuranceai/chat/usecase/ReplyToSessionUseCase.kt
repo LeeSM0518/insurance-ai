@@ -72,7 +72,15 @@ class ReplyToSessionUseCase(
                 sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))
 
                 // 7. 프롬프트 구성
-                val chatPrompt = chatPromptBuilder.build(message, contextResult, analysis.isComparison)
+                val isClaimRelated = analysis.contentTypes.contains("CLAIM_DOCUMENTS")
+                val chatPrompt =
+                    chatPromptBuilder.build(
+                        message,
+                        contextResult,
+                        analysis.isComparison,
+                        isClaimRelated,
+                        analysis.isCheatsheetRequest,
+                    )
 
                 // 8. 스트리밍
                 streamingService

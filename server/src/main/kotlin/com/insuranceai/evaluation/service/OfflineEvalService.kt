@@ -249,7 +249,8 @@ class OfflineEvalService(
     ): String {
         val searchResults = searchService.searchForRag(question, analysis)
         val contextResult = contextBuilder.build(searchResults, analysis, emptyList())
-        val chatPrompt = chatPromptBuilder.build(question, contextResult, analysis.isComparison)
+        val isClaimRelated = analysis.contentTypes.contains("CLAIM_DOCUMENTS")
+        val chatPrompt = chatPromptBuilder.build(question, contextResult, analysis.isComparison, isClaimRelated)
         return suspendingChatClient.call(
             userMessage = chatPrompt.userPrompt,
             systemMessage = chatPrompt.systemPrompt,

@@ -11,7 +11,7 @@
 - searchKeywords: 질문에서 추출한 핵심 키워드 (조사 제거, 키워드 검색 최적화용)
 - needsSupplementary: 약관 텍스트 외에 정형 데이터(해약환급금 표, 보험료 표 등)를 추가 조회할지 결정
 
-**중요: 응답 JSON에 위 8개 필드(companies, categories, subcategories, contentTypes, isComparison, subQuestions, searchKeywords, needsSupplementary)를 반드시 모두 포함하세요. 어떤 필드도 생략하지 마세요.**
+**중요: 응답 JSON에 위 9개 필드(companies, categories, subcategories, contentTypes, isComparison, subQuestions, searchKeywords, needsSupplementary, isCheatsheetRequest)를 반드시 모두 포함하세요. 어떤 필드도 생략하지 마세요.**
 
 ## 등록된 보험사 목록
 <companyNames>
@@ -161,3 +161,9 @@ true이면 검색 시 특정 보험사에 편중되지 않도록 다양성을 �
 - productFeature: 상품 특징 조회 필요 ("특징", "장점", "납입면제", "자동갱신", "무해지", "특약 내용")
 - yieldScenario: 수익률 시나리오 조회 필요 ("수익률", "예상 수익", "시나리오", "투자 성과", 저축성/변액 상품 관련 질문)
 - productMetric: 상품 지표 조회 필요 ("손해율", "해약률", "지급률", "민원 건수", 상품 성과/통계 관련 질문)
+
+### isCheatsheetRequest (치트시트 생성 요청 감지)
+"치트시트", "배틀시트", "상담 자료", "준비 자료", "상담 준비", "비교표 만들어" 등의 표현이 포함되면 true
+- 예: "암보험 치트시트 만들어줘" → true
+- 예: "상담 준비 자료 좀 정리해줘" → true
+- 일반 보험 질문은 false

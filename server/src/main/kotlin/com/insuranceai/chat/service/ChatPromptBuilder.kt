@@ -22,6 +22,14 @@ class ChatPromptBuilder(
 - 관련 내용이 전혀 없는 경우에만 "제공된 약관 자료에서 정확한 답변을 드리기 어렵습니다"라고 안내하세요.
 """
 
+        const val CHEATSHEET_HINT =
+            """
+사용자가 치트시트/상담 준비 자료를 요청하고 있습니다.
+답변 마지막에 다음 안내를 반드시 추가하세요:
+
+💡 **치트시트 기능 안내**: 체계적인 상담 준비 자료가 필요하시다면, [치트시트 생성하기](/cheatsheet) 페이지에서 보험사와 유형을 선택하여 자동으로 치트시트를 생성할 수 있습니다.
+"""
+
         const val MEDIUM_QUALITY_HINT =
             """
 참고: 검색된 약관 자료가 질문과 부분적으로 관련될 수 있습니다.
@@ -36,12 +44,23 @@ class ChatPromptBuilder(
         userMessage: String,
         context: ContextResult,
         isComparison: Boolean,
+        isClaimRelated: Boolean = false,
+        isCheatsheetRequest: Boolean = false,
     ): ChatPrompt {
         var systemPrompt = promptLoader.load("chat/system-prompt.st")
 
         if (isComparison) {
             val comparisonHint = promptLoader.load("chat/comparison-hint.st")
             systemPrompt = "$systemPrompt\n\n$comparisonHint"
+        }
+
+        if (isClaimRelated) {
+            val claimGuideHint = promptLoader.load("chat/claim-guide-hint.st")
+            systemPrompt = "$systemPrompt\n\n$claimGuideHint"
+        }
+
+        if (isCheatsheetRequest) {
+            systemPrompt = "$systemPrompt\n\n$CHEATSHEET_HINT"
         }
 
         // 검색 품질에 따른 힌트 추가

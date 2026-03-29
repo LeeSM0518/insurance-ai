@@ -133,7 +133,7 @@ class SendChatMessageUseCaseTest {
         coEvery { searchService.searchForRag(message, defaultAnalysis) } returns listOf(defaultSearchResult)
         coEvery { chatService.isFirstUserMessage(sessionId) } returns false
         coEvery { contextBuilder.build(any(), any(), any()) } returns defaultContextResult
-        every { chatPromptBuilder.build(message, defaultContextResult, false) } returns defaultChatPrompt
+        every { chatPromptBuilder.build(message, defaultContextResult, false, false) } returns defaultChatPrompt
     }
 
     @Test
@@ -195,7 +195,7 @@ class SendChatMessageUseCaseTest {
         coEvery { searchService.searchForRag(message, defaultAnalysis) } returns emptyList()
         coEvery { contextBuilder.build(emptyList(), any(), any()) } returns
             ContextResult(contextText = "", sources = emptyList(), tokenEstimate = 0)
-        every { chatPromptBuilder.build(message, any(), false) } returns defaultChatPrompt
+        every { chatPromptBuilder.build(message, any(), false, false) } returns defaultChatPrompt
 
         val messageId = UUID.randomUUID()
         every { streamingService.stream(any(), any(), any(), any()) } returns

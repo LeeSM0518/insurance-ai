@@ -22,6 +22,8 @@ data class QuestionAnalysis(
     val subQuestions: List<String> = emptyList(),
     @JsonPropertyDescription("질문에서 추출한 핵심 키워드 목록 (조사 제거, 보험사명 제외)")
     val searchKeywords: List<String> = emptyList(),
+    @JsonPropertyDescription("치트시트/배틀시트/상담 자료/준비 자료 생성 요청 여부")
+    val isCheatsheetRequest: Boolean = false,
 )
 
 /** 보충 데이터 필요 여부 */

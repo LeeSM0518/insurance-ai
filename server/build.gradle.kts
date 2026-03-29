@@ -72,6 +72,9 @@ dependencies {
     // Apache PDFBox — PDF 텍스트 추출
     implementation("org.apache.pdfbox:pdfbox:3.0.4")
 
+    // jtokkit — OpenAI 토크나이저 (임베딩 토큰 제한 truncate용)
+    implementation("com.knuddels:jtokkit:1.1.0")
+
     // Cache
     implementation("com.github.ben-manes.caffeine:caffeine")
 

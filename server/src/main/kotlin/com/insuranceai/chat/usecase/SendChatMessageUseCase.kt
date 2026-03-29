@@ -96,7 +96,15 @@ class SendChatMessageUseCase(
                 sink.tryEmitNext(ChatStreamEvent("sources_found", SourcesFoundEvent(sources)))
 
                 // 8. 프롬프트 구성
-                val chatPrompt = chatPromptBuilder.build(message, contextResult, analysis.isComparison)
+                val isClaimRelated = analysis.contentTypes.contains("CLAIM_DOCUMENTS")
+                val chatPrompt =
+                    chatPromptBuilder.build(
+                        message,
+                        contextResult,
+                        analysis.isComparison,
+                        isClaimRelated,
+                        analysis.isCheatsheetRequest,
+                    )
 
                 // 9. 첫 메시지 여부 확인
                 val isFirstMessage = chatService.isFirstUserMessage(sessionId)
