@@ -139,11 +139,11 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         /**
          * 
          * @summary 카테고리 목록 조회
-         * @param {GetCategoriesInsuranceTypeEnum} [insuranceType] 
+         * @param {GetCategories1InsuranceTypeEnum} [insuranceType] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getCategories: async (insuranceType?: GetCategoriesInsuranceTypeEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getCategories1: async (insuranceType?: GetCategories1InsuranceTypeEnum, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/api/v1/categories`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -618,14 +618,14 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         /**
          * 
          * @summary 카테고리 목록 조회
-         * @param {GetCategoriesInsuranceTypeEnum} [insuranceType] 
+         * @param {GetCategories1InsuranceTypeEnum} [insuranceType] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getCategories(insuranceType?: GetCategoriesInsuranceTypeEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseListCategoryInfo>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getCategories(insuranceType, options);
+        async getCategories1(insuranceType?: GetCategories1InsuranceTypeEnum, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ServiceResponseListCategoryInfo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getCategories1(insuranceType, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getCategories']?.[localVarOperationServerIndex]?.url;
+            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getCategories1']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -795,12 +795,12 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         /**
          * 
          * @summary 카테고리 목록 조회
-         * @param {DefaultApiGetCategoriesRequest} requestParameters Request parameters.
+         * @param {DefaultApiGetCategories1Request} requestParameters Request parameters.
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getCategories(requestParameters: DefaultApiGetCategoriesRequest = {}, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseListCategoryInfo> {
-            return localVarFp.getCategories(requestParameters.insuranceType, options).then((request) => request(axios, basePath));
+        getCategories1(requestParameters: DefaultApiGetCategories1Request = {}, options?: RawAxiosRequestConfig): AxiosPromise<ServiceResponseListCategoryInfo> {
+            return localVarFp.getCategories1(requestParameters.insuranceType, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -923,10 +923,10 @@ export interface DefaultApiGetArticleDetailRequest {
 }
 
 /**
- * Request parameters for getCategories operation in DefaultApi.
+ * Request parameters for getCategories1 operation in DefaultApi.
  */
-export interface DefaultApiGetCategoriesRequest {
-    readonly insuranceType?: GetCategoriesInsuranceTypeEnum
+export interface DefaultApiGetCategories1Request {
+    readonly insuranceType?: GetCategories1InsuranceTypeEnum
 }
 
 /**
@@ -1013,12 +1013,12 @@ export class DefaultApi extends BaseAPI {
     /**
      * 
      * @summary 카테고리 목록 조회
-     * @param {DefaultApiGetCategoriesRequest} requestParameters Request parameters.
+     * @param {DefaultApiGetCategories1Request} requestParameters Request parameters.
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      */
-    public getCategories(requestParameters: DefaultApiGetCategoriesRequest = {}, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).getCategories(requestParameters.insuranceType, options).then((request) => request(this.axios, this.basePath));
+    public getCategories1(requestParameters: DefaultApiGetCategories1Request = {}, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).getCategories1(requestParameters.insuranceType, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1136,8 +1136,8 @@ export class DefaultApi extends BaseAPI {
     }
 }
 
-export const GetCategoriesInsuranceTypeEnum = {
+export const GetCategories1InsuranceTypeEnum = {
     Life: 'LIFE',
     NonLife: 'NON_LIFE'
 } as const;
-export type GetCategoriesInsuranceTypeEnum = typeof GetCategoriesInsuranceTypeEnum[keyof typeof GetCategoriesInsuranceTypeEnum];
+export type GetCategories1InsuranceTypeEnum = typeof GetCategories1InsuranceTypeEnum[keyof typeof GetCategories1InsuranceTypeEnum];

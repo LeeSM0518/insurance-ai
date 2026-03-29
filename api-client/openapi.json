@@ -26,12 +26,20 @@
       "description": "보험 상품 보충 데이터 API"
     },
     {
+      "name": "Comparison",
+      "description": "보험 상품 비교 분석 API"
+    },
+    {
       "name": "AI 채팅",
       "description": "AI 질의응답 API"
     },
     {
       "name": "약관",
       "description": "약관 조문 조회 API"
+    },
+    {
+      "name": "Report",
+      "description": "리포트 생성/조회/공유 API"
     },
     {
       "name": "검색",
@@ -179,6 +187,120 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/ServiceResponseSearchResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/cheatsheet/generate": {
+      "post": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "치트시트 생성 (SSE 스트리밍)",
+        "operationId": "generateCheatsheet",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheatsheetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerSentEventChatStreamEvent"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/compare": {
+      "post": {
+        "tags": [
+          "Comparison"
+        ],
+        "summary": "보험사별 상품 비교 데이터 조회",
+        "operationId": "compareProducts",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseComparisonResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/compare/summary": {
+      "post": {
+        "tags": [
+          "Comparison"
+        ],
+        "summary": "비교 결과 AI 요약 생성 (SSE)",
+        "operationId": "generateSummary",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServerSentEventChatStreamEvent"
+                  }
                 }
               }
             }
@@ -541,6 +663,98 @@
         }
       }
     },
+    "/api/v1/reports/cheatsheet": {
+      "get": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "내 치트시트 목록 조회",
+        "operationId": "listCheatsheets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseListReportSummaryResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reports/cheatsheet/{reportId}": {
+      "get": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "치트시트 상세 조회",
+        "operationId": "getCheatsheet",
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseReportResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Report"
+        ],
+        "summary": "치트시트 삭제",
+        "operationId": "deleteCheatsheet",
+        "parameters": [
+          {
+            "name": "reportId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "content": {}
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/products/{productId}/surrender-values": {
       "get": {
         "tags": [
@@ -748,13 +962,39 @@
         }
       }
     },
+    "/api/v1/compare/categories": {
+      "get": {
+        "tags": [
+          "Comparison"
+        ],
+        "summary": "비교 가능한 카테고리 목록 조회",
+        "operationId": "getCategories",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceResponseListComparisonCategoryInfo"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
     "/api/v1/categories": {
       "get": {
         "tags": [
           "약관"
         ],
         "summary": "카테고리 목록 조회",
-        "operationId": "getCategories",
+        "operationId": "getCategories_1",
         "parameters": [
           {
             "name": "insuranceType",
@@ -1147,6 +1387,292 @@
           "hasSurrenderValues"
         ]
       },
+      "CheatsheetRequest": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "companyNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 2
+          },
+          "recommendedProduct": {
+            "type": "string"
+          },
+          "customerAge": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "customerGender": {
+            "type": "string"
+          },
+          "focusAreas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "chatSessionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "category",
+          "companyNames"
+        ]
+      },
+      "ServerSentEventChatStreamEvent": {},
+      "ComparisonRequest": {
+        "type": "object",
+        "properties": {
+          "companyIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 5,
+            "minItems": 2
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subcategory": {
+            "type": "string"
+          },
+          "age": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gender": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "companyIds"
+        ]
+      },
+      "CompanyComparison": {
+        "type": "object",
+        "properties": {
+          "companyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "companyName": {
+            "type": "string"
+          },
+          "insuranceType": {
+            "type": "string"
+          },
+          "products": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductComparison"
+            }
+          }
+        },
+        "required": [
+          "companyId",
+          "companyName",
+          "insuranceType",
+          "products"
+        ]
+      },
+      "ComparisonResponse": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "companies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompanyComparison"
+            }
+          },
+          "comparisonItems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "aiSummary": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "companies",
+          "comparisonItems"
+        ]
+      },
+      "CoverageItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "string"
+          },
+          "conditions": {
+            "type": "string"
+          },
+          "articleRef": {
+            "type": "string"
+          },
+          "articleId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "ExemptionItem": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "period": {
+            "type": "string"
+          },
+          "articleRef": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "PremiumComparisonItem": {
+        "type": "object",
+        "properties": {
+          "age": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "insurancePeriod": {
+            "type": "string"
+          },
+          "paymentPeriod": {
+            "type": "string"
+          },
+          "monthlyPremium": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "insuranceAmountText": {
+            "type": "string"
+          }
+        }
+      },
+      "ProductComparison": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "renewalType": {
+            "type": "string"
+          },
+          "coverages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CoverageItem"
+            }
+          },
+          "exemptions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExemptionItem"
+            }
+          },
+          "premiumExample": {
+            "$ref": "#/components/schemas/PremiumComparisonItem"
+          },
+          "surrenderValueSample": {
+            "$ref": "#/components/schemas/SurrenderComparisonItem"
+          },
+          "insurancePeriod": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "coverages",
+          "exemptions",
+          "productId",
+          "productName"
+        ]
+      },
+      "ServiceResponseComparisonResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ComparisonResponse"
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "SurrenderComparisonItem": {
+        "type": "object",
+        "properties": {
+          "elapsedMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "premiumPaid": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "surrenderValue": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "surrenderRate": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "CreateSessionRequest": {
         "type": "object",
         "properties": {
@@ -1211,7 +1737,6 @@
           "success"
         ]
       },
-      "ServerSentEventChatStreamEvent": {},
       "ChatMessageRequest": {
         "type": "object",
         "properties": {
@@ -1476,6 +2001,131 @@
             "items": {
               "type": "string"
             }
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ReportSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reportType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "createdAt",
+          "id",
+          "reportType"
+        ]
+      },
+      "ServiceResponseListReportSummaryResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportSummaryResponse"
+            }
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ReportResponse": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reportType": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "shareToken": {
+            "type": "string"
+          },
+          "shareExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "chatSessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "content",
+          "createdAt",
+          "id",
+          "reportType",
+          "updatedAt"
+        ]
+      },
+      "ServiceResponseReportResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "$ref": "#/components/schemas/ReportResponse"
           }
         },
         "required": [
@@ -1859,6 +2509,58 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/InsuranceCompanyResponse"
+            }
+          }
+        },
+        "required": [
+          "statusCode",
+          "success"
+        ]
+      },
+      "ComparisonCategoryInfo": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "productCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "insuranceType": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "insuranceType",
+          "name",
+          "productCount"
+        ]
+      },
+      "ServiceResponseListComparisonCategoryInfo": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComparisonCategoryInfo"
             }
           }
         },

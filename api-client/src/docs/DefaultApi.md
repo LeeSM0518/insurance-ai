@@ -6,7 +6,7 @@ All URIs are relative to *http://localhost:8888*
 |------------- | ------------- | -------------|
 |[**devLogin**](#devlogin) | **POST** /api/v1/auth/dev-login | |
 |[**getArticleDetail**](#getarticledetail) | **GET** /api/v1/policies/{articleId} | 약관 조문 상세 조회|
-|[**getCategories**](#getcategories) | **GET** /api/v1/categories | 카테고리 목록 조회|
+|[**getCategories1**](#getcategories1) | **GET** /api/v1/categories | 카테고리 목록 조회|
 |[**getInsuranceCompanies**](#getinsurancecompanies) | **GET** /api/v1/insurance-companies | 보험사 목록 조회|
 |[**getMe**](#getme) | **GET** /api/v1/users/me | |
 |[**getPdf**](#getpdf) | **GET** /api/v1/policies/pdf/{dataSourceId} | 약관 PDF 파일 조회|
@@ -120,8 +120,8 @@ const { status, data } = await apiInstance.getArticleDetail(
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
-# **getCategories**
-> ServiceResponseListCategoryInfo getCategories()
+# **getCategories1**
+> ServiceResponseListCategoryInfo getCategories1()
 
 
 ### Example
@@ -137,7 +137,7 @@ const apiInstance = new DefaultApi(configuration);
 
 let insuranceType: 'LIFE' | 'NON_LIFE'; // (optional) (default to undefined)
 
-const { status, data } = await apiInstance.getCategories(
+const { status, data } = await apiInstance.getCategories1(
     insuranceType
 );
 ```

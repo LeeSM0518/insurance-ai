@@ -16,4 +16,6 @@
 
 export * from './apis/default-api';
 export * from './apis/aiapi';
+export * from './apis/comparison-api';
+export * from './apis/report-api';
 
