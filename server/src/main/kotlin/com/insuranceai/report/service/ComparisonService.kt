@@ -1,8 +1,8 @@
 package com.insuranceai.report.service
 
-import com.insuranceai.report.dto.ComparisonCategoryInfo
 import com.insuranceai.report.dto.CombinedComparisonData
 import com.insuranceai.report.dto.CompanyComparison
+import com.insuranceai.report.dto.ComparisonCategoryInfo
 import com.insuranceai.report.dto.ComparisonRequest
 import com.insuranceai.report.dto.ComparisonResponse
 import com.insuranceai.report.dto.CoverageItem

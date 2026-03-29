@@ -2,8 +2,8 @@ package com.insuranceai.report.repository
 
 import com.insuranceai.policy.domain.ContentType
 import com.insuranceai.policy.domain.ProductCategories
-import com.insuranceai.report.dto.ComparisonCategoryInfo
 import com.insuranceai.report.dto.CompanyInfo
+import com.insuranceai.report.dto.ComparisonCategoryInfo
 import com.insuranceai.report.dto.CoverageItem
 import com.insuranceai.report.dto.ExemptionItem
 import com.insuranceai.report.dto.PremiumComparisonItem
