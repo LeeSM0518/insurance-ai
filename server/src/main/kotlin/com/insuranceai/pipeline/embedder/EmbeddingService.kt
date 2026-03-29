@@ -3,6 +3,9 @@ package com.insuranceai.pipeline.embedder
 import com.insuranceai.policy.entity.PolicyArticleEntity
 import com.insuranceai.policy.entity.PolicyEmbeddingEntity
 import com.insuranceai.policy.repository.PolicyEmbeddingRepository
+import com.knuddels.jtokkit.Encodings
+import com.knuddels.jtokkit.api.EncodingType
+import com.knuddels.jtokkit.api.IntArrayList
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -19,12 +22,26 @@ class EmbeddingService(
     private val policyEmbeddingRepository: PolicyEmbeddingRepository,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
+    private val encoding = Encodings.newDefaultEncodingRegistry().getEncoding(EncodingType.CL100K_BASE)
 
     companion object {
         const val MODEL_NAME = "text-embedding-3-large"
         const val BATCH_SIZE = 100
         const val MAX_RETRIES = 3
         const val INITIAL_DELAY_MS = 1000L
+        const val MAX_INPUT_TOKENS = 8000
+    }
+
+    /** 토큰 수 기준으로 텍스트 truncate */
+    private fun truncateText(text: String): String {
+        val tokens = encoding.encode(text)
+        if (tokens.size() <= MAX_INPUT_TOKENS) return text
+        logger.warn("토큰 길이 초과로 truncate: ${tokens.size()}토큰 → ${MAX_INPUT_TOKENS}토큰")
+        val truncated = IntArrayList(MAX_INPUT_TOKENS)
+        for (i in 0 until MAX_INPUT_TOKENS) {
+            truncated.add(tokens.get(i))
+        }
+        return encoding.decode(truncated)
     }
 
     /** 단일 텍스트 임베딩 */
@@ -33,7 +50,7 @@ class EmbeddingService(
             withContext(Dispatchers.IO) {
                 val request =
                     EmbeddingRequest(
-                        listOf(text),
+                        listOf(truncateText(text)),
                         OpenAiEmbeddingOptions
                             .builder()
                             .model(MODEL_NAME)
@@ -48,8 +65,9 @@ class EmbeddingService(
     suspend fun embedBatch(texts: List<String>): List<FloatArray> {
         if (texts.isEmpty()) return emptyList()
 
+        val truncatedTexts = texts.map { truncateText(it) }
         val results = mutableListOf<FloatArray>()
-        for (chunk in texts.chunked(BATCH_SIZE)) {
+        for (chunk in truncatedTexts.chunked(BATCH_SIZE)) {
             val chunkResults =
                 withRetry {
                     withContext(Dispatchers.IO) {
