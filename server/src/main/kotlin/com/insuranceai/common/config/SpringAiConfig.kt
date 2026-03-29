@@ -7,6 +7,10 @@ import org.springframework.ai.chat.client.ChatClient
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.http.client.ReactorClientHttpRequestFactory
+import org.springframework.web.client.RestClient
+import reactor.netty.http.client.HttpClient
+import java.time.Duration
 
 /**
  * Spring AI 관련 빈 설정.
@@ -16,6 +20,21 @@ import org.springframework.context.annotation.Configuration
 class SpringAiConfig(
     private val promptLoader: PromptLoader,
 ) {
+    /**
+     * Anthropic API가 사용할 RestClient.Builder 빈.
+     * WebFlux 환경에서는 HttpClientAutoConfiguration이 비활성화되므로
+     * RestClient.Builder를 직접 생성하여 read timeout을 설정합니다.
+     */
+    @Bean
+    fun restClientBuilder(): RestClient.Builder {
+        val httpClient =
+            HttpClient
+                .create()
+                .responseTimeout(Duration.ofSeconds(120))
+        val requestFactory = ReactorClientHttpRequestFactory(httpClient)
+        return RestClient.builder().requestFactory(requestFactory)
+    }
+
     @Bean
     fun chatClient(builder: ChatClient.Builder): ChatClient =
         builder
