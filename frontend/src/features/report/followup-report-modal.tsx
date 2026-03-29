@@ -71,8 +71,13 @@ export function FollowupReportModal({ open, onOpenChange, chatSessionId }: Follo
       if (token) {
         const fullUrl = `${window.location.origin}${token}`;
         setShareUrl(fullUrl);
-        await navigator.clipboard.writeText(fullUrl);
-        toast.success('공유 링크가 복사되었습니다');
+        try {
+          await navigator.clipboard.writeText(fullUrl);
+          toast.success('공유 링크가 복사되었습니다');
+        } catch {
+          // 클립보드 복사 실패 (탭 포커스 해제 등) — 리포트 생성은 성공
+          toast.info('리포트가 생성되었습니다. 아래 링크를 복사해 주세요.');
+        }
       }
       setPhase('done');
     } catch {

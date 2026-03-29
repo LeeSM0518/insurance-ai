@@ -110,7 +110,7 @@ export default function SharedReportPage() {
     <div className="min-h-screen bg-gray-50 print:bg-white">
       {/* 헤더 */}
       <header className="bg-white border-b print:border-none">
-        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-2">
+        <div className="max-w-full mx-auto px-6 py-4 flex items-center gap-2">
           <FileText className="size-5 text-primary print:hidden" />
           <h1 className="font-semibold text-lg">
             {report.title || '보장 분석 리포트'}
@@ -119,7 +119,7 @@ export default function SharedReportPage() {
       </header>
 
       {/* 본문 */}
-      <main className="max-w-2xl mx-auto px-4 py-6">
+      <main className="max-w-full mx-auto px-6 py-6">
         <article className="bg-white rounded-lg border p-6 print:border-none print:p-0">
           <div className="prose prose-sm max-w-none
             prose-headings:text-foreground prose-p:text-foreground/90
@@ -137,7 +137,7 @@ export default function SharedReportPage() {
 
       {/* 푸터 */}
       <footer className="border-t bg-white print:hidden">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between text-xs text-muted-foreground">
+        <div className="max-w-full mx-auto px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
           <span>© Insurance AI</span>
           {daysLeft !== null && (
             <span>이 리포트는 {daysLeft}일 후 만료됩니다</span>
