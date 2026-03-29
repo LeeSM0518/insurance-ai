@@ -41,7 +41,7 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="flex-1 px-4 py-6 max-w-2xl mx-auto w-full space-y-6">
+    <div className="flex-1 px-4 py-6 max-w-7xl mx-auto w-full space-y-6">
       <h1 className="text-2xl desktop:text-3xl font-bold text-foreground">
         전 보험사 약관을 AI로 검색하세요
       </h1>

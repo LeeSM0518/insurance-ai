@@ -35,7 +35,7 @@ export default function ComparePage() {
   }, [comparison]);
 
   return (
-    <div className="flex-1 px-4 py-6 max-w-4xl mx-auto w-full">
+    <div className="flex-1 px-4 py-6 max-w-7xl mx-auto w-full">
       {pagePhase === 'form' && (
         <>
           <h1 className="text-2xl desktop:text-3xl font-bold text-foreground mb-6">

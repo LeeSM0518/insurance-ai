@@ -56,7 +56,7 @@ export default function CheatsheetPage() {
   }, [stream.phase, pagePhase]);
 
   return (
-    <div className="flex-1 px-4 py-6 max-w-3xl mx-auto w-full">
+    <div className="flex-1 px-4 py-6 max-w-7xl mx-auto w-full">
       <h1 className="text-2xl desktop:text-3xl font-bold text-foreground mb-6">
         상담 준비 치트시트
       </h1>
