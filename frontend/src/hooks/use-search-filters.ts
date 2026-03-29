@@ -46,7 +46,7 @@ export function useSearchFilters(): UseSearchFiltersResult {
     async function fetchAll() {
       const results = await Promise.allSettled([
         api.getInsuranceCompanies(),
-        api.getCategories(),
+        api.getCategories1(),
         api.getSuggestions(),
       ]);
 

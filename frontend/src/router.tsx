@@ -14,6 +14,7 @@ const ProfilePage = lazy(() => import('@/pages/profile'));
 const TermsPage = lazy(() => import('@/pages/terms'));
 const PrivacyPage = lazy(() => import('@/pages/privacy'));
 const CheatsheetPage = lazy(() => import('@/pages/cheatsheet'));
+const ComparePage = lazy(() => import('@/pages/compare'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const router = createBrowserRouter([
@@ -70,6 +71,10 @@ export const router = createBrowserRouter([
           {
             path: '/cheatsheet',
             Component: CheatsheetPage,
+          },
+          {
+            path: '/compare',
+            Component: ComparePage,
           },
         ],
       },

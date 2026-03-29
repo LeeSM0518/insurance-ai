@@ -18,29 +18,27 @@ export function Header() {
 
         {/* 데스크톱 네비게이션 + 프로필 */}
         {isDesktop && (
-          <div className="flex items-center gap-1">
-            <nav className="flex items-center gap-1 mr-2">
-              {TAB_ITEMS.filter((tab) => !tab.mobileOnly).map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <NavLink
-                    key={tab.id}
-                    to={tab.path}
-                    aria-current={activeTab === tab.id ? 'page' : undefined}
-                    aria-label={tab.label}
-                    className={`touch-target flex items-center justify-center rounded-full transition-colors ${
-                      activeTab === tab.id
-                        ? 'text-primary bg-primary/10'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" aria-hidden="true" />
-                  </NavLink>
-                );
-              })}
-            </nav>
+          <nav className="flex items-center gap-1">
+            {TAB_ITEMS.filter((tab) => !tab.mobileOnly).map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <NavLink
+                  key={tab.id}
+                  to={tab.path}
+                  aria-current={activeTab === tab.id ? 'page' : undefined}
+                  className={`touch-target w-16 flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 transition-colors ${
+                    activeTab === tab.id
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                  <span className="text-xs font-medium">{tab.label}</span>
+                </NavLink>
+              );
+            })}
             <ProfileDropdown />
-          </div>
+          </nav>
         )}
       </div>
     </header>

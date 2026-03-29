@@ -1,4 +1,4 @@
-import { Configuration, DefaultApi, AIApi } from '@insurance-ai/api-client';
+import { Configuration, DefaultApi, AIApi, ComparisonApi } from '@insurance-ai/api-client';
 import axios from 'axios';
 import type { AxiosInstance } from 'axios';
 
@@ -21,3 +21,6 @@ export const getApi = (): DefaultApi =>
 
 export const getAIApi = (): AIApi =>
   new AIApi(sharedConfiguration, undefined, axiosInstance);
+
+export const getComparisonApi = (): ComparisonApi =>
+  new ComparisonApi(sharedConfiguration, undefined, axiosInstance);

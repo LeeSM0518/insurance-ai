@@ -36,10 +36,11 @@ export function ProfileDropdown() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="touch-target flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground transition-colors outline-none"
+          className="touch-target w-16 flex flex-col items-center justify-center gap-0.5 rounded-lg py-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors outline-none"
           aria-label="프로필 메뉴"
         >
           <User className="h-5 w-5" aria-hidden="true" />
+          <span className="text-xs font-medium">프로필</span>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           <div className="px-2 py-1.5">
