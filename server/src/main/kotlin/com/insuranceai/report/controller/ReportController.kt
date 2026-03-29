@@ -4,9 +4,13 @@ import com.insuranceai.chat.dto.ChatStreamEvent
 import com.insuranceai.common.dto.ServiceResponse
 import com.insuranceai.common.security.UserPrincipal
 import com.insuranceai.report.dto.CheatsheetRequest
+import com.insuranceai.report.dto.FollowupReportRequest
 import com.insuranceai.report.dto.ReportResponse
 import com.insuranceai.report.dto.ReportSummaryResponse
+import com.insuranceai.report.dto.ShareLinkRequest
+import com.insuranceai.report.dto.ShareLinkResponse
 import com.insuranceai.report.service.CheatsheetService
+import com.insuranceai.report.service.ReportShareService
 import com.insuranceai.report.usecase.GenerateCheatsheetUseCase
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
@@ -34,6 +38,7 @@ import java.util.UUID
 class ReportController(
     private val generateCheatsheetUseCase: GenerateCheatsheetUseCase,
     private val cheatsheetService: CheatsheetService,
+    private val reportShareService: ReportShareService,
 ) {
     @PostMapping("/cheatsheet/generate", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
     @Operation(summary = "치트시트 생성 (SSE 스트리밍)")
@@ -72,5 +77,58 @@ class ReportController(
         @AuthenticationPrincipal principal: UserPrincipal,
     ) {
         cheatsheetService.deleteCheatsheet(reportId, principal.userId)
+    }
+
+    // === 팔로업 리포트 + 공유 엔드포인트 ===
+
+    @PostMapping("/followup")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "팔로업 리포트 생성")
+    suspend fun generateFollowupReport(
+        @RequestBody @Valid request: FollowupReportRequest,
+        @AuthenticationPrincipal principal: UserPrincipal,
+    ): ServiceResponse<ReportResponse> {
+        val report = reportShareService.generateFollowupReport(request, principal.userId)
+        return ServiceResponse.created(report)
+    }
+
+    @PostMapping("/{reportId}/share")
+    @Operation(summary = "리포트 공유 링크 생성")
+    suspend fun createShareLink(
+        @PathVariable reportId: UUID,
+        @RequestBody @Valid request: ShareLinkRequest,
+        @AuthenticationPrincipal principal: UserPrincipal,
+    ): ServiceResponse<ShareLinkResponse> {
+        val link = reportShareService.createShareLink(reportId, principal.userId, request.expiresInDays)
+        return ServiceResponse.ok(link)
+    }
+
+    @GetMapping
+    @Operation(summary = "내 리포트 전체 목록 조회")
+    suspend fun listReports(
+        @AuthenticationPrincipal principal: UserPrincipal,
+    ): ServiceResponse<List<ReportSummaryResponse>> {
+        val list = reportShareService.getMyReports(principal.userId)
+        return ServiceResponse.ok(list)
+    }
+
+    @GetMapping("/{reportId}")
+    @Operation(summary = "리포트 상세 조회")
+    suspend fun getReport(
+        @PathVariable reportId: UUID,
+        @AuthenticationPrincipal principal: UserPrincipal,
+    ): ServiceResponse<ReportResponse> {
+        val report = reportShareService.getReport(reportId, principal.userId)
+        return ServiceResponse.ok(report)
+    }
+
+    @DeleteMapping("/{reportId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "리포트 삭제")
+    suspend fun deleteReport(
+        @PathVariable reportId: UUID,
+        @AuthenticationPrincipal principal: UserPrincipal,
+    ) {
+        reportShareService.deleteReport(reportId, principal.userId)
     }
 }

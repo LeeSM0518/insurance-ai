@@ -13,6 +13,7 @@ app:
       - /swagger-ui/**
       - /v3/api-docs/**
       - /webjars/**
+      - /api/v1/shared/**
     cors-allowed-origins:
       - http://localhost:5173
 
