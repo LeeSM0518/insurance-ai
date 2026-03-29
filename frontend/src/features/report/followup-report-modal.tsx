@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getReportApi } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 import { toast } from 'sonner';
 
 interface FollowupReportModalProps {
@@ -61,6 +62,7 @@ export function FollowupReportModal({ open, onOpenChange, chatSessionId }: Follo
       }, { timeout: 120_000 });
       const reportId = reportRes.data.data?.id;
       if (!reportId) throw new Error('리포트 생성 실패');
+      trackEvent('share', 'create_link', 'FOLLOWUP');
 
       // 2. 공유 링크 생성
       const shareRes = await api.createShareLink({

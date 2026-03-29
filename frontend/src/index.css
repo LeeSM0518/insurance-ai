@@ -173,6 +173,11 @@
     @apply min-h-11 min-w-11;
   }
 
+  /* 프린트에서 숨길 요소 */
+  .print-hide {
+    @apply print:hidden;
+  }
+
   /* 스크롤바 숨김 (필터 칩 가로 스크롤용) */
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -180,5 +185,64 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* ============================================
+   프린트 전용 스타일
+   ============================================ */
+@media print {
+  /* 프린트에서 숨길 요소 */
+  header,
+  nav,
+  .bottom-tab-bar,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* 본문 최적화 */
+  body {
+    font-size: 12pt;
+    line-height: 1.6;
+    color: #000;
+    background: #fff;
+  }
+
+  /* 마크다운 테이블 스타일 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: avoid;
+  }
+
+  th, td {
+    border: 1px solid #333;
+    padding: 6px 8px;
+    text-align: left;
+    font-size: 10pt;
+  }
+
+  th {
+    background-color: #f0f0f0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 페이지 나눔 */
+  h2, h3 {
+    page-break-after: avoid;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+
+  /* 면책 문구 */
+  .disclaimer {
+    border-top: 1px solid #999;
+    padding-top: 8px;
+    margin-top: 16px;
+    font-size: 9pt;
+    color: #666;
   }
 }

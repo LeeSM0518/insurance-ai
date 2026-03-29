@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { getReportApi } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 import { toast } from 'sonner';
 
 interface ShareButtonProps {
@@ -39,6 +40,8 @@ export function ShareButton({ reportId, variant = 'outline', size = 'sm' }: Shar
         const fullUrl = `${window.location.origin}${shareUrl}`;
         await navigator.clipboard.writeText(fullUrl);
         setCopied(true);
+        trackEvent('share', 'create_link');
+        trackEvent('share', 'copy_link');
         toast.success('공유 링크가 복사되었습니다');
         setTimeout(() => setCopied(false), 2000);
       }

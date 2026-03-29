@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Copy, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { Copy, RefreshCw, AlertCircle, Loader2, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SourceCards } from '@/features/chat/source-cards';
+import { trackEvent } from '@/lib/analytics';
 import type { Source } from '@/types/chat';
 import type { CheatsheetPhase } from '@/hooks/use-cheatsheet-stream';
 
@@ -39,6 +40,7 @@ export function CheatsheetResult({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
+      trackEvent('cheatsheet', 'copy');
     } catch {
       // 클립보드 API 실패 시 무시
     }
@@ -92,10 +94,14 @@ export function CheatsheetResult({
 
       {/* 완료 액션 버튼 */}
       {phase === 'done' && content && (
-        <div className="flex gap-2 pt-2">
+        <div className="flex gap-2 pt-2 print-hide">
           <Button variant="outline" size="sm" onClick={handleCopy}>
             <Copy className="size-4 mr-1.5" />
             복사
+          </Button>
+          <Button variant="outline" size="sm" className="print-hide" onClick={() => { trackEvent('cheatsheet', 'print'); window.print(); }}>
+            <Printer className="size-4 mr-1.5" />
+            PDF/인쇄
           </Button>
           <Button variant="outline" size="sm" onClick={onReset}>
             <RefreshCw className="size-4 mr-1.5" />

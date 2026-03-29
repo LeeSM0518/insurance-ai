@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Trash2, FileText } from 'lucide-react';
+import { Loader2, Trash2, FileText, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ShareButton } from '@/features/report/share-button';
 import { axiosInstance } from '@/lib/api';
@@ -74,6 +74,17 @@ export function CheatsheetList({ onSelect, refreshKey }: CheatsheetListProps) {
 
   return (
     <div className="space-y-2">
+      {/* 전체 인쇄 버튼 */}
+      <div className="flex justify-end mb-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.open('/cheatsheet/print', '_blank')}
+        >
+          <Printer className="size-4 mr-1.5" />
+          전체 인쇄
+        </Button>
+      </div>
       {items.map((item) => (
         <button
           key={item.id}

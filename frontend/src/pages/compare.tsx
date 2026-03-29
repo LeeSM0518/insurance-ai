@@ -1,17 +1,36 @@
-import { useCallback, useMemo, useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { ArrowLeft, FileText, Printer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ComparisonForm } from '@/features/compare/comparison-form';
 import { ComparisonTable } from '@/features/compare/comparison-table';
 import { ComparisonSummary } from '@/features/compare/comparison-summary';
 import { useComparison } from '@/hooks/use-comparison';
+import { trackEvent } from '@/lib/analytics';
 import type { ComparisonRequest } from '@insurance-ai/api-client';
 
 type PagePhase = 'form' | 'result';
 
 export default function ComparePage() {
   const [pagePhase, setPagePhase] = useState<PagePhase>('form');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const comparison = useComparison();
+  const autoComparedRef = useRef(false);
+
+  // URL 파라미터 기반 자동 비교 실행
+  useEffect(() => {
+    if (autoComparedRef.current) return;
+    const preCompanyIds = searchParams.get('companyIds')?.split(',').filter(Boolean);
+    const preCategory = searchParams.get('category');
+    if (preCompanyIds && preCompanyIds.length >= 2 && preCategory) {
+      autoComparedRef.current = true;
+      setPagePhase('result'); // eslint-disable-line react-hooks/set-state-in-effect
+      comparison.compare({ companyIds: preCompanyIds, category: preCategory });
+      // URL 파라미터 정리
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, comparison, setSearchParams]);
 
   // 카테고리 code → 한글 이름 매핑
   const categoryName = useMemo(() => {
@@ -23,6 +42,7 @@ export default function ComparePage() {
 
   const handleSubmit = useCallback(
     async (request: ComparisonRequest) => {
+      trackEvent('compare', 'analyze', `${request.companyIds.length}_companies`);
       setPagePhase('result');
       await comparison.compare(request);
     },
@@ -63,7 +83,11 @@ export default function ComparePage() {
               {categoryName} 비교 분석
             </h1>
             <div className="flex-1" />
-            <Button variant="outline" size="sm" onClick={handleReset}>
+            <Button variant="outline" size="sm" className="print-hide" onClick={() => window.print()}>
+              <Printer className="size-4 mr-1" />
+              PDF/인쇄
+            </Button>
+            <Button variant="outline" size="sm" className="print-hide" onClick={handleReset}>
               다시 비교
             </Button>
           </div>
@@ -96,9 +120,28 @@ export default function ComparePage() {
                 phase={comparison.summaryPhase}
                 content={comparison.summaryContent}
                 errorMessage={comparison.summaryError}
-                onGenerate={() => comparison.generateSummary()}
+                onGenerate={() => { trackEvent('compare', 'summary_generate'); comparison.generateSummary(); }}
                 isStreaming={comparison.isSummaryStreaming}
               />
+
+              {/* 크로스 연결: 비교 → 치트시트 */}
+              <div className="flex gap-2 mt-4 print-hide">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const companyNames = comparison.data!.companies
+                      ?.map((c) => c.companyName)
+                      .filter(Boolean)
+                      .join(',');
+                    trackEvent('navigation', 'compare_to_cheatsheet');
+                    navigate(`/cheatsheet?category=${comparison.data!.category}&companyNames=${companyNames}`);
+                  }}
+                >
+                  <FileText className="size-4 mr-1.5" />
+                  이 비교로 치트시트 생성
+                </Button>
+              </div>
             </>
           )}
         </>

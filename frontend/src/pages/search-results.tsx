@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router';
-import { Loader2, SearchX } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Loader2, SearchX, BarChart3 } from 'lucide-react';
 import { SearchBar } from '@/features/search/search-bar';
 import { FilterChips } from '@/features/search/filter-chips';
 import { SearchResultCount } from '@/features/search/search-result-count';
@@ -15,10 +15,31 @@ import type { SearchFilters } from '@/types/search';
 
 export default function SearchResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { query, filters: initialFilters } = useMemo(() => parseSearchParams(searchParams), [searchParams]);
   const [filters, setFilters] = useState<SearchFilters>(initialFilters);
   const { results, totalCount, hasNext, isLoading, error, search, loadMore } = useSearch();
   const { companies, categories } = useSearchFilters();
+  const [compareMode, setCompareMode] = useState(false);
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set());
+
+  const toggleCompareSelection = (companyId: string) => {
+    setSelectedCompanyIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(companyId)) {
+        next.delete(companyId);
+      } else if (next.size < 5) {
+        next.add(companyId);
+      }
+      return next;
+    });
+  };
+
+  const handleGoToCompare = () => {
+    const ids = Array.from(selectedCompanyIds).join(',');
+    trackEvent('navigation', 'search_to_compare');
+    navigate(`/compare?companyIds=${ids}`);
+  };
 
   // query 또는 filters 변경 시 검색 실행
   useEffect(() => {
@@ -54,8 +75,23 @@ export default function SearchResultsPage() {
           compact
         />
 
-        {/* 결과 카운트 */}
-        <SearchResultCount count={totalCount} />
+        {/* 결과 카운트 + 비교 모드 토글 */}
+        <div className="flex items-center justify-between">
+          <SearchResultCount count={totalCount} />
+          {results.length > 0 && (
+            <Button
+              variant={compareMode ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setCompareMode((prev) => !prev);
+                setSelectedCompanyIds(new Set());
+              }}
+            >
+              <BarChart3 className="size-4 mr-1" />
+              비교 모드
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 결과 리스트 */}
@@ -74,7 +110,26 @@ export default function SearchResultsPage() {
           <>
             <div className="grid grid-cols-1 desktop:grid-cols-2 gap-3">
               {results.map((item) => (
-                <PolicyCard key={item.id} item={item} />
+                <div key={item.id} className="relative">
+                  {compareMode && (
+                    <button
+                      className={`absolute top-3 right-3 z-10 size-6 rounded border-2 flex items-center justify-center transition-colors ${
+                        selectedCompanyIds.has(item.insuranceCompany.id)
+                          ? 'bg-primary border-primary text-primary-foreground'
+                          : 'bg-background border-border hover:border-primary/50'
+                      } ${!selectedCompanyIds.has(item.insuranceCompany.id) && selectedCompanyIds.size >= 5 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCompareSelection(item.insuranceCompany.id);
+                      }}
+                    >
+                      {selectedCompanyIds.has(item.insuranceCompany.id) && (
+                        <span className="text-xs font-bold">✓</span>
+                      )}
+                    </button>
+                  )}
+                  <PolicyCard item={item} />
+                </div>
               ))}
             </div>
             {/* 더 보기 버튼 */}
@@ -95,6 +150,15 @@ export default function SearchResultsPage() {
         ) : null}
       </div>
 
+      {/* 비교 모드 FAB */}
+      {compareMode && selectedCompanyIds.size >= 2 && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50">
+          <Button onClick={handleGoToCompare} className="shadow-lg rounded-full px-6">
+            <BarChart3 className="size-4 mr-2" />
+            {selectedCompanyIds.size}개 보험사 비교 분석
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

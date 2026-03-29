@@ -3,6 +3,7 @@ import { CheatsheetForm } from '@/features/cheatsheet/cheatsheet-form';
 import { CheatsheetResult } from '@/features/cheatsheet/cheatsheet-result';
 import { CheatsheetList } from '@/features/cheatsheet/cheatsheet-list';
 import { useCheatsheetStream } from '@/hooks/use-cheatsheet-stream';
+import { trackEvent } from '@/lib/analytics';
 import type { CheatsheetRequest } from '@/types/report';
 import type { ReportResponse } from '@/types/report';
 
@@ -17,6 +18,7 @@ export default function CheatsheetPage() {
 
   const handleGenerate = useCallback(
     (request: CheatsheetRequest) => {
+      trackEvent('cheatsheet', 'generate', request.category);
       setLastRequest(request);
       setPagePhase('streaming');
       stream.generate(request);
@@ -46,11 +48,11 @@ export default function CheatsheetPage() {
     [stream],
   );
 
-  // 스트리밍 완료 시 목록 갱신
+  // 스트리밍 완료 시 목록 갱신 (phase 전환 감지 → 의도적 setState)
   const prevPhaseRef = useRef(stream.phase);
   useEffect(() => {
     if (prevPhaseRef.current !== 'done' && stream.phase === 'done' && pagePhase === 'streaming') {
-      setRefreshKey((k) => k + 1);
+      setRefreshKey((k) => k + 1); // eslint-disable-line react-hooks/set-state-in-effect
     }
     prevPhaseRef.current = stream.phase;
   }, [stream.phase, pagePhase]);

@@ -1,4 +1,5 @@
-import { Swords, FileCheck, MessageSquareText, AlertTriangle, RefreshCw, ShieldCheck, BookOpen } from 'lucide-react';
+import { useNavigate } from 'react-router';
+import { Swords, FileCheck, MessageSquareText, AlertTriangle, RefreshCw, FileText, BookOpen, BarChart3 } from 'lucide-react';
 
 interface ChatWelcomeProps {
   onSelectQuestion: (question: string) => void;
@@ -31,13 +32,20 @@ const WELCOME_QUESTIONS = [
     question: '갱신형과 비갱신형 암보험의 약관상 차이점을 비교해줘',
   },
   {
-    icon: ShieldCheck,
-    label: '납입면제',
-    question: '납입면제 특약이 적용되는 조건과 범위를 알려줘',
+    icon: FileText,
+    label: '치트시트',
+    question: '암보험 상담 준비 치트시트를 만들어주세요',
   },
 ];
 
+const QUICK_LINKS = [
+  { icon: BarChart3, label: '보험 비교 분석', path: '/compare' },
+  { icon: FileText, label: '치트시트 생성', path: '/cheatsheet' },
+];
+
 export function ChatWelcome({ onSelectQuestion }: ChatWelcomeProps) {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-col items-center justify-center h-full py-12 px-4">
       <div className="flex flex-col items-center gap-2 mb-8">
@@ -66,6 +74,20 @@ export function ChatWelcome({ onSelectQuestion }: ChatWelcomeProps) {
                 {question}
               </div>
             </div>
+          </button>
+        ))}
+      </div>
+
+      {/* 기능 바로가기 */}
+      <div className="flex gap-2 mt-6">
+        {QUICK_LINKS.map(({ icon: Icon, label, path }) => (
+          <button
+            key={path}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+            onClick={() => navigate(path)}
+          >
+            <Icon className="size-4" />
+            {label}
           </button>
         ))}
       </div>

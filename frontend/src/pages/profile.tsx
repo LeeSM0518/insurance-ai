@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FileText, Lock, LogOut } from 'lucide-react';
+import { FileText, FolderOpen, Lock, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
 import { trackEvent } from '@/lib/analytics';
 import {
@@ -45,6 +45,13 @@ export default function ProfilePage() {
 
       {/* 메뉴 목록 */}
       <div className="space-y-1">
+        <a
+          href="/reports"
+          className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm hover:bg-accent transition-colors"
+        >
+          <FolderOpen className="size-5 text-muted-foreground" aria-hidden="true" />
+          내 리포트
+        </a>
         <a
           href="/terms"
           className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm hover:bg-accent transition-colors"

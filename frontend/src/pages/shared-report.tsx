@@ -2,8 +2,10 @@ import { useReducer, useEffect } from 'react';
 import { useParams } from 'react-router';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText, Loader2, Printer } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { axiosInstance } from '@/lib/api';
+import { trackEvent } from '@/lib/analytics';
 
 const remarkPlugins = [[remarkGfm, { singleTilde: false }]] as Parameters<typeof Markdown>[0]['remarkPlugins'];
 
@@ -58,6 +60,7 @@ export default function SharedReportPage() {
           headers: { Accept: 'application/json' },
         });
         const data = res.data.data as SharedReport;
+        trackEvent('share', 'view_report', data.reportType);
         dispatch({ type: 'success', report: data, daysLeft: calcDaysLeft(data.expiresAt) });
       } catch (err: unknown) {
         const status = (err as { response?: { status?: number } })?.response?.status;
@@ -111,10 +114,15 @@ export default function SharedReportPage() {
       {/* 헤더 */}
       <header className="bg-white border-b print:border-none">
         <div className="max-w-full mx-auto px-6 py-4 flex items-center gap-2">
-          <FileText className="size-5 text-primary print:hidden" />
+          <FileText className="size-5 text-primary print-hide" />
           <h1 className="font-semibold text-lg">
             {report.title || '보장 분석 리포트'}
           </h1>
+          <div className="flex-1" />
+          <Button variant="outline" size="sm" className="print-hide" onClick={() => window.print()}>
+            <Printer className="size-4 mr-1" />
+            PDF/인쇄
+          </Button>
         </div>
       </header>
 
@@ -136,7 +144,7 @@ export default function SharedReportPage() {
       </main>
 
       {/* 푸터 */}
-      <footer className="border-t bg-white print:hidden">
+      <footer className="border-t bg-white print-hide">
         <div className="max-w-full mx-auto px-6 py-3 flex items-center justify-between text-xs text-muted-foreground">
           <span>© Insurance AI</span>
           {daysLeft !== null && (

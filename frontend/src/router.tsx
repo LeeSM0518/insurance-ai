@@ -14,8 +14,10 @@ const ProfilePage = lazy(() => import('@/pages/profile'));
 const TermsPage = lazy(() => import('@/pages/terms'));
 const PrivacyPage = lazy(() => import('@/pages/privacy'));
 const CheatsheetPage = lazy(() => import('@/pages/cheatsheet'));
+const CheatsheetPrintPage = lazy(() => import('@/pages/cheatsheet-print'));
 const ComparePage = lazy(() => import('@/pages/compare'));
 const SharedReportPage = lazy(() => import('@/pages/shared-report'));
+const MyReportsPage = lazy(() => import('@/pages/my-reports'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const router = createBrowserRouter([
@@ -78,8 +80,16 @@ export const router = createBrowserRouter([
             Component: CheatsheetPage,
           },
           {
+            path: '/cheatsheet/print',
+            Component: CheatsheetPrintPage,
+          },
+          {
             path: '/compare',
             Component: ComparePage,
+          },
+          {
+            path: '/reports',
+            Component: MyReportsPage,
           },
         ],
       },

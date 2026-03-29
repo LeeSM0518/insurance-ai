@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSearchFilters } from '@/hooks/use-search-filters';
@@ -19,9 +20,22 @@ interface CheatsheetFormProps {
 }
 
 export function CheatsheetForm({ onSubmit, isLoading }: CheatsheetFormProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { companies, loading: filtersLoading } = useSearchFilters();
   const [category, setCategory] = useState('');
   const [selectedCompanies, setSelectedCompanies] = useState<string[]>([]);
+
+  // URL 파라미터 기반 preselect
+  useEffect(() => {
+    const preCategory = searchParams.get('category');
+    const preCompanies = searchParams.get('companyNames')?.split(',').filter(Boolean);
+    if (preCategory) setCategory(preCategory);
+    if (preCompanies && preCompanies.length > 0) setSelectedCompanies(preCompanies);
+    if (preCategory || preCompanies) {
+      setSearchParams({}, { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [recommendedProduct, setRecommendedProduct] = useState('');
   const [customerAge, setCustomerAge] = useState('');
   const [customerGender, setCustomerGender] = useState<'MALE' | 'FEMALE' | ''>('');
