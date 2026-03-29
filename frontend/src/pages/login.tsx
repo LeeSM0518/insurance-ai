@@ -58,7 +58,7 @@ export default function LoginPage() {
         <div className="mt-4 flex flex-col items-center gap-2">
           <h1 className="text-3xl font-bold text-primary">Insurance AI</h1>
           <p className="text-base text-muted-foreground">
-            전 보험사 약관 AI 서비스
+            보험 설계사를 위한 AI 영업 비서
           </p>
         </div>
 
