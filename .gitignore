@@ -210,3 +210,6 @@ ai-data/
 # PostgreSQL data (bind mount)
 .pgdata/
 .pgdata-backup.sql
+# 로컬에만 두는 문서와 작업 설정 (공개 저장소에 올리지 않는다)
+docs/
+.claude/
