@@ -386,7 +386,7 @@ export default function PrivacyPage() {
           </p>
           <ul className="list-none space-y-1 bg-muted/50 rounded-lg p-3">
             <li>
-              <span className="font-semibold">이메일</span>: <EMAIL>
+              <span className="font-semibold">연락처</span>: 서비스 운영 종료로 문의를 받지 않습니다
             </li>
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">

@@ -5,6 +5,7 @@ Haiku, Sonnet, Opus 3개 모델 비교 테스트
 
 import base64
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -14,9 +15,9 @@ import anthropic
 PROMPT_FILE = Path(__file__).parent / "prompts" / "structure_prompt.txt"
 OUTPUT_DIR = Path(__file__).parent / "output"
 
-# API 키 로드
+# API 키 로드: ANTHROPIC_API_KEY 환경변수 우선, 없으면 로컬 키 파일
 API_KEY_FILE = Path(__file__).parent.parent / ".claude" / "secrets" / "anthropic-api-key"
-API_KEY = API_KEY_FILE.read_text().strip()
+API_KEY = os.environ.get("ANTHROPIC_API_KEY") or API_KEY_FILE.read_text().strip()
 
 # 최신 모델 ID
 MODELS = {

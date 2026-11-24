@@ -4,6 +4,7 @@ Claude API를 사용한 PDF 구조화 추출 테스트
 """
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -14,9 +15,9 @@ import fitz  # PyMuPDF
 PROMPT_FILE = Path(__file__).parent / "prompts" / "structure_prompt.txt"
 OUTPUT_DIR = Path(__file__).parent / "output"
 
-# API 키 로드
+# API 키 로드: ANTHROPIC_API_KEY 환경변수 우선, 없으면 로컬 키 파일
 API_KEY_FILE = Path(__file__).parent.parent / ".claude" / "secrets" / "anthropic-api-key"
-API_KEY = API_KEY_FILE.read_text().strip()
+API_KEY = os.environ.get("ANTHROPIC_API_KEY") or API_KEY_FILE.read_text().strip()
 
 
 def extract_text_from_pdf(pdf_path: str) -> str:

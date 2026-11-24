@@ -21,7 +21,7 @@
 | `server/` | Kotlin, Spring Boot(WebFlux, R2DBC), Spring AI, jOOQ, Flyway. 검색, 채팅, 약관 적재, 평가 |
 | `frontend/` | React, TypeScript, Vite, Tailwind CSS |
 | `api-client/` | 서버 OpenAPI 로 만든 TypeScript 클라이언트 |
-| `pipeline/` | 약관 PDF 구조화 추출 실험 스크립트(Python) |
+| `pipeline/` | 약관 PDF 구조화 추출 실험 스크립트(Python). `ANTHROPIC_API_KEY` 환경변수 필요 |
 | `db/` | PostgreSQL 과 pgvector 초기화 |
 
 ## 검색 구조
@@ -42,3 +42,7 @@ cd frontend && npm install && npm run dev
 ## 공개 범위
 
 기획 문서, 작업 기록, 운영 서버 정보, 수집한 약관 데이터는 이 저장소에 포함하지 않았습니다.
+
+## 라이선스
+
+All rights reserved. 포트폴리오로 공개한 저장소이며, 코드의 사용·복제·배포를 허락하지 않습니다.
